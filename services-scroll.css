@@ -25,6 +25,7 @@
 .services-is-shared .services__heading {
   font-size: min(var(--services-heading-size), 10svh);
   margin-top: min(var(--services-fit-counter-gap), 7svh) !important;
+  transform: scale(calc(.75 + .25 * var(--services-heading-opacity, 0)));
 }
 .services-is-shared .services__word[data-active="true"]::before,
 .services-is-shared .services__word[data-active="true"]::after { opacity: var(--services-reveal-progress, 0); }
