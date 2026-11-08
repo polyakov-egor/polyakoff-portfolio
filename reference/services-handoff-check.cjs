@@ -84,11 +84,13 @@ function send(f,type,properties={}){
     const fade=height*.55;
     const centeredY=height/2-headingCenter,readingTravel=sectionHeight+centeredY-height;
     const openingTravel=Number(services.dataset.servicesOpeningTravel);
+    const revealFrom=start+Number(services.dataset.servicesRevealStart),open=clear+openingTravel;
     const opacity=()=>styleNumber(services,'--services-heading-opacity');
     const reveal=()=>styleNumber(services,'--services-reveal-progress');
     const deckY=()=>y(services)+deckTop+styleNumber(services,'--services-deck-entry-y');
     near(Number(services.dataset.servicesIntroTravel),intro,'The title has a responsive lead under the final Works cards');
-    roundedNear(clear,worksStart+worksTravel,'Services begins moving as the last card clears');
+    roundedNear(clear,worksStart+worksTravel,'Works keeps its original clear boundary');
+    assert(revealFrom<clear&&revealFrom>start+fade,'The full plain heading precedes the overlapping deck reveal');
     near(Number(services.dataset.servicesTravel),readingTravel,'Only the native reading distance extends the story');
     roundedNear(parseFloat(page.nodes['.hero-journey'].style.height),clear+height+readingTravel,'Overlap does not add a blank scroll interval');
     assert.equal(services.parentElement,page.hero,'Enhanced Services shares the stable mobile/desktop viewport');
@@ -100,78 +102,60 @@ function send(f,type,properties={}){
       page.scroll(start+fade*fraction);page.frames();
       near(y(services)+headingCenter,height/2,'The fading heading stays at the viewport center');
       assert(opacity()>previousOpacity,'The centered title becomes progressively visible');
-      near(reveal(),0,'Pagination and glow remain hidden throughout the Works overlap');
+      near(reveal(),0,'Pagination and glow remain hidden before the deck reveal');
       previousOpacity=opacity();
       assert(services.classList.contains('services-is-intro'));
       assert(!services.inert);
-      assert(deck.inert&&deckY()>height,'The deck is kept below the fold and cannot intercept input during the reveal');
+      assert(deck.inert&&deckY()>=height-.003,'The deck starts at the viewport edge and cannot intercept input');
       assert.equal(f.visible.at(-1),false,'The deck renderer sleeps behind the final Works frame');
       assert.equal(f.viewport.inert,false,'Works remains the interactive top layer through its final card');
       assert.equal(page.raf.size,0,'A settled Services pose creates no extra RAF');
     }
-    page.scroll(start+fade+height*.06);page.frames();
-    near(opacity(),1,'The heading is fully legible while Works is still finishing');
-    near(y(services)+headingCenter,height/2,'The full-opacity heading holds at center until Works clears');
+    page.scroll(revealFrom-1);page.frames();
+    near(opacity(),1,'The heading is fully legible as the last card reaches the cue');
+    near(y(services)+headingCenter,height/2,'The plain heading stays centered until the last card reaches the cue');
+    near(reveal(),0,'Pagination and glow are still hidden at the cue');
     assert(services.classList.contains('services-is-intro')&&deck.inert&&!f.viewport.inert);
     const progress=Number(f.journey.dataset.helixProgress);
-    const cards=page.window.WorksGallery.getProjectedCardBounds(progress);
-    assert(cards.some(card=>card.maxX>0&&card.minX<width&&card.maxY>0&&card.minY<height),
-      'An actual Works card is still on screen when the title reaches full opacity');
-    jump(f,clear-35);
-    assert(!f.wheel(180,500).prevented,'The gesture that clears Works remains native up to the heading stop');
-    page.frame();
-    for(let i=0;i<15&&services.dataset.servicesStage!=='center';i++){f.wheel(8,16);page.frame(0);}
-    assert.equal(services.dataset.servicesStage,'center','The last work leaves a settled center title');
-    assert(f.wheel(5,16).prevented,'The old gesture cannot launch the deck');
+    const lastCard=page.window.WorksGallery.getProjectedMotionBounds(progress).at(-1);
+    assert(lastCard.minX<width&&lastCard.maxX>0&&Math.abs(lastCard.maxY-height*.15)<3,
+      'The reveal is tied to the last projected card reaching the upper band');
+    const overlap=(clear+revealFrom)/2;
+    page.scroll(overlap);page.frames();
+    assert(deckY()<height&&y(services)<centeredY&&deck.inert,'The deck already rises while the final Works card departs');
+    assert(services.classList.contains('services-is-intro')&&!f.viewport.inert,'Works still paints and receives input above the rising deck');
+    assert(!f.wheel(clear-overlap+18,500).prevented,'The same wheel gesture may carry through the overlap');
     page.frames();
-    roundedNear(y(services),centeredY,'The heading stays centered after the final card');
-    near(opacity(),1,'The title stays fully visible');
-    near(reveal(),0,'The settled title has no glow or pagination');
-    assert(!services.classList.contains('services-is-intro'));
-    assert(deck.inert&&deckY()>height,'The deck does not pop into the viewport at the boundary');
-    assert(f.viewport.inert&&page.hero.classList.contains('is-services-covered'),'Works cannot intercept input after the final card');
+    roundedNear(page.window.scrollY-120,clear+18,'No checkpoint alters the native position');
+    assert(!services.classList.contains('services-is-intro')&&f.viewport.inert,'Works stops receiving input only after it clears');
 
-    assert(f.wheel(120,500).prevented,'One fresh gesture starts timed entry');
-    page.frame(0);advance(page,250);
-    assert.equal(services.dataset.servicesStage,'opening');
-    roundedNear(y(services),centeredY-openingTravel*.875,'Cubic ease-out covers 87.5% of the entry in 250 ms');
-    assert(reveal()>0&&reveal()<1&&deck.inert,'Pagination and glow follow the timed entry while card input waits');
-    roundedNear(page.window.scrollY-120,clear,'Native distance cannot scrub the timed entry');
-    page.scroll(clear+openingTravel*2);page.frame(0);
-    roundedNear(page.window.scrollY-120,clear,'A delayed native momentum tick is rebased');
-    advance(page,225);
-    assert.equal(services.dataset.servicesStage,'opening');
-    assert(f.wheel(44,16).prevented,'An additional gesture during the animation is consumed');
-    advance(page,9);
-    assert.equal(services.dataset.servicesStage,'open','The deck settles after 500 ms');
-    assert(f.wheel(12,16).prevented,'The opening gesture tail cannot continue past the composed frame');
-    page.frames();
-    assert.equal(services.dataset.servicesStage,'open');
+    const middle=(revealFrom+open)/2;
+    page.scroll(middle);page.frames();
+    const pose=[y(services),reveal(),deckY()];
+    roundedNear(y(services),centeredY-openingTravel*.5,'Half the scrub distance moves the heading half way');
+    assert(reveal()>0&&reveal()<1&&deck.inert,'Pagination and glow follow scroll progress while card input waits');
+    advance(page,600);
+    assert.deepEqual([y(services),reveal(),deckY()],pose,'Stopping scroll pauses the deck at its intermediate pose');
+
+    page.scroll(open);page.frames();
     near(reveal(),1,'Pagination and glow are visible at the complete frame');
-    assert(!deck.inert&&deckY()+deckHeight<=height-50,'The entire active card fits above the footer at the first stop');
-    roundedNear(y(services),centeredY-openingTravel,'The deck and header settle to the actual native pose');
-    roundedNear(page.window.scrollY-120,clear+openingTravel,'The first step has exactly one native landing');
+    assert(!deck.inert&&deckY()+deckHeight<=height-50,'The entire active card fits above the footer at the composed frame');
+    roundedNear(y(services),centeredY-openingTravel,'The composed frame aligns with native continuation');
     assert.equal(f.visible.at(-1),true,'The visible deck wakes its carousel');
 
     const cardTarget={closest:selector=>selector.includes('button')?deck:null};
-    assert(f.wheel(-120,500,{target:cardTarget}).prevented,'Reverse can begin over the card button');
-    page.frame(0);advance(page,250);
-    assert.equal(services.dataset.servicesStage,'closing');
-    roundedNear(y(services),centeredY-openingTravel*.125,'Cubic ease-out covers 87.5% of the return in 250 ms');
-    advance(page,249);
-    assert.equal(services.dataset.servicesStage,'closing','The return remains active until 500 ms');
-    advance(page,2);
-    assert.equal(services.dataset.servicesStage,'center','The return settles at 500 ms');
+    assert(!f.wheel(middle-open,500,{target:cardTarget}).prevented,'Reverse scroll remains native over the card button');
     page.frames();
-    assert.equal(services.dataset.servicesStage,'center');
-    near(reveal(),0,'Reverse fully restores the plain heading');
-    assert(!f.wheel(-80,500).prevented,'The next reverse gesture returns to Works');
+    assert.deepEqual([y(services),reveal(),deckY()],pose,'Reverse restores the exact same intermediate pose');
+    assert(!f.wheel(revealFrom-1-middle,500).prevented,'The next reverse gesture returns to Works');
     page.frames();
+    near(reveal(),0,'Reverse fully restores the plain centered heading');
     assert(!f.viewport.inert&&services.classList.contains('services-is-intro'));
 
-    jump(f,clear+openingTravel);
-    assert.equal(services.dataset.servicesStage,'open','History can restore the composed frame');
-    assert(!f.wheel(55,500).prevented,'A fresh scroll after the composed frame continues natively');
+    jump(f,middle);
+    assert.deepEqual([y(services),reveal(),deckY()],pose,'History restores the actual intermediate position');
+    jump(f,open);
+    assert(!f.wheel(55,500).prevented,'Scroll after the composed frame continues natively');
     page.frames();
     roundedNear(y(services),centeredY-openingTravel-55,'Native continuation starts at the same pose');
     const reads=f.reads;
@@ -210,26 +194,17 @@ function send(f,type,properties={}){
     assert.equal(f.viewport.inert,false,'The shared Works viewport becomes interactive on reverse/partial re-entry');
 
     if(width<600){
-      const currentClear=Number(page.hero.dataset.servicesStart)+intro;
-      jump(f,currentClear+openingTravel*.1);
-      assert.equal(services.dataset.servicesStage,'center','History inside the animation restores a complete stop');
+      jump(f,Number(page.hero.dataset.servicesStart)+intro);
       send(f,'touchstart',{touches:[{clientX:100,clientY:200}]});
-      assert(send(f,'touchmove',{touches:[{clientX:100,clientY:175}]}).defaultPrevented,'A vertical touch starts timed entry');
-      page.frame(0);advance(page,750);page.frames();
-      assert.equal(services.dataset.servicesStage,'open');
-      assert(send(f,'touchmove',{touches:[{clientX:100,clientY:160}]}).defaultPrevented,'The original finger cannot scroll past its landing');
-      send(f,'touchend',{touches:[]});
-      send(f,'touchstart',{touches:[{clientX:100,clientY:200}]});
-      assert(!send(f,'touchmove',{touches:[{clientX:100,clientY:196}]}).defaultPrevented,'The first move of a fresh native exit swipe is never cancelled');
+      assert(!send(f,'touchmove',{touches:[{clientX:100,clientY:175}]}).defaultPrevented,'A vertical swipe is native during reveal');
       send(f,'touchend',{touches:[]});
     }else if(width===1920){
       const currentClear=Number(page.hero.dataset.servicesStart)+intro;
       jump(f,currentClear);
-      assert(send(f,'keydown',{key:'PageDown'}).defaultPrevented,'PageDown triggers a complete deck entry');
-      page.frame(0);advance(page,100);
-      assert(!send(f,'keydown',{key:'End'}).defaultPrevented,'End can bypass a running Services hold');
+      assert(!send(f,'keydown',{key:'PageDown'}).defaultPrevented,'PageDown stays native during reveal');
+      assert(!send(f,'keydown',{key:'End'}).defaultPrevented,'End stays native during reveal');
       page.scroll(currentClear+nextReading);page.frames();
-      assert.equal(services.dataset.servicesStage,'native','An old animation cannot recapture End');
+      roundedNear(page.window.scrollY-120,currentClear+nextReading,'No Services animation captures the End position');
     }
   }
   for(const [width,height,sectionHeight,footerHeight]of[[375,812,1230,812],[768,1024,1300,1100],[1920,960,1390,960]]){
@@ -240,7 +215,6 @@ function send(f,type,properties={}){
     const cardShift=()=>styleNumber(footer,'--site-footer-card-shift');
     const cardOffset=()=>styleNumber(footer,'--site-footer-card-offset');
     const cardOpacity=()=>styleNumber(footer,'--site-footer-card-opacity');
-    const cardFilter=()=>footer.style.getPropertyValue('--site-footer-card-filter');
     const cardY=()=>footerY(footer)+footerHeight*.7+cardShift();
     const cardRestY=height-footerHeight*.3;
     const wordmarkOpacity=()=>styleNumber(footer,'--site-footer-wordmark-opacity');
@@ -261,7 +235,6 @@ function send(f,type,properties={}){
     roundedNear(cardY(),cardRestY,'The hidden card is already at its settled height');
     near(cardOffset(),1,'The card starts at the full tilt and scale offset');
     near(cardOpacity(),0,'The card starts transparent');
-    assert.equal(cardFilter(),'none','A hidden card has no blur layer');
     near(reveal(),0,'The fixed footer art is hidden during Services');
     assert(footer.inert);assert.equal(footer.getAttribute('aria-hidden'),'true');
     const reads=f.reads;
@@ -280,18 +253,17 @@ function send(f,type,properties={}){
     near(cardOpacity(),0,'The entry threshold starts the card at the first pose');
     assert(page.raf.size>0,'The card keeps the shared clock awake while scroll stands still');
     advance(page,66);
-    const entryPose=[cardOffset(),cardOpacity(),cardFilter()];
+    const entryPose=[cardOffset(),cardOpacity()];
     roundedNear(cardY(),cardRestY,'The card reveals from inside the viewport at its final height');
     assert(cardOpacity()>0&&cardOffset()>.5,'The card is visible while it still has more than half of the starting tilt');
     roundedNear(cardOffset(),.88**5,'Card tilt and scale follow the form entrance easing');
-    roundedNear(cardOpacity(),1-(1-.12/.45)**5,'Card opacity finishes faster than the tilt');
-    assert.equal(cardFilter(),'blur(10.84px)','The incoming card clears its foreground blur as it appears');
+    roundedNear(cardOpacity(),.12**2*(3-2*.12),'The card fades across the full entrance');
+    assert.equal(footer.style.getPropertyValue('--site-footer-card-filter'),'','The reveal never applies a foreground filter to the card');
     advance(page,483);
     assert(page.raf.size>0,'The opening timeline runs for 550 ms');
     advance(page,2);
     near(cardOffset(),0,'The card opens fully without further scrolling');
     near(cardOpacity(),1,'The card is fully opaque at the opening endpoint');
-    assert.equal(cardFilter(),'none','The card is sharp at the opening endpoint');
     near(page.window.scrollY-120,cardStart+1,'The card does not move or pin the scroll position');
     assert.equal(smoothCancels,cancelsBeforeEntry,'The footer motion never cancels smooth scrolling');
     assert.equal(page.raf.size,0,'The shared clock sleeps once the footer stops animating');
@@ -320,11 +292,10 @@ function send(f,type,properties={}){
     page.scroll(cardExit-1);page.frame(0);
     assert(wordmarkOpacity()>.75,'The card begins closing while most of the wordmark is visible');
     advance(page,484);
-    assert.deepEqual([cardOffset(),cardOpacity(),cardFilter()],entryPose,'The exit plays the tilt, fade, and blur backward');
+    assert.deepEqual([cardOffset(),cardOpacity()],entryPose,'The exit plays the tilt and fade backward');
     roundedNear(cardY(),cardRestY,'The reverse card stays at its settled height');
     advance(page,67);
     near(cardOpacity(),0,'The card finishes closing without further scrolling');
-    assert.equal(cardFilter(),'none','The blur layer is removed after the exit');
     assert.equal(page.raf.size,0);
 
     page.scroll(footerStart+footerHeight*.8);page.frames();
@@ -334,9 +305,9 @@ function send(f,type,properties={}){
     page.scroll(cardStart+4);page.frames();
     near(cardOpacity(),0,'Small changes in direction do not reopen the card');
     page.scroll(cardStart+8);page.frame(0);advance(page,66);
-    assert.deepEqual([cardOffset(),cardOpacity(),cardFilter()],entryPose,'A real downward reversal reopens the card in the overlap');
+    assert.deepEqual([cardOffset(),cardOpacity()],entryPose,'A real downward reversal reopens the card in the overlap');
     page.scroll(footerStart-1);page.frame(0);
-    assert.deepEqual([cardOffset(),cardOpacity(),cardFilter()],entryPose,'A rapid reversal begins at the current pose');
+    assert.deepEqual([cardOffset(),cardOpacity()],entryPose,'A rapid reversal begins at the current pose');
     assert(footer.classList.contains('site-footer-is-visible'),'A fast exit still paints the card after the footer leaves');
     assert(footer.inert);assert(!services.inert);
     advance(page,551);
@@ -360,12 +331,11 @@ function send(f,type,properties={}){
     assert.equal(footer.style.getPropertyValue('--site-footer-card-shift'),'');
     assert.equal(footer.style.getPropertyValue('--site-footer-card-offset'),'');
     assert.equal(footer.style.getPropertyValue('--site-footer-card-opacity'),'');
-    assert.equal(cardFilter(),'');
     assert.equal(footer.style.getPropertyValue('--site-footer-wordmark-opacity'),'');
     assert.equal(wordmarkFilter(),'');
     assert(!footer.inert);assert.equal(footer.getAttribute('aria-hidden'),'false');
     assert(!footer.classList.contains('site-footer-is-shared'));
     near(Number(services.dataset.servicesTravel),0,'The normal-flow footer is not included in the reduced-motion pinned budget');
   }
-  console.log('Services and footer handoff checks passed: plain center title under Works, one-gesture timed deck entry, responsive full-card landing, native continuation, reverse and restored poses, cached geometry and reduced-motion flow.');
+  console.log('Services and footer handoff checks passed: overlapping scroll-linked deck reveal, responsive full-card alignment, native continuation, reverse and restored poses, cached geometry and reduced-motion flow.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -51,6 +51,28 @@ function screenBounds(f){
   const shift=(parseFloat(f.viewport.style.getPropertyValue('--works-enter-px'))||0)+(parseFloat(f.viewport.style.getPropertyValue('--works-card-offset-px'))||0);
   return f.window.WorksGallery.getProjectedCards(Number(f.journey.dataset.helixProgress)||0).map(pose=>({left:pose.minX,top:pose.minY+shift,width:pose.maxX-pose.minX,height:pose.maxY-pose.minY}));
 }
+function checkTitleTiming(f, measured, now){
+  const leadPhase=f.window.WorksGallery.leadFrontalPhase;
+  const [lead]=f.window.WorksGallery.getProjectedCards(leadPhase);
+  assert.equal(lead.index,0);
+  assert(Math.abs(lead.angle)<1e-8&&lead.visible,'Title timing follows the first work approaching the center head-on');
+  const titleDistance=(leadPhase-.01-.13)/measured.phasePerViewport*f.height;
+  const lastPhase=f.window.WorksGallery.getLayout().lastFrontalPhase;
+  const last=f.window.WorksGallery.getProjectedCards(lastPhase).at(-1);
+  assert(Math.abs(last.angle)<1e-8&&last.visible,'The exit cue is the last work facing the viewer');
+  const hideTitleDistance=(lastPhase-.13)/measured.phasePerViewport*f.height;
+  assert(measured.servicesRevealDistance>hideTitleDistance&&measured.servicesRevealDistance<measured.galleryTravel+measured.exitTravel,
+    'The Services deck starts between the last frontal work and the complete exit');
+  const servicesRevealPhase=.13+measured.servicesRevealDistance/f.height*measured.phasePerViewport;
+  const lastBottom=f.window.WorksGallery.getProjectedMotionBounds(servicesRevealPhase).at(-1).maxY;
+  assert(Math.abs(lastBottom-f.height*.15)<.002,'The last work still occupies the top 15% at the Services reveal cue');
+  for(const [distance,visible] of [[titleDistance-1,false],[titleDistance+1,true],[hideTitleDistance-1,true],
+    [hideTitleDistance+1,false],[hideTitleDistance-1,true],[titleDistance-1,false]]){
+    f.api.update(distance,{now:now+=16});
+    assert.equal(f.viewport.classList.contains('has-works-title'),visible,'Last Works follows the first and last works in both scroll directions');
+  }
+  return now;
+}
 for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,1305]]){
   const f=fixture(width,height);
   assert.equal(f.ready.length,1,'Works announces readiness once to the story owner');
@@ -136,16 +158,7 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
     assert(orbit[i].offset>=orbit[i-1].offset,'Header ascent is monotonic across the early orbit');
     assert.equal(f.journey.dataset.headingOffset,'0.000','The title no longer scrolls upward');
   }
-  let now=150;
-  const leadPhase=f.window.WorksGallery.leadFrontalPhase;
-  const [lead]=f.window.WorksGallery.getProjectedCards(leadPhase);
-  assert.equal(lead.index,0);
-  assert(Math.abs(lead.angle)<1e-8&&lead.visible,'Title timing follows the first work approaching the center head-on');
-  const titleDistance=(leadPhase-.01-.13)/measured.phasePerViewport*height;
-  for(const [distance,visible] of [[titleDistance-1,false],[titleDistance+1,true],[galleryTravel,true],[titleDistance-1,false]]){
-    f.api.update(distance,{now:now+=16});
-    assert.equal(f.viewport.classList.contains('has-works-title'),visible,'Last Works tracks the entry in both scroll directions');
-  }
+  let now=checkTitleTiming(f,measured,150);
   function settleAt(distance){
     f.api.update(distance,{now:now+=16});
     for(let frame=0;frame<45&&f.window.WorksGallery.isAnimating();frame++)f.api.update(distance,{now:now+=16});
@@ -232,6 +245,8 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   f.reduced.matches=false;f.api.measure({width,height,start:2700});f.api.update(height,{now:now+=16});
   assert.equal(f.viewport.parentElement,f.hero,'Returning to normal motion restores the shared viewport');
 }
+const shortPhone=fixture(414,700);
+checkTitleTiming(shortPhone,shortPhone.api.measure({width:414,height:700}),150);
 const css=fs.readFileSync(path.join(root,'works-scroll.css'),'utf8');
 assert(/\.works-journey\.works-is-shared\s*\{[^}]*height:\s*0/.test(css),'Enhanced marker has zero height');
 assert(/\.hero\s*>\s*\.works-viewport\.works-is-enhanced\s*\{[^}]*position:\s*absolute/.test(css),'Works occupies the hero viewport instead of another scrolling screen');

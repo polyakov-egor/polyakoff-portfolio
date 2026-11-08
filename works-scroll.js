@@ -19,6 +19,7 @@
   const entranceProgress = .13;
   const finalProgress = 43.2 / 56.592;
   const titleRevealPhase = window.WorksGallery.leadFrontalPhase - .01;
+  let titleHidePhase = Infinity;
 
   function helixProgress(distance) {
     return Math.min(clearProgress,entranceProgress+Math.max(0,distance)/height*phasePerViewport);
@@ -95,6 +96,19 @@
     return 2;
   }
 
+  function measureServicesRevealPhase() {
+    const getBounds=window.WorksGallery.getProjectedMotionBounds;
+    if(!getBounds||!Number.isFinite(titleHidePhase))return clearProgress;
+    const edge=height*.15;
+    let low=titleHidePhase,high=clearProgress;
+    for(let i=0;i<22;i++){
+      const middle=(low+high)/2;
+      const bounds=getBounds(middle);
+      if(bounds[bounds.length-1]?.maxY<=edge)high=middle;else low=middle;
+    }
+    return high;
+  }
+
   function setEnhanced(enabled) {
     if (enabled === enhanced) return;
     enhanced = enabled;
@@ -121,12 +135,14 @@
     if (artwork) artwork.style.transform = `translate3d(${(width - 2560 * scale) / 2}px, ${(height - 1305 * scale) / 2}px, 0) scale(${scale})`;
     const galleryLayout=window.WorksGallery.measure({ width, height });
     entranceOffset=Number.isFinite(galleryLayout?.entranceOffset)?galleryLayout.entranceOffset:0;
+    titleHidePhase=galleryLayout?.lastFrontalPhase??Infinity;
     clearProgress=measureClearProgress(window.WorksGallery.getProjectedMotionBounds);
     const paceClearProgress=measureClearProgress(window.WorksGallery.getPaceReferenceBounds);
     phasePerViewport=Math.max(.001,(paceClearProgress-finalProgress)/2);
     const distanceAt=progress=>Math.max(0,(progress-entranceProgress)/phasePerViewport*height);
     galleryTravel=reduced.matches?0:distanceAt(finalProgress);
     exitTravel=reduced.matches?0:Math.max(0,(clearProgress-finalProgress)/phasePerViewport*height);
+    const servicesRevealDistance=reduced.matches?0:distanceAt(measureServicesRevealPhase());
     travel=galleryTravel+exitTravel+emptyHold;
     holdDistance=reduced.matches?0:measureHeadingHold();
     measureHeadingAscent();
@@ -146,7 +162,7 @@
       viewport.removeAttribute('aria-hidden');
       window.WorksGallery.update(0, { reducedMotion: true });
     }
-    return { travel, galleryTravel, exitTravel, emptyHold, holdDistance, phasePerViewport };
+    return { travel, galleryTravel, exitTravel, emptyHold, holdDistance, phasePerViewport, servicesRevealDistance };
   }
 
   function update(localDistance, { reducedMotion = reduced.matches, now = 0 } = {}) {
@@ -164,7 +180,7 @@
     const exit=Math.min(height,Math.max(0,localDistance));
     const helix=helixProgress(Math.max(0,localDistance));
     hero.classList.toggle('is-works', active);
-    const titleVisible=galleryVisible&&helix>=titleRevealPhase&&localDistance<galleryTravel+exitTravel-height*.35;
+    const titleVisible=galleryVisible&&helix>=titleRevealPhase&&helix<titleHidePhase;
     viewport.classList.toggle('has-works-title',titleVisible);
     hero.style.setProperty('--works-exit-px', `${exit}px`);
     viewport.style.setProperty('--works-enter-px', '0px');

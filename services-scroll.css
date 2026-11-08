@@ -11,8 +11,7 @@
   transform: translate3d(0, var(--services-scroll-y, 100svh), 0);
 }
 .hero > .services.services-is-shared.services-is-visible { visibility: visible; }
-/* The last Works plane uncovers only the heading. A fresh scroll opens the
-   full panel and sets the native continuation at the same coordinates. */
+/* Services remains behind the last Works plane until the gallery clears. */
 .hero > .services.services-is-intro { z-index: 6; pointer-events: none; }
 .services-is-shared {
   --services-fit-deck-gap: 140px;
@@ -29,8 +28,8 @@
 }
 .services-is-shared .services__word[data-active="true"]::before,
 .services-is-shared .services__word[data-active="true"]::after { opacity: var(--services-reveal-progress, 0); }
-.services-is-shared:is(.services-is-intro, [data-services-stage="center"], [data-services-stage="opening"], [data-services-stage="closing"]) .services__word::before,
-.services-is-shared:is(.services-is-intro, [data-services-stage="center"], [data-services-stage="opening"], [data-services-stage="closing"]) .services__word::after { transition: none; }
+.services-is-shared:not(.services-is-open) .services__word::before,
+.services-is-shared:not(.services-is-open) .services__word::after { transition: none; }
 .services-is-shared .services__deck {
   width: min(calc(2 * var(--services-side-offset) + var(--services-side-width)), var(--services-fit-deck-width));
   height: min(var(--services-card-height), 43svh);
@@ -41,7 +40,6 @@
   height: min(var(--services-card-height), 43svh);
 }
 .services-is-shared :is(.services__deck, .services__approach) { translate: 0 var(--services-deck-entry-y, 0px); }
-.services-is-intro :is(.services__deck, .services__approach) { visibility: hidden; }
 @media (min-width: 600px) and (max-width: 1679px) {
   .services-is-shared {
     --services-fit-deck-gap: 90px;

@@ -14,7 +14,7 @@
   const clamp=(value,min=0,max=1)=>Math.max(min,Math.min(max,value));
   const frontThreshold=.2,foregroundBoost=1,maxBow=.118;
   const cardAspect=960/500,cornerRadius=.05;
-  const worldStart=-16.8,worldTravel=54.744;
+  const worldStart=-16.8,worldTravel=54.744,pitchStart=2.4,pitchTaper=.168;
   function liveDeformation(facing){
     const direct=clamp((facing-.45)/.5);
     return 1-.75*direct*direct*(3-2*direct)*(1-scrollBend);
@@ -171,6 +171,9 @@
     const phonePitch=clamp((width/height-.46)/.13),phoneCrowding=clamp((width/height-.59)/.06,0,2.8);
     layout={width,height,phone,tablet,cameraHeight,focal,radius:2,camera:8,planeWidth,planeHeight,foregroundMaxScale,verticalSpread:phone?1.18:1,pitchFactor:1.025,centerSpreadX:phone?1.5+.2*phoneCrowding:2.2,centerSpreadY:phone?1.8+.3*phoneCrowding:2.3};
     if(phone)layout.pitchFactor+=.125*phonePitch;
+    // The last card faces the viewer when its world Y reaches zero.
+    const lastCardPitchFactor=(cards.length-1)*layout.pitchFactor;
+    layout.lastFrontalPhase=(pitchStart*lastCardPitchFactor-worldStart)/(worldTravel+pitchTaper*lastCardPitchFactor);
     const entranceBounds=projectCardBounds(.13,0,false,1);
     const visibleEntranceBounds=entranceBounds.filter(pose=>pose.maxX>0&&pose.minX<width);
     // A wider helix can start below the viewport naturally. Align its first
@@ -190,7 +193,7 @@
     const{width,height,focal,radius,planeWidth,planeHeight,verticalSpread,camera,pitchFactor,centerSpreadX,centerSpreadY}=layout;
       // A little more pitch opens the narrow gaps without changing the
       // approved mesh sizes, cylinder radius or camera magnification.
-      const p=clamp(progress,0,2),pitch=(2.4-.168*p)*pitchFactor;
+      const p=clamp(progress,0,2),pitch=(pitchStart-pitchTaper*p)*pitchFactor;
       const worldY=worldStart+worldTravel*p-card.index*pitch;
       const lane=worldY/2.4,angle=lane*.85,sin=Math.sin(angle),cos=Math.cos(angle),centerX=radius*sin,centerZ=radius*cos,centerY=lane*.5*verticalSpread;
       const facing=(camera*cos-radius)/Math.hypot(centerX,centerY,camera-centerZ),depthScale=foregroundScale(facing);
@@ -224,7 +227,7 @@
     const cached=boundsCache.get(cacheKey);
     if(cached)return offset?cached.map(pose=>({...pose,minY:pose.minY+offset,maxY:pose.maxY+offset})):cached;
     const{width,height,focal,radius,planeWidth,planeHeight,verticalSpread,camera,pitchFactor,centerSpreadX,centerSpreadY}=layout;
-    const p=clamp(progress,0,2),pitch=(2.4-.168*p)*(paceReference&&layout.phone?1.025:pitchFactor);
+    const p=clamp(progress,0,2),pitch=(pitchStart-pitchTaper*p)*(paceReference&&layout.phone?1.025:pitchFactor);
     const projected=cards.map(card=>{
       const worldY=worldStart+worldTravel*p-card.index*pitch,lane=worldY/2.4,angle=lane*.85;
       const sin=Math.sin(angle),cos=Math.cos(angle),centerX=radius*sin,centerZ=radius*cos,centerY=lane*.5*verticalSpread;

@@ -135,15 +135,16 @@
     // backdrop trigger before its timed transition takes over.
     inspirationTravel = window.InspirationChapter?.measure({ width: base.width, height: base.height,
       anchor: { x: (base.width - target.size) / 2, y: target.y, size: target.size, radius: target.radius } })?.travel || 0;
-    worksTravel = window.WorksScrollChapter?.measure({ width:base.width, height:base.height,
-      start:base.height*settings.heroScrollDuration+textTravel*settings.aboutScrollDuration+inspirationTravel })?.travel || 0;
-    measureServices(preserveServiceAnchor);
+    const works = window.WorksScrollChapter?.measure({ width:base.width, height:base.height,
+      start:base.height*settings.heroScrollDuration+textTravel*settings.aboutScrollDuration+inspirationTravel });
+    worksTravel = works?.travel || 0;
+    measureServices(preserveServiceAnchor, works?.servicesRevealDistance);
     writeJourneyBudget();
   }
 
-  function measureServices(preserveServiceAnchor) {
+  function measureServices(preserveServiceAnchor, worksRevealDistance) {
     const worksStart=base.height*settings.heroScrollDuration+textTravel*settings.aboutScrollDuration+inspirationTravel;
-    const services=window.ServicesScrollChapter?.measure({width:base.width,height:base.height,worksStart,worksTravel,
+    const services=window.ServicesScrollChapter?.measure({width:base.width,height:base.height,worksStart,worksTravel,worksRevealDistance,
       distance:preserveServiceAnchor?Math.max(0,window.scrollY-storyTop):undefined});
     servicesTravel=services?.travel||0;
     servicesStart=services?.start??Infinity;
@@ -407,19 +408,14 @@
     if (releasedScene) { lastHeroPaint = null; lastLightPaint = null; }
     if(chapter && chapter.travel!==inspirationTravel){inspirationTravel=chapter.travel;writeJourneyBudget();}
     const worksStart=inspirationStart+inspirationTravel;
-    const inspirationAnchor=Number.isFinite(chapter?.settleLocalDistance)?inspirationStart+chapter.settleLocalDistance:null;
-    const inspirationCorrection=chapter?.scrollAdjustment||0;
-    const services=window.ServicesScrollChapter?.update((inspirationAnchor??(distance+inspirationCorrection))-servicesStart,{
-      requestedLocalDistance:(inspirationAnchor??(requestedDistance+inspirationCorrection))-servicesStart,
-      reducedMotion:reducedMotion.matches,now
-    });
-    const settledDistance=Number.isFinite(services?.settleLocalDistance)?servicesStart+services.settleLocalDistance:inspirationAnchor;
-    const scrollAdjustment=inspirationCorrection+(services?.scrollAdjustment||0);
-    const animating=chapter?.animating||services?.animating;
+    const settledDistance=Number.isFinite(chapter?.settleLocalDistance)?inspirationStart+chapter.settleLocalDistance:null;
+    const scrollAdjustment=chapter?.scrollAdjustment||0;
+    const sceneDistance=settledDistance??(distance+scrollAdjustment);
+    const services=window.ServicesScrollChapter?.update(sceneDistance-servicesStart,{reducedMotion:reducedMotion.matches,now});
+    const animating=chapter?.animating;
     // A timed flip or a category/headline checkpoint owns this gesture. Even
     // an already exact anchor must discard a retained destination beyond it.
-    if (animating || chapter?.blockSmooth || services?.blockSmooth || settledDistance !== null || scrollAdjustment) window.SiteSmoothScroll?.cancel?.();
-    const sceneDistance=settledDistance??(distance+scrollAdjustment);
+    if (animating || chapter?.blockSmooth || settledDistance !== null || scrollAdjustment) window.SiteSmoothScroll?.cancel?.();
     window.WorksScrollChapter?.update(sceneDistance-worksStart,{reducedMotion:reducedMotion.matches,now});
     const worksBlack=sceneDistance>=worksStart&&!reducedMotion.matches?1:window.InspirationClosing?.getBlackProgress?.()??0;
     hero.style.setProperty('--works-black-progress',String(worksBlack));
