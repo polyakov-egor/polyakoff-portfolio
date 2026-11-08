@@ -14,9 +14,10 @@
   const clamp=(value,min=0,max=1)=>Math.max(min,Math.min(max,value));
   const frontThreshold=.2,foregroundBoost=1,maxBow=.118;
   const cardAspect=960/500,cornerRadius=.05;
+  const worldStart=-16.8,worldTravel=54.744;
   function liveDeformation(facing){
     const direct=clamp((facing-.45)/.5);
-    return 1-.5*direct*direct*(3-2*direct)*(1-scrollBend);
+    return 1-.75*direct*direct*(3-2*direct)*(1-scrollBend);
   }
   function foregroundScale(facing){
     const t=clamp((facing-frontThreshold)/(.85-frontThreshold));
@@ -190,7 +191,7 @@
       // A little more pitch opens the narrow gaps without changing the
       // approved mesh sizes, cylinder radius or camera magnification.
       const p=clamp(progress,0,2),pitch=(2.4-.168*p)*pitchFactor;
-      const worldY=-16.8+54.744*p-card.index*pitch;
+      const worldY=worldStart+worldTravel*p-card.index*pitch;
       const lane=worldY/2.4,angle=lane*.85,sin=Math.sin(angle),cos=Math.cos(angle),centerX=radius*sin,centerZ=radius*cos,centerY=lane*.5*verticalSpread;
       const facing=(camera*cos-radius)/Math.hypot(centerX,centerY,camera-centerZ),depthScale=foregroundScale(facing);
       const bend=deformation??liveDeformation(facing);
@@ -225,7 +226,7 @@
     const{width,height,focal,radius,planeWidth,planeHeight,verticalSpread,camera,pitchFactor,centerSpreadX,centerSpreadY}=layout;
     const p=clamp(progress,0,2),pitch=(2.4-.168*p)*(paceReference&&layout.phone?1.025:pitchFactor);
     const projected=cards.map(card=>{
-      const worldY=-16.8+54.744*p-card.index*pitch,lane=worldY/2.4,angle=lane*.85;
+      const worldY=worldStart+worldTravel*p-card.index*pitch,lane=worldY/2.4,angle=lane*.85;
       const sin=Math.sin(angle),cos=Math.cos(angle),centerX=radius*sin,centerZ=radius*cos,centerY=lane*.5*verticalSpread;
       const facing=(camera*cos-radius)/Math.hypot(centerX,centerY,camera-centerZ);
       // Keep the established camera pace independent of later card spacing.
@@ -478,6 +479,7 @@
   });
   window.addEventListener('blur',()=>{if(!canPaint())return;pointer=null;touch=null;domTouchCard=null;hideProject();});
   window.WorksGallery=Object.freeze({measure,update,setVisible,getProjectedBounds,getProjectedMotionBounds,
+    leadFrontalPhase:-worldStart/worldTravel,
     getProjectedCardBounds:progress=>layout?projectCardBounds(progress,entranceOffset(progress),false,1):[],
     getPaceReferenceBounds:progress=>layout?projectCardBounds(progress,0,true):[],
     isAnimating:()=>canPaint()&&(hoverAnimating||scrollBend>0),

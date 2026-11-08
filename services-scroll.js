@@ -27,7 +27,7 @@
   const motionDuration=500, wheelThreshold=24;
   const footerCardDuration=550, footerCardHysteresis=4;
   let layout=null,enhanced=false,visibility=null,deckVisibility=null,footerVisibility=null,footerY=null;
-  let footerCardTarget=null,footerCardMotion=null,footerCardPhase=null;
+  let footerCardTarget=null,footerCardMotion=null,footerCardPhase=null,footerCardEdge=0;
   let stage=null,motion=null,lastDistance=null,allowRestore=true;
   let wheelId=0,wheelUsed=true,wheelAmount=0,touch=null,keyRelease='';
 
@@ -68,8 +68,18 @@
     footer.setAttribute('aria-hidden',String(!visible));
   }
   function updateFooterCard(entered,visible,now){
-    const threshold=layout.footerCardStart-(footerCardTarget?footerCardHysteresis:0);
-    const target=visible&&entered>=threshold;
+    let target=footerCardTarget;
+    if(target===null){
+      target=visible&&entered>=layout.footerCardStart;
+    }else if(target){
+      footerCardEdge=Math.max(footerCardEdge,entered);
+      if(!visible||(entered<=layout.footerCardExit&&footerCardEdge-entered>=footerCardHysteresis))target=false;
+    }else{
+      footerCardEdge=Math.min(footerCardEdge,entered);
+      if(visible&&entered>=layout.footerCardStart&&entered-footerCardEdge>=footerCardHysteresis)target=true;
+    }
+    // The entry and exit ranges overlap. Remember the last turn so upward scroll cannot reopen the card.
+    if(target!==footerCardTarget)footerCardEdge=entered;
     let phase=Number(footerCardTarget);
     if(footerCardMotion){
       const progress=clamp((now-footerCardMotion.started)/footerCardDuration,0,1);
@@ -86,6 +96,8 @@
       // The form entrance uses quintic ease-out and completes the fade before the motion.
       footer.style.setProperty('--site-footer-card-offset',((1-phase)**5).toFixed(4));
       footer.style.setProperty('--site-footer-card-opacity',(1-(1-clamp(phase/.45,0,1))**5).toFixed(4));
+      const blur=14*(1-phase)**2;
+      footer.style.setProperty('--site-footer-card-filter',phase>0&&blur>=.01?`blur(${blur.toFixed(2)}px)`:'none');
       footerCardPhase=phase;
     }
     return Boolean(footerCardMotion);
@@ -112,6 +124,7 @@
       footer?.style.removeProperty('--site-footer-card-shift');
       footer?.style.removeProperty('--site-footer-card-offset');
       footer?.style.removeProperty('--site-footer-card-opacity');
+      footer?.style.removeProperty('--site-footer-card-filter');
       footer?.style.removeProperty('--site-footer-wordmark-opacity');
       footer?.style.removeProperty('--site-footer-wordmark-filter');
       if(footerBackground&&backdrop)footer.prepend(footerBackground);
@@ -139,8 +152,9 @@
     const footerIntroBottom=(footerIntro?.offsetTop||0)+(footerIntro?.offsetHeight||0);
     const footerCardStart=Math.min(footerHeight-1,Math.max(footerIntroBottom,footerCardInset,
       footerWordmarkTop+.33*(footerHeight-footerWordmarkTop)));
+    const footerCardExit=Math.max(footerCardStart,footerWordmarkTop+.7*(footerHeight-footerWordmarkTop));
     if(oldLayout&&(oldLayout.height!==viewportHeight||oldLayout.footerHeight!==footerHeight||
-      oldLayout.footerCardStart!==footerCardStart))resetFooterCard();
+      oldLayout.footerCardStart!==footerCardStart||oldLayout.footerCardExit!==footerCardExit))resetFooterCard();
     const footerWordmarkBlur=clamp(width*.03,24,42);
     const totalHeight=sectionHeight+footerHeight;
     const headingCenter=(heading?.offsetTop||0)+(heading?.offsetHeight||0)/2;
@@ -158,7 +172,7 @@
     const travel=enhanced?totalHeight+centeredY-viewportHeight:0;
     layout={height:viewportHeight,sectionHeight,footerHeight,totalHeight,start,centeredY,
       deckTop,deckHeight,deckEntryY,introTravel,openingTravel,travel,
-      footerCardStart,footerWordmarkTop,footerWordmarkBlur};
+      footerCardStart,footerCardExit,footerWordmarkTop,footerWordmarkBlur};
     if(!stage&&!motion&&oldLayout?.height!==viewportHeight)lastDistance=null;
     let rebaseDistance=null;
     if(enhanced&&oldLayout&&Number.isFinite(oldLocal)&&oldLocal>=0&&oldLocal<=oldLayout.introTravel+oldLayout.travel+.5){

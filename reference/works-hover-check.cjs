@@ -188,9 +188,9 @@ function meshBend(vertices){
 }
 motion.api.update(centralPhase,{now:1000});
 const idleBend=drawBend(centralPhase,0);
-const half=motion.api.getProjectedCards(centralPhase,.5)[0];
+const resting=motion.api.getProjectedCards(centralPhase,.25)[0];
 const full=motion.api.getProjectedCards(centralPhase,1)[0];
-assert(Math.abs(idleBend-meshBend(half.vertices))<1e-6&&!motion.api.isAnimating(),'A head-on idle card renders half its original deformation');
+assert(Math.abs(idleBend-meshBend(resting.vertices))<1e-6&&!motion.api.isAnimating(),'A head-on idle card renders a quarter of its moving deformation');
 const side=motion.api.getProjectedCards(centralPhase).find(pose=>pose.visible&&pose.facing<=.45);
 assert(side&&Math.abs(drawBend(centralPhase,side.index)-meshBend(side.vertices))<1e-6,'Side-facing cards retain their original curve');
 const moving=[];

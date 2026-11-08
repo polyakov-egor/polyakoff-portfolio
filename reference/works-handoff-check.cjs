@@ -137,6 +137,15 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
     assert.equal(f.journey.dataset.headingOffset,'0.000','The title no longer scrolls upward');
   }
   let now=150;
+  const leadPhase=f.window.WorksGallery.leadFrontalPhase;
+  const [lead]=f.window.WorksGallery.getProjectedCards(leadPhase);
+  assert.equal(lead.index,0);
+  assert(Math.abs(lead.angle)<1e-8&&lead.visible,'Title timing follows the first work approaching the center head-on');
+  const titleDistance=(leadPhase-.01-.13)/measured.phasePerViewport*height;
+  for(const [distance,visible] of [[titleDistance-1,false],[titleDistance+1,true],[galleryTravel,true],[titleDistance-1,false]]){
+    f.api.update(distance,{now:now+=16});
+    assert.equal(f.viewport.classList.contains('has-works-title'),visible,'Last Works tracks the entry in both scroll directions');
+  }
   function settleAt(distance){
     f.api.update(distance,{now:now+=16});
     for(let frame=0;frame<45&&f.window.WorksGallery.isAnimating();frame++)f.api.update(distance,{now:now+=16});
@@ -155,6 +164,7 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   assert.equal(measured.travel,travel,'Works uses the camera trajectory and its standalone hold, with no background travel');
   const clear=f.api.update(galleryTravel+measured.exitTravel,{now:now+=16});
   assert.equal(clear.finished,true);
+  assert(!f.viewport.classList.contains('has-works-title'),'Last Works clears before Services takes over');
   const sleepingUpdates=f.updates.length;
   for(let i=0;i<100;i++)f.api.update(travel+height*i/100,{now:now+=16});
   assert.equal(f.updates.length,sleepingUpdates,'Scrolling later chapters never updates the sleeping gallery');
@@ -217,6 +227,7 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   assert.equal(f.closingUpdates.at(-1).reducedMotion,true,'Static mode also clears the animated heading handoff');
   assert.equal(f.viewport.parentElement,f.journey,'Reduced motion restores the static Works grid');
   assert(!f.viewport.classList.contains('works-is-enhanced'));
+  assert(!f.viewport.classList.contains('has-works-title'),'The reduced-motion grid uses its static title styling');
   assert(f.duplicates.every(node=>node.getAttribute('aria-hidden')===null));
   f.reduced.matches=false;f.api.measure({width,height,start:2700});f.api.update(height,{now:now+=16});
   assert.equal(f.viewport.parentElement,f.hero,'Returning to normal motion restores the shared viewport');

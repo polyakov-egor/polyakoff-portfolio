@@ -120,6 +120,7 @@
     perspective(600px) rotateX(calc(-28deg * var(--site-footer-card-offset, 1)))
     scale(calc(1 - .1 * var(--site-footer-card-offset, 1)));
   opacity: var(--site-footer-card-opacity, 0);
+  filter: var(--site-footer-card-filter, none);
 }
 
 @supports (corner-shape: squircle) {

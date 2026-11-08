@@ -18,6 +18,7 @@
   // pace matches the previous two-screen final exit, without its acceleration.
   const entranceProgress = .13;
   const finalProgress = 43.2 / 56.592;
+  const titleRevealPhase = window.WorksGallery.leadFrontalPhase - .01;
 
   function helixProgress(distance) {
     return Math.min(clearProgress,entranceProgress+Math.max(0,distance)/height*phasePerViewport);
@@ -138,6 +139,7 @@
     if (reduced.matches) {
       window.WorksGallery.setVisible?.(true);
       hero.classList.remove('is-works');
+      viewport.classList.remove('has-works-title');
       hero.style.setProperty('--works-exit-px', '0px');
       viewport.style.removeProperty('--works-enter-px');
       viewport.style.removeProperty('--works-card-offset-px');
@@ -162,6 +164,8 @@
     const exit=Math.min(height,Math.max(0,localDistance));
     const helix=helixProgress(Math.max(0,localDistance));
     hero.classList.toggle('is-works', active);
+    const titleVisible=galleryVisible&&helix>=titleRevealPhase&&localDistance<galleryTravel+exitTravel-height*.35;
+    viewport.classList.toggle('has-works-title',titleVisible);
     hero.style.setProperty('--works-exit-px', `${exit}px`);
     viewport.style.setProperty('--works-enter-px', '0px');
     viewport.style.setProperty('--works-card-offset-px', '0px');
