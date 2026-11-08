@@ -26,7 +26,7 @@
     <link rel="stylesheet" href="./hero-effect-presets.css" />
     <link rel="stylesheet" href="./about-copy.css" />
     <link rel="stylesheet" href="./about-flight.css" />
-    <link rel="stylesheet" href="./hero-scroll.css" />
+    <link rel="stylesheet" href="./hero-scroll.css?v=2" />
     <link rel="stylesheet" href="./about-reveal.css" />
     <link rel="stylesheet" href="./music-equalizer.css" />
     <link rel="stylesheet" href="./inspiration.css" />
@@ -41,7 +41,7 @@
     <link rel="stylesheet" href="./background-raster.css" />
     <link rel="stylesheet" href="./services.css" />
     <link rel="stylesheet" href="./services-scroll.css?v=2" />
-    <link rel="stylesheet" href="./site-footer.css?v=3" />
+    <link rel="stylesheet" href="./site-footer.css?v=4" />
     <script src="./published-effect-preset.js" defer></script>
     <script src="./hero-layout.js" defer></script>
     <script src="./hero-status.js" defer></script>
@@ -53,7 +53,7 @@
     <script src="./hero-welcome-stack.js" defer></script>
     <script src="./chapter-assets.js" defer></script>
     <script src="./services.js" defer></script>
-    <script src="./services-scroll.js?v=4" defer></script>
+    <script src="./services-scroll.js?v=5" defer></script>
     <script src="./inspiration-view.js" defer></script>
     <script src="./inspiration-headings.js" defer></script>
     <script src="./inspiration-hover.js" defer></script>
@@ -61,9 +61,9 @@
     <script src="./inspiration-closing.js" defer></script>
     <script src="./inspiration-flip-thickness.js" defer></script>
     <script src="./inspiration-card-flip.js" defer></script>
-    <script src="./inspiration.js?v=2" defer></script>
+    <script src="./inspiration.js?v=3" defer></script>
     <script src="./about-reveal.js" defer></script>
-    <script src="./hero-scroll.js?v=2" defer></script>
+    <script src="./hero-scroll.js?v=3" defer></script>
     <script src="./works-gallery.js" defer></script>
     <script src="./works-scroll.js" defer></script>
     <script src="./hero-effect-controls.js?v=2" defer></script>
@@ -292,6 +292,15 @@
       </section>
 
       <footer class="site-footer" data-site-footer role="contentinfo">
+        <svg class="site-footer__filters" width="0" height="0" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="footer-glass-refraction" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+              <feImage href="./assets/images/footer/glass-displacement.svg" width="100%" height="100%" preserveAspectRatio="none" result="edge-map" />
+              <feDisplacementMap in="SourceGraphic" in2="edge-map" scale="-180" xChannelSelector="R" yChannelSelector="G" />
+              <feGaussianBlur stdDeviation="3.2" />
+            </filter>
+          </defs>
+        </svg>
         <img class="site-footer__background" data-site-footer-background data-chapter-image="footer-background" width="2560" height="1305" decoding="async" alt="">
         <div class="site-footer__intro mono">
           <p class="site-footer__name">I’m Egor</p>

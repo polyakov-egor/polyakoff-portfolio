@@ -81,7 +81,7 @@ html::-webkit-scrollbar { display: none; }
 .hero__intro-frame { position: absolute; z-index: 4; inset: 0; pointer-events: none; transform-origin: 0 0; }
 .hero__intro { z-index: 4; }
 .hero__about-logo { position: absolute; z-index: 6; left: calc(50% - 10px); bottom: 24px; width: 20px; height: 20px; opacity: 0; pointer-events: none; }
-.hero__welcome { pointer-events: none; transform: translate3d(-50%, var(--welcome-scroll-y, 0px), 0) scale(var(--welcome-scroll-scale, 1)); }
+.hero__welcome { pointer-events: none; transform-origin: 50% 100%; transform: translate3d(-50%, var(--welcome-scroll-y, 0px), 0) scale(var(--welcome-scroll-scale, 1)); }
 .about-copy__desktop-break { display: initial; }
 .custom-cursor.is-past-hero .custom-cursor__label { opacity: 0; }
 

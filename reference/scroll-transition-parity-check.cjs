@@ -51,13 +51,21 @@ const quintic = value => value * value * value * (value * (value * 6 - 15) + 10)
     const welcome = page.nodes['.hero__welcome'], logo = page.nodes['.hero__about-logo'];
     const sample = fraction => {
       page.scroll(height * fraction); page.frames();
-      return {
+      const pose = {
         opacity: number(welcome, '--welcome-opacity'),
         scale: number(welcome, '--welcome-scroll-scale'),
         y: parseFloat(welcome.style.values.get('--welcome-scroll-y')),
         logoOpacity: Number(logo.style.opacity),
         logoY: translationY(logo),
       };
+      const scene = page.card();
+      const sceneHeight = parseFloat(scene.height);
+      const sceneY = parseFloat(scene.transform.split(',')[1]);
+      const inset = width < 600 ? 106 : width < 768 ? 72 : 24;
+      near(pose.scale, parseFloat(scene.width) / width, 'Welcome and the hero use the same scale');
+      near(pose.y, sceneY + sceneHeight - height + inset * (1 - sceneHeight / height) - 12 * (1 - pose.opacity),
+        'Welcome stays attached to the bottom of the shrinking scene during its exit');
+      return pose;
     };
     const initial = sample(0);
     near(initial.opacity, 1); near(initial.scale, 1); near(initial.y, 0);
@@ -66,11 +74,11 @@ const quintic = value => value * value * value * (value * (value * 6 - 15) + 10)
     const firstScroll = sample(.05);
     assert(firstScroll.opacity < 1 && firstScroll.y < 0 && firstScroll.scale < 1, 'Welcome immediately recedes when hero scrolling starts');
     const middle = sample(.125);
-    near(middle.opacity, .5); near(middle.scale, .95); near(middle.y, -6);
+    near(middle.opacity, .5);
     near(middle.logoOpacity, 1);
     assert(middle.logoY > 0 && middle.logoY < initial.logoY, 'The opaque logo rises from below instead of fading in');
     const end = sample(.3);
-    near(end.opacity, 0); near(end.scale, .9); near(end.y, -12);
+    near(end.opacity, 0);
     near(end.logoY, 0); near(end.logoOpacity, 1);
     assert.equal(welcome.attributes['aria-hidden'], 'true');
     const returned = sample(.125);

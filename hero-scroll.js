@@ -93,9 +93,10 @@
   }
   applyTuningCss();
   let base, target, textTravel = 0, textHeight = 0, frame = 0, storyTop = 0, inspirationTravel = 0, worksTravel = 0, servicesTravel = 0, servicesStart = Infinity, logoEntryDistance = 50;
-  let flightMetrics = null, aboutReturnAfter = null, servicesRebase = null, servicesIntroTravel = 0;
+  let welcomeBottom = 24;
+  let flightMetrics = null, aboutReturnAfter = null, aboutReturnFrom = null, servicesRebase = null, servicesIntroTravel = 0;
   let displayedDistance = null, lastTime = 0;
-  let lastHeroPaint = null, lastNativeLanding = null;
+  let lastHeroPaint = null, lastAboutPaint = null, lastAboutHidden = null, lastNativeLanding = null;
   let lastLightPaint = null, lightTarget = null, lightTransitionStart = null;
 
   function place(element, x, y, width, height) {
@@ -129,6 +130,7 @@
       ? Math.max(base.height * .2, visualEnd, lightEnd + base.height * .08)
       : Math.max(base.height * .2, target.textY + textHeight - base.height * .75, flightMetrics.end + base.height * .1, lightEnd + base.height * .1);
     aboutReturnAfter = window.AboutTextFlight?.getReturnAfter?.();
+    aboutReturnFrom = Number.isFinite(visualEnd) ? visualEnd : textTravel;
     // Text and glyph flight share the About distance, which also sets the
     // backdrop trigger before its timed transition takes over.
     inspirationTravel = window.InspirationChapter?.measure({ width: base.width, height: base.height,
@@ -180,10 +182,13 @@
   function measure(layout = hero.heroLayout) {
     if (!layout) return;
     lastHeroPaint = null;
+    lastAboutPaint = null;
     base = layout;
     const { width, height } = base;
     const logoBottom = Number.parseFloat(window.getComputedStyle?.(logo)?.bottom);
     logoEntryDistance = (Number.isFinite(logoBottom) ? logoBottom : width < 600 ? 88 : 24) + (logo.offsetHeight || 20) + 2;
+    const welcomeInset = Number.parseFloat(window.getComputedStyle?.(welcome)?.bottom);
+    welcomeBottom = Number.isFinite(welcomeInset) ? welcomeInset : width < 600 ? 106 : width < 768 ? 72 : 24;
     let a = frames[0], b = frames[1];
     for (let i = 1; i < frames.length; i++) {
       a = frames[i - 1]; b = frames[i];
@@ -269,6 +274,26 @@
     return lightTarget ? progress : 1 - progress;
   }
 
+  function paintAboutText(progress, after, returning, inspirationVisible) {
+    const reduced = reducedMotion.matches;
+    const textOpacity = smooth(.56, .94, progress);
+    if (!lastAboutPaint || lastAboutPaint.progress !== progress || lastAboutPaint.after !== after || lastAboutPaint.reduced !== reduced) {
+      lastAboutPaint = { progress, after, reduced };
+      copy.style.setProperty('--about-text-opacity', textOpacity);
+      // Keep the reading plane moving as the portrait settles and flight begins.
+      const entry = clamp((progress - .4) / .6);
+      copy.style.setProperty('--about-text-y', `${lerp(base.height + 50, target.textY, entry) - after}px`);
+      window.AboutTextFlight?.update(after, { ...flightOptions(), reducedMotion: reduced });
+    }
+    const visibility = returning && inspirationVisible ? 'visible' : '';
+    if (copy.style.visibility !== visibility) copy.style.visibility = visibility;
+    const hidden = String(inspirationVisible || textOpacity < .01);
+    if (lastAboutHidden !== hidden) {
+      lastAboutHidden = hidden;
+      copy.setAttribute('aria-hidden', hidden);
+    }
+  }
+
   function render(now = typeof performance !== 'undefined' ? performance.now() : lastTime || 0) {
     frame = 0;
     if (!base || !target) return;
@@ -335,25 +360,17 @@
       const introOpacity = 1 - smooth(.02, .25, p);
       const welcomeExit = reducedMotion.matches ? (p > 0 ? 1 : 0) : smoother(0, .25, p);
       const welcomeOpacity = 1 - welcomeExit;
+      const welcomeY = y + height - base.height + welcomeBottom * (1 - height / base.height) - 12 * welcomeExit;
       intro.style.opacity = `${introOpacity}`;
       intro.setAttribute('aria-hidden', introOpacity < .01 ? 'true' : 'false');
       welcome.style.setProperty('--welcome-opacity', welcomeOpacity);
-      welcome.style.setProperty('--welcome-scroll-y', `${(-12 * welcomeExit).toFixed(3)}px`);
-      welcome.style.setProperty('--welcome-scroll-scale', String(1 - .1 * welcomeExit));
+      welcome.style.setProperty('--welcome-scroll-y', `${welcomeY.toFixed(3)}px`);
+      welcome.style.setProperty('--welcome-scroll-scale', String(width / base.width));
       welcome.setAttribute('aria-hidden', welcomeOpacity < .01 ? 'true' : 'false');
       window.HeroWelcomeStack?.setVisible(welcomeOpacity > .01);
       logo.style.opacity = '1';
       const logoEntry = reducedMotion.matches ? (p > 0 ? 1 : 0) : smoother(.02, .26, p);
       logo.style.transform = `translate3d(0, ${(logoEntryDistance * (1 - logoEntry)).toFixed(3)}px, 0)`;
-      const textOpacity = smooth(.56, .94, p);
-      copy.style.setProperty('--about-text-opacity', textOpacity);
-      // Keep the reading plane moving through the portrait/flight handoff.
-      // Smoothstep here used to decelerate to zero exactly before the first
-      // word peeled, despite continuous input. Opacity can ease independently.
-      const textEntry = clamp((p - .4) / .6);
-      copy.style.setProperty('--about-text-y', `${lerp(base.height + 50, target.textY, textEntry) - after}px`);
-      copy.setAttribute('aria-hidden', textOpacity < .01 ? 'true' : 'false');
-      window.AboutTextFlight?.update(after, { ...flightOptions(), reducedMotion: reducedMotion.matches });
       hero.dataset.scrollProgress = p.toFixed(4);
       hero.dataset.scrollTarget = clamp(requestedDistance / morphDistance).toFixed(4);
       hero.dataset.aboutScrollDuration = settings.aboutScrollDuration.toFixed(2);
@@ -376,10 +393,17 @@
       ? Math.min(-1, (aboutReturnAfter - textTravel) * settings.aboutScrollDuration) : -1;
     const chapter=window.InspirationChapter?.update(distance-inspirationStart, {
       reducedMotion:reducedMotion.matches, requestedLocalDistance:requestedDistance-inspirationStart, returnLocalDistance, now, lightProgress });
+    const inspirationVisible = hero.classList.contains('is-inspiration');
+    const returnProgress = chapter?.aboutReturnProgress;
+    const returning = Number.isFinite(returnProgress) && Number.isFinite(aboutReturnAfter) && !reducedMotion.matches;
+    // The native landing stays pinned while the same flight plays backward with the flip.
+    const returnLanding = textTravel + returnLocalDistance / settings.aboutScrollDuration;
+    const textAfter = returning ? lerp(Math.max(aboutReturnFrom, returnLanding), returnLanding, returnProgress) : after;
+    paintAboutText(returning ? 1 : p, textAfter, returning, inspirationVisible);
     // The flip renderer temporarily owns the same portrait/scene elements.
     // Restore the cached About pose once when its reverse transition releases
     // them; settings/measurement likewise invalidate the paint cache.
-    const releasedScene = inspirationOwnedScene && !hero.classList.contains('is-inspiration');
+    const releasedScene = inspirationOwnedScene && !inspirationVisible;
     if (releasedScene) { lastHeroPaint = null; lastLightPaint = null; }
     if(chapter && chapter.travel!==inspirationTravel){inspirationTravel=chapter.travel;writeJourneyBudget();}
     const worksStart=inspirationStart+inspirationTravel;
@@ -428,6 +452,7 @@
     const chapterOffset = displayedDistance !== null && displayedDistance > previousChapterStart ? displayedDistance - previousChapterStart : null;
     Object.assign(settings, normalizeSettings(patch));
     lastHeroPaint = null;
+    lastAboutPaint = null;
     applyTuningCss();
     if (base && displayedDistance !== null &&
       (settings.aboutScrollDuration !== previousAboutDuration || settings.heroScrollDuration !== previousHeroDuration)) {

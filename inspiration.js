@@ -7,7 +7,6 @@
   const scene = document.querySelector('.hero__scene');
   const portrait = document.querySelector('[data-layer="portrait"]');
   const depth = document.querySelector('[data-layer="depth"]');
-  const aboutCopy = document.querySelector('.about-copy');
   if (!view || !hero || !scene || !window.HeroSquircle) return;
   const { root, cards, words, backdrop, lines, flipFront, headingLeft, headingRight, eyebrow, counter, index } = view;
   const clamp = n => Math.max(0, Math.min(1, n));
@@ -256,6 +255,7 @@
     if(held?.owned)result.settleLocalDistance=held.settleLocalDistance;
     if(returnGate.active){
       result.settleLocalDistance=returnLocalDistance;
+      result.aboutReturnProgress=flip.running&&flip.from>0?clamp(1-flip.value/flip.from):1;
       if(!flip.running&&flip.value===0&&!returnGate.waiting){
         returnGate.waiting=true;
         // A burst recognized during the automatic return belongs to that
@@ -304,7 +304,6 @@
     if(signature!==lastPaint){
       lastPaint=signature;
       root.hidden=false;root.setAttribute('aria-hidden','false');hero.classList.add('is-inspiration');
-      aboutCopy?.setAttribute('aria-hidden','true');
       hero.style.setProperty('--about-light-progress',Math.max(lightProgress,flip.value));
       const currentSize=lerp(anchor.size,size,grow),currentY=lerp(anchor.y,cardY,grow);
       const currentX=(width-currentSize)/2,currentRadius=lerp(anchor.radius,radius,grow);

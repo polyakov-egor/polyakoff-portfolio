@@ -8,11 +8,17 @@
   const footer=document.querySelector('[data-site-footer]');
   const backdrop=document.querySelector('[data-site-backdrop]');
   const footerBackground=footer?.querySelector('[data-site-footer-background]');
+  const footerIntro=footer?.querySelector('.site-footer__intro');
   const footerCard=footer?.querySelector('.site-footer__card');
   const footerWordmark=footer?.querySelector('.site-footer__wordmark');
   const footerWordmarkImage=footerWordmark?.querySelector('img');
   const hero=document.querySelector('.hero');
   if(!root||!hero)return;
+  // Safari and Firefox use the CSS glass surface without SVG backdrop refraction.
+  if(footerCard && /\b(?:Chrome|Chromium)\//.test(window.navigator?.userAgent||'') &&
+    window.CSS?.supports('backdrop-filter','url(#footer-glass-refraction)')){
+    footerCard.classList.add('site-footer__card--refractive');
+  }
   const originalParent=root.parentElement;
   const footerParent=footer?.parentElement;
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
@@ -103,6 +109,9 @@
     const footerHeight=measureHeight(footer,viewportHeight);
     const footerCardTop=footerCard?.offsetTop||0;
     const footerWordmarkTop=footerWordmark?.offsetTop||0;
+    const footerIntroBottom=(footerIntro?.offsetTop||0)+(footerIntro?.offsetHeight||0);
+    const footerCardStart=Math.min(footerHeight-1,Math.max(footerIntroBottom,
+      footerWordmarkTop+.33*(footerHeight-footerWordmarkTop)));
     const footerWordmarkBlur=clamp(width*.03,24,42);
     const totalHeight=sectionHeight+footerHeight;
     const headingCenter=(heading?.offsetTop||0)+(heading?.offsetHeight||0)/2;
@@ -120,7 +129,7 @@
     const travel=enhanced?totalHeight+centeredY-viewportHeight:0;
     layout={height:viewportHeight,sectionHeight,footerHeight,totalHeight,start,centeredY,
       deckTop,deckHeight,deckEntryY,introTravel,openingTravel,travel,
-      footerCardTop,footerWordmarkTop,footerWordmarkBlur};
+      footerCardTop,footerCardStart,footerWordmarkTop,footerWordmarkBlur};
     if(!stage&&!motion&&oldLayout?.height!==viewportHeight)lastDistance=null;
     let rebaseDistance=null;
     if(enhanced&&oldLayout&&Number.isFinite(oldLocal)&&oldLocal>=0&&oldLocal<=oldLayout.introTravel+oldLayout.travel+.5){
@@ -284,7 +293,7 @@
         footer.style.setProperty('--site-footer-scroll-y',`${top.toFixed(3)}px`);
         backdrop?.style.setProperty('--site-footer-reveal',clamp(1-top/layout.height,0,1).toFixed(4));
         const entered=layout.height-top;
-        const cardPhase=clamp(entered/layout.footerHeight,0,1);
+        const cardPhase=clamp((entered-layout.footerCardStart)/(layout.footerHeight-layout.footerCardStart),0,1);
         // The form entrance uses quintic ease-out and completes the fade before the motion.
         const cardOffset=(1-cardPhase)**5;
         const cardOpacity=1-(1-clamp(cardPhase/.45,0,1))**5;

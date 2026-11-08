@@ -67,8 +67,8 @@ function event(f,type,properties={},elapsed=0){
     assert(local(f)<-100,'About consumes just its own new displacement');
   }
 
-  // A measured return point prepares readable About before the portrait is
-  // revealed, while forward navigation still plays the final scatter first.
+  // About visibly reassembles during the flip. Its visual distance can move
+  // while the original gesture and native landing remain pinned.
   {
     const returnAfter=280;
     const f=await fixture(1920,960,{returnAfter}),{page,view}=f;
@@ -78,11 +78,25 @@ function event(f,type,properties={},elapsed=0){
     assert(page.wheel(-3000,230).prevented);
     page.frame(0);
     near(page.window.scrollY-120,desired,'Reverse targets the measured reading point');
-    advance(page,950);
-    assert.equal(view.root.hidden,false,'The flip still owns the visible scene before it finishes');
-    near(after(f),returnAfter,'Readable text is ready behind the flipping portrait');
+    const scattered=after(f);
+    assert(scattered>returnAfter,'The readable pose is not painted immediately at the start of the flip');
+    for(let time=250;time<1000;time+=250){
+      const previous=after(f);
+      advance(page,250);
+      assert.equal(view.root.hidden,false,'About rebuilds before the portrait finishes turning');
+      assert.equal(page.copy.style.visibility,'visible','The animated text is visible behind the flipping card');
+      assert.equal(page.copy.getAttribute('aria-hidden'),'true','The interim glyphs remain outside the accessibility reading order');
+      assert(after(f)>returnAfter&&after(f)<previous,'Each quarter of the flip rewinds to an intermediate flight pose');
+      near(page.window.scrollY-120,desired,'The visual flight cannot move the native landing');
+      const expected=scattered+(returnAfter-scattered)*(1-Number(view.root.dataset.flipProgress));
+      assert(Math.abs(after(f)-expected)<.01,'The glyph flight uses the same eased progress as the flip');
+    }
+    advance(page,250);
+    assert.equal(view.root.hidden,true);
+    near(after(f),returnAfter,'The first visible About frame reaches the exact reading pose');
     page.frames();
     assert.equal(view.root.hidden,true);
+    assert.equal(page.copy.style.visibility,'','The normal About visibility resumes after the flip');
     assert.equal(page.copy.getAttribute('aria-hidden'),'false');
     near(after(f),returnAfter,'About is readable on the first settled frame');
     near(start(f),forwardBoundary,'The forward flip threshold stays at the end of About');
@@ -93,6 +107,7 @@ function event(f,type,properties={},elapsed=0){
     assert.equal(view.root.hidden,true,'About remains active before the original forward threshold');
     page.scroll(forwardBoundary+6);page.frames();
     assert.equal(view.root.hidden,false,'The original forward threshold triggers People again');
+    assert.equal(page.copy.style.visibility,'','Forward Inspiration never reveals the About plane');
     assert.equal(view.index.textContent,'01');
   }
 
@@ -152,5 +167,5 @@ function event(f,type,properties={},elapsed=0){
     assert.equal(restored.view.root.hidden,true,'History already inside About stays in About');
     assert.equal(restored.scrollAdjustments.length,0,'About history does not rebase to the Inspiration anchor');
   }
-  console.log('Inspiration return checks passed: readable About landing, unchanged forward trigger, per-screen wheel/swipe/key quarantine, fresh-input release, resize/history and no idle clock.');
+  console.log('Inspiration return checks passed: synchronized About glyph rebuild, exact readable landing, unchanged forward trigger, wheel/swipe/key quarantine, fresh-input release, resize/history and no idle clock.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
