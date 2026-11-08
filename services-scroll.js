@@ -15,7 +15,7 @@
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
   const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
   const smooth=value=>value*value*(3-2*value);
-  const duration=700, wheelThreshold=24;
+  const openingDuration=500, closingDuration=700, wheelThreshold=24;
   let layout=null,enhanced=false,visibility=null,deckVisibility=null,footerVisibility=null,footerY=null;
   let stage=null,motion=null,lastDistance=null,allowRestore=true;
   let wheelId=0,wheelUsed=true,wheelAmount=0,touch=null,keyRelease='';
@@ -231,8 +231,10 @@
     }
     let reveal,settleLocalDistance,scrollAdjustment=0;
     if(motion){
+      const opening=motion.to==='open';
+      const duration=opening?openingDuration:closingDuration;
       const phase=clamp((now-motion.started)/duration,0,1);
-      reveal=motion.to==='open'?smooth(phase):1-smooth(phase);
+      reveal=opening?1-(1-phase)**3:1-smooth(phase);
       settleLocalDistance=motion.from==='open'?openAt:introTravel;
       if(phase===1){stage=motion.to;motion=null;}
     }

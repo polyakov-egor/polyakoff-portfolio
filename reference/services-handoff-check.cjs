@@ -124,16 +124,18 @@ function send(f,type,properties={}){
     assert(f.viewport.inert&&page.hero.classList.contains('is-services-covered'),'Works cannot intercept input after the final card');
 
     assert(f.wheel(120,500).prevented,'One fresh gesture starts timed entry');
-    page.frame(0);advance(page,350);
+    page.frame(0);advance(page,250);
     assert.equal(services.dataset.servicesStage,'opening');
-    assert(y(services)<centeredY&&y(services)>centeredY-openingTravel,'The shared clock moves both parts of Services');
+    roundedNear(y(services),centeredY-openingTravel*.875,'Cubic ease-out covers 87.5% of the entry in 250 ms');
     assert(reveal()>0&&reveal()<1&&deck.inert,'Pagination and glow follow the timed entry while card input waits');
     roundedNear(page.window.scrollY-120,clear,'Native distance cannot scrub the timed entry');
     page.scroll(clear+openingTravel*2);page.frame(0);
     roundedNear(page.window.scrollY-120,clear,'A delayed native momentum tick is rebased');
-    advance(page,325);
+    advance(page,225);
+    assert.equal(services.dataset.servicesStage,'opening');
     assert(f.wheel(44,16).prevented,'An additional gesture during the animation is consumed');
-    advance(page,40);
+    advance(page,9);
+    assert.equal(services.dataset.servicesStage,'open','The deck settles after 500 ms');
     assert(f.wheel(12,16).prevented,'The opening gesture tail cannot continue past the composed frame');
     page.frames();
     assert.equal(services.dataset.servicesStage,'open');
@@ -145,7 +147,9 @@ function send(f,type,properties={}){
 
     const cardTarget={closest:selector=>selector.includes('button')?deck:null};
     assert(f.wheel(-120,500,{target:cardTarget}).prevented,'Reverse can begin over the card button');
-    page.frame(0);advance(page,760);page.frames();
+    page.frame(0);advance(page,500);
+    assert.equal(services.dataset.servicesStage,'closing','The reverse retains its original 700 ms timing');
+    advance(page,200);page.frames();
     assert.equal(services.dataset.servicesStage,'center');
     near(reveal(),0,'Reverse fully restores the plain heading');
     assert(!f.wheel(-80,500).prevented,'The next reverse gesture returns to Works');
