@@ -1,7 +1,7 @@
 {
-  "parentCommit": "4133f4c140170614d6b48bb44e1726b958eb2de0",
+  "parentCommit": "04a23cc83dee8e1f5e6e9a141de85ba9df142720",
   "geometry": {
-    "description": "Approved 200% foreground geometry with a small vertical lift during entry to expose the first project edge at the title checkpoint.",
+    "description": "Approved 200% foreground geometry with seven project cards and a direct helix entrance.",
     "foregroundMaxScale": 2,
     "desktopCenterSpreadX": 2.2,
     "desktopCenterSpreadY": 2.3,
@@ -16,7 +16,10 @@
     0.3068841137,
     0.33457,
     0.45,
+    0.52,
+    0.56,
     0.62,
+    0.7,
     0.75462,
     0.80925,
     1,
@@ -28,32 +31,32 @@
     {
       "width": 600,
       "height": 800,
-      "sha256": "2ae776df353d2d1f1af3610189a9fe7a3f9bf7804ae3dd1b41c8ef5a0b93fa67"
+      "sha256": "5618eb023dadf0f5db0e05fd1c70142b37145b9b4f3c45b400bc97a3995c5d18"
     },
     {
       "width": 768,
       "height": 1024,
-      "sha256": "acaefd1ff83f82aa4ed92af8032f79b1a281b8c61997a5e09c2ee750fb5300fe"
+      "sha256": "415137af4c882cb46afdbb0dbba9ae9a0560f86aa5df65366691a1574235af9c"
     },
     {
       "width": 1099,
       "height": 800,
-      "sha256": "3427bbbd89d938282c5b3355531a103182d66571b0f179875a678aac72507566"
+      "sha256": "cf2863a4cc6016a76ebb33bec47b9e397d6eb2d1a364f6dc6472426b3b61f4f1"
     },
     {
       "width": 1267,
       "height": 713,
-      "sha256": "61517aa9faf4fab3fed61a1e218a7876bd150c237b772dd886cfb8570b62dae3"
+      "sha256": "5037a3499fb337131ca2a6e3cdd45116e4dfc05315c41b8f41489a5e1c94dcba"
     },
     {
       "width": 1920,
       "height": 960,
-      "sha256": "27b4d578171d007e6a0a3f97a8369f2f8fdd4818690a128b06b76dd90ab097d8"
+      "sha256": "6614b34077303cf49fc958094367c6cf097118c3f2b96a0b21fa9d5d1ee2b543"
     },
     {
       "width": 2560,
       "height": 1305,
-      "sha256": "ed82dca567876aae26c02f4e9ff238d2e4e82c7172e9d12ae23861b701c03be0"
+      "sha256": "3c8cb1d51340d329800d0e6955df36b028ec158298d7a4e28b425383cc77e8e1"
     }
   ]
 }

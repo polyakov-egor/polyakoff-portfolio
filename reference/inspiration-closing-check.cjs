@@ -242,7 +242,12 @@ if(require.main===module)(async()=>{
     assert(!page.hero.classList.contains('is-works'),'Works cannot appear halfway through the new message');
     assert(!f.viewport.classList.contains('works-is-preview'),'The title can roll into view before the first project edge enters');
     const hold=Number(f.journey.dataset.headingHoldDistance),worksStart=start+height*3.5;
-    for(let frame=0;frame<7;frame++)assert(f.wheel(6,40).prevented,'Residual input cannot leave the timed title transition');
+    const peekPhases=[];
+    for(let frame=0;frame<7;frame++){
+      assert(f.wheel(6,40).prevented,'Residual input cannot leave the timed title transition');
+      if(f.viewport.classList.contains('works-is-preview'))peekPhases.push(Number(f.journey.dataset.helixProgress));
+    }
+    assert(peekPhases.length>1&&peekPhases[0]<peekPhases.at(-1),'The timed title itself advances the initial orbit across multiple frames');
     page.frames();
     near(page.window.scrollY-120,worksStart-2,'A single gesture lands immediately before Works at the completed title');
     assert.equal(f.root.dataset.morphProgress,'1.00000');

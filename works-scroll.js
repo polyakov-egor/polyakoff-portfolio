@@ -10,34 +10,22 @@
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const clamp = value => Math.max(0, Math.min(1, value));
   let travel = 0, galleryTravel = 0, exitTravel = 0, emptyHold = 0;
-  let height = 1, start = 0, entranceOffset = 0, entrancePeek = 0, holdDistance = 0;
+  let height = 1, start = 0, entranceStart = 0, entrancePeek = 0, holdDistance = 0;
   let clearProgress = 1.15, phasePerViewport = .14;
   let headingAscent=[];
   let enhanced = false;
   // Use one world-space camera speed for entry, browsing and departure. Its
   // pace matches the previous two-screen final exit, without its acceleration.
-  const entranceProgress = .13;
-  const finalProgress = 43.2 / 56.592;
+  const paceReferenceProgress = 43.2 / 56.592;
   const titleRevealPhase = window.WorksGallery.leadFrontalPhase - .01;
   let titleHidePhase = Infinity;
 
   function helixProgress(distance) {
-    return Math.min(clearProgress,entranceProgress+Math.max(0,distance)/height*phasePerViewport);
-  }
-
-  function projectedEntrance(distance) {
-    const helix=helixProgress(distance);
-    const bounds=window.WorksGallery.getProjectedBounds?.(helix);
-    const entry=clamp((helix-.13)/(.30-.13));
-    return {bounds,offset:entranceOffset*(1-entry)**3};
+    return Math.min(clearProgress,entrancePeek+Math.max(0,distance)/height*phasePerViewport);
   }
 
   function measureHeadingHold() {
-    const imageTop=distance=>{
-      const {bounds,offset}=projectedEntrance(distance);
-      if (!bounds||!Number.isFinite(bounds.minY)) return Infinity;
-      return bounds.minY+offset;
-    };
+    const imageTop=distance=>window.WorksGallery.getProjectedBounds?.(helixProgress(distance))?.minY??Infinity;
     // Cache the first crossing rather than recording it during scrolling, so
     // history restores, fast gestures and reverse playback share one boundary.
     const edge=window.InspirationClosing?.getCreationBounds?.()?.bottom||height*.54;
@@ -60,10 +48,7 @@
   }
 
   function measureHeadingAscent() {
-    const leadTop=distance=>{
-      const {bounds,offset}=projectedEntrance(distance);
-      return Number.isFinite(bounds?.minY)?bounds.minY+offset:height;
-    };
+    const leadTop=distance=>window.WorksGallery.getProjectedBounds?.(helixProgress(distance))?.minY??height;
     const origin=leadTop(holdDistance),samples=512;
     headingAscent=Array.from({length:samples+1},()=>0);
     let ascent=0;
@@ -82,10 +67,10 @@
     return clamp(ascent/(height*.25));
   }
 
-  function measureClearProgress(getBounds=window.WorksGallery.getProjectedCardBounds){
+  function measureClearProgress(getBounds,from){
     const clear=value=>(getBounds?.(value)||window.WorksGallery.getProjectedCards?.(value))?.every(pose=>pose.maxY< -Math.max(16,height*.02));
-    let low=finalProgress;
-    for(let high=finalProgress+.02;high<=2.001;high+=.02){
+    let low=from;
+    for(let high=from+.02;high<=2.001;high+=.02){
       high=Math.min(high,2);
       if(clear(high)){
         for(let i=0;i<22;i++){const middle=(low+high)/2;if(clear(middle))high=middle;else low=middle;}
@@ -132,13 +117,14 @@
     const scale = Math.max(1, width / 2560, height / 1305);
     if (artwork) artwork.style.transform = `translate3d(${(width - 2560 * scale) / 2}px, ${(height - 1305 * scale) / 2}px, 0) scale(${scale})`;
     const galleryLayout=window.WorksGallery.measure({ width, height });
-    entranceOffset=Number.isFinite(galleryLayout?.entranceOffset)?galleryLayout.entranceOffset:0;
-    entrancePeek=galleryLayout?.entrancePeek??0;
-    titleHidePhase=galleryLayout?.lastFrontalPhase??Infinity;
-    clearProgress=measureClearProgress(window.WorksGallery.getProjectedMotionBounds);
-    const paceClearProgress=measureClearProgress(window.WorksGallery.getPaceReferenceBounds);
-    phasePerViewport=Math.max(.001,(paceClearProgress-finalProgress)/2);
-    const distanceAt=progress=>Math.max(0,(progress-entranceProgress)/phasePerViewport*height);
+    entranceStart=galleryLayout?.entranceStartPhase??0;
+    entrancePeek=galleryLayout?.entrancePeekPhase??entranceStart;
+    const finalProgress=galleryLayout?.lastFrontalPhase??paceReferenceProgress;
+    titleHidePhase=finalProgress;
+    clearProgress=measureClearProgress(window.WorksGallery.getProjectedMotionBounds,finalProgress);
+    const paceClearProgress=measureClearProgress(window.WorksGallery.getPaceReferenceBounds,paceReferenceProgress);
+    phasePerViewport=Math.max(.001,(paceClearProgress-paceReferenceProgress)/2);
+    const distanceAt=progress=>Math.max(0,(progress-entrancePeek)/phasePerViewport*height);
     galleryTravel=reduced.matches?0:distanceAt(finalProgress);
     exitTravel=reduced.matches?0:Math.max(0,(clearProgress-finalProgress)/phasePerViewport*height);
     const servicesHeadingDistance=reduced.matches?0:distanceAt(measureLastWorkCrossing(titleHidePhase-.055,titleHidePhase,height*.42,'minY'));
@@ -158,8 +144,6 @@
       viewport.classList.remove('has-works-title');
       viewport.classList.remove('works-is-preview');
       hero.style.setProperty('--works-exit-px', '0px');
-      viewport.style.removeProperty('--works-enter-px');
-      viewport.style.removeProperty('--works-card-offset-px');
       viewport.removeAttribute('aria-hidden');
       window.WorksGallery.update(0, { reducedMotion: true });
     }
@@ -174,22 +158,18 @@
     const active = localDistance > 0;
     const previewProgress = clamp((blackProgress - .86) / .14);
     const preview = !active && previewProgress > 0;
-    // Let the last part of the title roll uncover the first pose without
-    // consuming Works distance. A fresh gesture moves the gallery from it.
+    // The last part of the title roll advances the helix to its first visible
+    // sliver. The next gesture continues from that exact orbit phase.
     const galleryVisible = preview || (active && localDistance < galleryTravel + exitTravel);
     window.WorksGallery.setVisible?.(galleryVisible,{interactive:active&&galleryVisible});
     const progress = clamp(Math.max(0, localDistance) / Math.max(1, travel));
-    // The gallery's own entrance supplies the rise from below. Moving its
-    // whole viewport as well would conceal the orbit behind a vertical slide.
     const exit=Math.min(height,Math.max(0,localDistance));
-    const helix=helixProgress(Math.max(0,localDistance));
+    const helix=active?helixProgress(localDistance):entranceStart+(entrancePeek-entranceStart)*previewProgress;
     hero.classList.toggle('is-works', active);
     const titleVisible=active&&galleryVisible&&helix>=titleRevealPhase&&helix<titleHidePhase;
     viewport.classList.toggle('has-works-title',titleVisible);
     viewport.classList.toggle('works-is-preview',preview);
     hero.style.setProperty('--works-exit-px', `${exit}px`);
-    viewport.style.setProperty('--works-enter-px', `${active?0:entrancePeek*(1-previewProgress)}px`);
-    viewport.style.setProperty('--works-card-offset-px', '0px');
     viewport.setAttribute('aria-hidden', String(!active||!galleryVisible));
     const inspiration=hero.querySelector('.inspiration');
     if(inspiration)inspiration.setAttribute('aria-hidden',String(exit>=height||inspiration.hidden));

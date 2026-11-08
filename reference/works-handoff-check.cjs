@@ -48,27 +48,26 @@ function fixture(width, height) {
   return {width,height,window,reduced,hero,journey,viewport,list,artwork,inspiration,commonUI,duplicates,updates,closingUpdates,ready,api:window.WorksScrollChapter};
 }
 function screenBounds(f){
-  const shift=(parseFloat(f.viewport.style.getPropertyValue('--works-enter-px'))||0)+(parseFloat(f.viewport.style.getPropertyValue('--works-card-offset-px'))||0);
-  return f.window.WorksGallery.getProjectedCards(Number(f.journey.dataset.helixProgress)||0).map(pose=>({left:pose.minX,top:pose.minY+shift,width:pose.maxX-pose.minX,height:pose.maxY-pose.minY}));
+  return f.window.WorksGallery.getProjectedCards(Number(f.journey.dataset.helixProgress)||0).map(pose=>({left:pose.minX,top:pose.minY,width:pose.maxX-pose.minX,height:pose.maxY-pose.minY}));
 }
 function checkTitleTiming(f, measured, now){
   const leadPhase=f.window.WorksGallery.leadFrontalPhase;
+  const {entrancePeekPhase,lastFrontalPhase:lastPhase}=f.window.WorksGallery.getLayout();
   const [lead]=f.window.WorksGallery.getProjectedCards(leadPhase);
   assert.equal(lead.index,0);
   assert(Math.abs(lead.angle)<1e-8&&lead.visible,'Title timing follows the first work approaching the center head-on');
-  const titleDistance=(leadPhase-.01-.13)/measured.phasePerViewport*f.height;
-  const lastPhase=f.window.WorksGallery.getLayout().lastFrontalPhase;
+  const titleDistance=(leadPhase-.01-entrancePeekPhase)/measured.phasePerViewport*f.height;
   const last=f.window.WorksGallery.getProjectedCards(lastPhase).at(-1);
   assert(Math.abs(last.angle)<1e-8&&last.visible,'The exit cue is the last work facing the viewer');
-  const hideTitleDistance=(lastPhase-.13)/measured.phasePerViewport*f.height;
+  const hideTitleDistance=(lastPhase-entrancePeekPhase)/measured.phasePerViewport*f.height;
   assert(measured.servicesHeadingDistance>titleDistance&&measured.servicesHeadingDistance<hideTitleDistance,
     'The Services heading starts behind the approaching final work');
-  const servicesHeadingPhase=.13+measured.servicesHeadingDistance/f.height*measured.phasePerViewport;
+  const servicesHeadingPhase=entrancePeekPhase+measured.servicesHeadingDistance/f.height*measured.phasePerViewport;
   const lastTop=f.window.WorksGallery.getProjectedMotionBounds(servicesHeadingPhase).at(-1).minY;
   assert(Math.abs(lastTop-f.height*.42)<.002,'The final work reaches the heading before it fades in');
   assert(measured.servicesRevealDistance>hideTitleDistance&&measured.servicesRevealDistance<measured.galleryTravel+measured.exitTravel,
     'The Services deck starts between the last frontal work and the complete exit');
-  const servicesRevealPhase=.13+measured.servicesRevealDistance/f.height*measured.phasePerViewport;
+  const servicesRevealPhase=entrancePeekPhase+measured.servicesRevealDistance/f.height*measured.phasePerViewport;
   const lastBottom=f.window.WorksGallery.getProjectedMotionBounds(servicesRevealPhase).at(-1).maxY;
   assert(Math.abs(lastBottom-f.height*.15)<.002,'The last work still occupies the top 15% at the Services reveal cue');
   for(const [distance,visible] of [[titleDistance-1,false],[titleDistance+1,true],[hideTitleDistance-1,true],
@@ -82,12 +81,15 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   const f=fixture(width,height);
   assert.equal(f.ready.length,1,'Works announces readiness once to the story owner');
   const measured=f.api.measure({width,height,start:2700});
+  assert.equal(f.list.children.length,7,'The rendered spiral has seven work cards');
+  assert.deepEqual(f.list.children.map(card=>card.dataset.sequence),['1','2','3','4','5','6','7']);
   const galleryTravel=measured.galleryTravel,travel=galleryTravel+measured.exitTravel+height;
   assert.equal(measured.travel,travel);
-  assert(measured.galleryTravel<height*(width<600?6:8),'Browsing now uses the faster final-exit pace');
+  assert(measured.galleryTravel<height*4,'The seven-card sequence shortens the browsing distance');
   const priorPace=width<600?.13852626085281367:width<1100?.2743629407882692:.13409726858139054;
   assert(Math.abs(measured.phasePerViewport-priorPace)<1e-9,'Wider spacing preserves the previous camera pace at every breakpoint');
-  assert(Math.abs(measured.exitTravel-(Number(f.journey.dataset.clearProgress)-43.2/56.592)/measured.phasePerViewport*height)<.01,'Departure length follows actual enlarged imagery at the unchanged camera speed');
+  const lastFrontalPhase=f.window.WorksGallery.getLayout().lastFrontalPhase;
+  assert(Math.abs(measured.exitTravel-(Number(f.journey.dataset.clearProgress)-lastFrontalPhase)/measured.phasePerViewport*height)<.01,'Departure follows the seventh work at the unchanged camera speed');
   assert.equal(measured.emptyHold,height);
   assert(Math.abs(Number(f.journey.dataset.totalTravel)-travel)<.001);
   assert(measured.holdDistance>0&&measured.holdDistance<height*4,'The headline hold follows actual imagery through the entrance, including tall phone viewports');
@@ -95,7 +97,7 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   f.api.update(height*.01,{now:90});
   const layoutTransforms=f.list.children.map(node=>node.style.transform);
   assert(layoutTransforms.every(value=>/^matrix3d\(/.test(value)&&!value.includes('NaN')),'Every fallback image receives a finite true projective quad');
-  const projected=f.window.WorksGallery.getProjectedBounds(.13);
+  const projected=f.window.WorksGallery.getProjectedBounds(f.window.WorksGallery.getLayout().entrancePeekPhase);
   assert(Number.isFinite(projected.minY)&&Number.isFinite(projected.maxY));
   assert.deepEqual(f.list.children.map(node=>node.style.transform),layoutTransforms,'Raw projection queries never mutate image poses');
   assert.equal(f.viewport.parentElement,f.hero,'Both chapters occupy the same pinned viewport');
@@ -106,20 +108,22 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   const before=screenBounds(f);
   assert.equal(f.closingUpdates.at(-1).distance,0,'The closing heading receives the reset boundary too');
   assert(!f.hero.classList.contains('is-works'));
-  const visibleTop=boxes=>Math.min(...boxes.filter(box=>box.left+box.width>0&&box.left<width).map(box=>box.top));
-  assert(visibleTop(before)>=height-.01,'The real helix entrance remains below the viewport before the title completes');
+  const visibleSlice=({left,top,width:boxWidth,height:boxHeight})=>Math.min(
+    Math.min(left+boxWidth,width)-Math.max(left,0),Math.min(top+boxHeight,height)-Math.max(top,0));
+  assert(before.every(box=>visibleSlice(box)<.15),'The raw helix starts beyond the viewport edge');
   f.api.update(-2,{blackProgress:.93,now:101});
-  const partialTop=visibleTop(screenBounds(f));
+  const [partial]=screenBounds(f),partialPhase=f.updates.at(-1)[0];
   f.api.update(-2,{blackProgress:1,now:102});
-  const previewTop=visibleTop(screenBounds(f));
-  assert(partialTop<height&&partialTop>previewTop,'The late title frames progressively expose the first card');
-  assert(height-previewTop>=24-.01&&height-previewTop<=44+.01,'The finished title exposes only a small edge across screen sizes');
+  const [peek]=screenBounds(f),peekPhase=f.updates.at(-1)[0];
+  assert(partialPhase<peekPhase&&visibleSlice(partial)>0&&visibleSlice(partial)<visibleSlice(peek),'The late title frames advance the actual camera phase and expose the first card');
+  assert(Math.abs(partial.left-peek.left)>3&&Math.abs(partial.width-peek.width)>.1,'The first card moves and turns on the orbit during the preview');
+  assert(visibleSlice(peek)>=24-.15&&visibleSlice(peek)<=44+.15,'The finished title exposes a small edge even if the orbit enters from the right on a tall tablet');
   assert(f.viewport.classList.contains('works-is-preview')&&!f.hero.classList.contains('is-works'));
   assert.equal(f.viewport.getAttribute('aria-hidden'),'true');
   assert(f.list.children.every(card=>card.getAttribute('tabindex')==='-1'));
   assert(!f.viewport.classList.contains('has-works-title'));
   f.api.update(.001,{blackProgress:1,now:103});
-  assert(Math.abs(visibleTop(screenBounds(f))-previewTop)<.05,'The first Works scroll starts from the preview pose');
+  assert(Math.abs(f.updates.at(-1)[0]-peekPhase)<1e-6,'The first Works scroll starts from the preview phase');
   for(const fraction of [.01,.05]) {
     f.api.update(height*fraction,{now:108+fraction*100});
     assert(screenBounds(f).some(box=>box.top<height&&box.top+box.height>0),`Actual project imagery appears after only ${fraction} viewport of the normal exit`);
@@ -135,7 +139,6 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   const entering=screenBounds(f);
   assert(f.hero.classList.contains('is-works'),'The next scroll directly starts the Works layer');
   assert.equal(f.hero.style.getPropertyValue('--works-exit-px'),`${height*.25}px`,'The normal Works entrance follows native scroll distance');
-  assert.equal(f.viewport.style.getPropertyValue('--works-enter-px'),'0px','Only images enter from below; the viewport does not hide the orbit with a vertical slide');
   assert(entering.some((box,i)=>box.top<before[i].top),'Projected works start moving on the entrance scroll');
   assert.equal(f.inspiration.getAttribute('aria-hidden'),'false','Inspiration stays readable while part of its screen is still present');
   assert.equal(f.journey.dataset.chapterStart,'2700.000');
@@ -149,29 +152,28 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   assert(screenBounds(f).some(box=>box.top<height&&box.top+box.height>0),'Real project images enter before the preceding full screen has scrolled out');
   f.api.update(height,{now:140});
   assert.equal(f.hero.style.getPropertyValue('--works-exit-px'),`${height}px`,'The normal Works entrance completes after one viewport');
-  assert.equal(f.viewport.style.getPropertyValue('--works-enter-px'),'0px','Works then occupies the exact pinned screen');
   assert.equal(f.inspiration.getAttribute('aria-hidden'),'true');
   assert.equal(f.journey.dataset.exitProgress,'1.00000');
-  assert.equal(f.viewport.style.getPropertyValue('--works-card-offset-px'),'0px','The gallery uses its own cached entrance rather than a second translating correction');
   const orbit=[];
-  for(const fraction of [0,.25,.5,1,2,3]){
-    f.api.update(height*fraction,{now:144+fraction});
+  const orbitEnd=galleryTravel/height*.9;
+  for(const fraction of [0,.25,.5,orbitEnd*.7,orbitEnd*.85,orbitEnd]){
+    f.api.update(height*fraction,{blackProgress:1,now:144+fraction});
     const box=screenBounds(f)[0];
     orbit.push({distance:height*fraction,centerX:box.left+box.width/2,top:box.top,offset:f.closingUpdates.at(-1).headingProgress,helix:Number(f.journey.dataset.helixProgress)});
   }
-  assert(Math.abs(orbit[3].centerX-orbit[0].centerX)>width*.12,'The first viewport includes a noticeable sideways helix orbit');
+  assert(Math.max(...orbit.map(pose=>Math.abs(pose.centerX-orbit[0].centerX)))>width*.12,'The visible helix includes a noticeable sideways orbit');
   assert(orbit[3].helix>.23,'Actual camera progress, rather than a fake object slide, drives the early orbit');
   assert(orbit.every(item=>item.offset>=0&&item.offset<=1),'The centered title receives a bounded recede/fade progress');
-  assert(Math.abs(orbit[5].helix-(.13+measured.phasePerViewport*3))<.00001,'Every screen of scrolling advances the same helix phase');
+  assert(Math.abs(orbit[5].helix-(orbit[0].helix+measured.phasePerViewport*orbitEnd))<.00002,'Every screen of scrolling advances the same helix phase');
   for(let i=1;i<orbit.length;i++){
     const step=(orbit[i].helix-orbit[i-1].helix)/((orbit[i].distance-orbit[i-1].distance)/height);
     assert(Math.abs(step-measured.phasePerViewport)<.00005,'Entry and browsing have a constant world-space speed');
   }
-  f.api.update(height*(3-.0001),{now:150});
+  f.api.update(height*(orbitEnd-.0001),{now:150});
   const joinBefore=Number(f.journey.dataset.helixProgress);
-  f.api.update(height*(3+.0001),{now:150});
+  f.api.update(height*(orbitEnd+.0001),{now:150});
   const joinAfter=Number(f.journey.dataset.helixProgress);
-  assert(Math.abs((orbit[5].helix-joinBefore)-(joinAfter-orbit[5].helix))<.00002,'No hidden 3H easing splice changes the camera speed');
+  assert(Math.abs((orbit[5].helix-joinBefore)-(joinAfter-orbit[5].helix))<.00002,'No hidden easing splice changes the camera speed');
   for(let i=1;i<orbit.length;i++){
     assert(orbit[i].offset>=orbit[i-1].offset,'Header ascent is monotonic across the early orbit');
     assert.equal(f.journey.dataset.headingOffset,'0.000','The title no longer scrolls upward');
@@ -182,16 +184,18 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
     for(let frame=0;frame<45&&f.window.WorksGallery.isAnimating();frame++)f.api.update(distance,{now:now+=16});
     assert(!f.window.WorksGallery.isAnimating(),'A stationary scroll pose lets the shared clock sleep');
   }
-  settleAt(height*3);
+  const settledOrbit=height*orbitEnd;
+  settleAt(settledOrbit);
   const imageBefore=f.list.children.map(node=>node.style.transform),heldBefore=f.closingUpdates.at(-1).headingProgress;
-  f.api.update(height*.7,{now:now+=16});settleAt(height*3);
+  f.api.update(height*.7,{now:now+=16});settleAt(settledOrbit);
   assert.deepEqual(f.list.children.map(node=>node.style.transform),imageBefore,'Reverse restores exactly the same curved camera pose');
   assert.equal(f.closingUpdates.at(-1).headingProgress,heldBefore,'Reverse restores exactly the same cached header ascent');
   f.api.update(galleryTravel,{now:now+=16});
-  assert(Math.abs(Number(f.journey.dataset.helixProgress)-43.2/56.592)<.00001,'The twelfth work retains its pose at the former endpoint');
+  assert(Math.abs(Number(f.journey.dataset.helixProgress)-lastFrontalPhase)<.00001,'Browsing ends with the seventh work centered');
   const phaseBefore=Number(f.journey.dataset.helixProgress);
-  f.api.update(galleryTravel+height*.5,{now:now+=16});
-  assert(Math.abs((Number(f.journey.dataset.helixProgress)-phaseBefore)/.5-measured.phasePerViewport)<.00005,'Departure uses the exact same camera speed as arrival');
+  const exitSample=Math.min(height*.5,measured.exitTravel*.5);
+  f.api.update(galleryTravel+exitSample,{now:now+=16});
+  assert(Math.abs((Number(f.journey.dataset.helixProgress)-phaseBefore)/(exitSample/height)-measured.phasePerViewport)<.0001,'Departure uses the exact same camera speed as arrival');
   assert.equal(measured.travel,travel,'Works uses the camera trajectory and its standalone hold, with no background travel');
   const clear=f.api.update(galleryTravel+measured.exitTravel,{now:now+=16});
   assert.equal(clear.finished,true);
@@ -210,7 +214,7 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   assert.equal(f.viewport.getAttribute('aria-hidden'),'false','Rewinding wakes the gallery in the same owner frame');
   const geometry=f.window.WorksGallery.getProjectedCards(Number(f.journey.dataset.helixProgress));
   assert(geometry.some(pose=>pose.front)&&geometry.some(pose=>!pose.front),'Orbit distinguishes actual front and back surfaces');
-  assert(new Set(geometry.map(pose=>Math.round(pose.angle*100))).size===12,'Cards follow tangent orientations instead of billboarding');
+  assert(new Set(geometry.map(pose=>Math.round(pose.angle*100))).size===7,'Cards follow tangent orientations instead of billboarding');
   const front=geometry.find(pose=>pose.front&&pose.visible),back=geometry.find(pose=>!pose.front&&pose.visible);
   const projectPill=f.viewport.querySelector('.works-project'),projectTitle=projectPill.querySelector('.works-project__name');
   assert.equal(projectPill.getAttribute('aria-hidden'),'true','No project label is shown without hover, focus or tap');
@@ -218,7 +222,7 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   if(front){
     f.list.children[front.index].dispatchEvent({type:'focus'});
     assert.equal(projectPill.getAttribute('aria-hidden'),'false','Keyboard focus on a visible front work opens its project details');
-    assert.equal(projectTitle.textContent,f.window.WorksGallery.getProjects()[front.index%6].name);
+    assert.equal(projectTitle.textContent,f.window.WorksGallery.getProjects()[Number(f.list.children[front.index].dataset.project)-1].name);
     assert.equal(projectPill.querySelector('.works-project__button').getAttribute('aria-disabled'),'true','Project navigation stays explicitly unconnected');
     const canvas=f.viewport.querySelector('.works-gallery-canvas'),center=front.vertices[4*25+12];
     canvas.getBoundingClientRect=()=>({left:0,top:0});
@@ -233,9 +237,8 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   }
   f.api.update(0,{blackProgress:1,now:now+=16});
   assert.equal(f.closingUpdates.at(-1).distance,0,'Reverse returns the heading to its centered checkpoint');
-  assert.equal(visibleTop(screenBounds(f)),previewTop,'Reverse restores the same small preview at the title checkpoint');
+  assert.deepEqual(screenBounds(f)[0],peek,'Reverse restores the same small preview at the title checkpoint');
   assert.equal(f.hero.style.getPropertyValue('--works-exit-px'),'0px');
-  assert.equal(f.viewport.style.getPropertyValue('--works-enter-px'),'0px');
   assert.equal(f.inspiration.getAttribute('aria-hidden'),'false');
   assert(!f.hero.classList.contains('is-works'));
   assert.equal(f.viewport.getAttribute('aria-hidden'),'true');
@@ -269,13 +272,19 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
 }
 const shortPhone=fixture(414,700);
 checkTitleTiming(shortPhone,shortPhone.api.measure({width:414,height:700}),150);
+const portraitTablet=fixture(820,1180);
+portraitTablet.api.measure({width:820,height:1180});
+portraitTablet.api.update(-2,{blackProgress:1});
+const [tabletPeek]=screenBounds(portraitTablet);
+assert(Math.abs(820-tabletPeek.left-44)<.15&&tabletPeek.top<1180-44,
+  'On tall tablets the orbit reveals a narrow right edge without moving down artificially');
 const css=fs.readFileSync(path.join(root,'works-scroll.css'),'utf8');
 assert(/\.works-journey\.works-is-shared\s*\{[^}]*height:\s*0/.test(css),'Enhanced marker has zero height');
 assert(/\.hero\s*>\s*\.works-viewport\.works-is-enhanced\s*\{[^}]*position:\s*absolute/.test(css),'Works occupies the hero viewport instead of another scrolling screen');
 assert(!css.includes('position: sticky'),'Works no longer releases and repins a second viewport');
 assert(!css.includes('--works-handoff')&&!/(?:\.inspiration|\.works-cards|\.works-backdrop)\s*\{[^}]*opacity\s*:/.test(css),'Section, gallery and backdrop opacity are never animated for the exit; fixed artwork/icon opacity stays intact');
 assert(!/\.hero\.is-works\s*>\s*\.inspiration\s*\{[^}]*transform:/.test(css),'The preceding stack has already exited; Works does not move its background or pinned heading again');
-assert(/--works-enter-px/.test(css)&&/--works-card-offset-px/.test(css),'Works follows spatially and cancels only its cached duplicate entrance offset');
+assert(!/--works-(enter|card-offset)-px/.test(css),'The gallery and its layer never translate separately from the orbit');
 assert(/\.hero\.is-works\s*>\s*\.hero__about-logo\s*\{[^}]*z-index:\s*1000/.test(css),'Common UI stays above gallery cards');
 assert(/\.hero > \.works-viewport\.works-is-enhanced \.works-backdrop\s*\{\s*display:\s*none/.test(css),'The enhanced Works layer keeps its backdrop transparent to show the heading below');
 assert(/\.hero\.is-works \.inspiration__backdrop\s*\{\s*display:\s*none/.test(css),'The preceding Inspiration backdrop cannot cover the returning black gradient');

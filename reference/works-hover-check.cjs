@@ -3,6 +3,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
 const root=path.join(__dirname,'..');
+const hoverPhase=.48;
 
 function fixture(pitchFactor=1.025,foregroundBoost=1){
   const timers=new Map();let timerId=0,drawBrightness=[],drawBends=[],brightness=1,clip;
@@ -49,7 +50,7 @@ function fixture(pitchFactor=1.025,foregroundBoost=1){
     requestAnimationFrame(){throw Error('Hover must not add an independent render loop');}
     ,CustomEvent:class{constructor(type){this.type=type;}}
   });
-  const api=window.WorksGallery;api.measure({width:1267,height:713});api.update(.62);
+  const api=window.WorksGallery;api.measure({width:1267,height:713});api.update(hoverPhase);
   const pill=viewport.querySelector('.works-project'),canvas=viewport.querySelector('.works-gallery-canvas');
   return{api,viewport,list,pill,canvas,window,timers,shaders,getDrawBrightness:()=>drawBrightness,getDrawBends:()=>drawBends};
 }
@@ -58,7 +59,7 @@ const f=fixture();
 assert.equal(f.viewport.dataset.worksRenderer,'retained-webgl','The fixture exercises the actual retained WebGL renderer');
 assert(f.getDrawBrightness().length>2);
 assert(f.getDrawBrightness().every(value=>value===1),'Idle works retain their original colors');
-const front=f.api.getProjectedCards(.62).find(pose=>pose.front&&pose.visible);
+const front=f.api.getProjectedCards(hoverPhase).find(pose=>pose.front&&pose.visible);
 assert(front,'A real front plane is available for the hover test');
 const idleTransforms=f.list.children.map(node=>node.style.transform);
 f.list.children[front.index].dispatch('pointerenter',{pointerType:'mouse'});
@@ -66,7 +67,7 @@ assert.equal(f.pill.getAttribute('aria-hidden'),'false');
 assert(f.pill.classList.contains('is-visible'));
 assert.equal(f.viewport.dataset.hoveredSequence,String(front.index+1));
 assert(f.api.isAnimating(),'Hover schedules only the shared story clock');
-f.api.update(.62,{now:100});f.api.update(.62,{now:400});
+f.api.update(hoverPhase,{now:100});f.api.update(hoverPhase,{now:400});
 assert(!f.api.isAnimating(),'Hover motion settles with no independent idle clock');
 assert(f.list.children[front.index].classList.contains('is-hovered'));
 assert.equal(f.list.children.filter(node=>node.classList.contains('is-dimmed')).length,0,'Other cards do not receive dimming');
@@ -81,7 +82,7 @@ assert.equal(f.pill.getAttribute('aria-hidden'),'true','Leaving the card starts 
 assert(f.pill.classList.contains('is-leaving'),'Exit animation keeps the surface mounted for its upward recede');
 assert(!f.pill.classList.contains('is-visible'));
 assert.equal(f.list.children.filter(node=>node.classList.contains('is-dimmed')).length,0);
-f.api.update(.62,{now:500});f.api.update(.62,{now:800});
+f.api.update(hoverPhase,{now:500});f.api.update(hoverPhase,{now:800});
 assert(f.getDrawBrightness().every(value=>value===1),'Leaving smoothly restores the selected work');
 assert.deepEqual([...f.timers.values()].map(timer=>timer.delay),[500]);
 
@@ -101,7 +102,7 @@ f.canvas.dispatch('pointerup',{pointerType:'touch',clientX:center.x,clientY:cent
 assert.equal(f.pill.getAttribute('aria-hidden'),'false','A touch tap still reveals project details');
 f.window.dispatch('blur');
 assert.equal(f.pill.getAttribute('aria-hidden'),'true');
-f.api.update(.62,{now:900});f.api.update(.62,{now:1200});
+f.api.update(hoverPhase,{now:900});f.api.update(hoverPhase,{now:1200});
 assert(f.getDrawBrightness().every(value=>value===1),'Window blur clears selected dimming');
 
 const css=fs.readFileSync(path.join(root,'works-gallery.css'),'utf8');
@@ -120,7 +121,7 @@ let boostedFronts=0,rearComparisons=0;
 for(const [width,height] of [[375,812],[768,1024],[1267,713],[1920,960],[2560,1305]]){
   f.api.measure({width,height});
   unboosted.api.measure({width,height});
-  for(const phase of [0,.13,.2307,.33457,.62,.763359,1,1.2,1.5,2]){
+  for(const phase of [0,.13,.2307,.33457,.36,.39,.42,.45,.48,.52,.55,.62,.763359,1,1.2,1.5,2]){
     const mesh=f.api.getProjectedCards(phase),bounds=f.api.getProjectedCardBounds(phase);
     const previous=unboosted.api.getProjectedCards(phase);
     assert.equal(bounds.length,mesh.length);

@@ -32,7 +32,6 @@
   overflow: clip;
   visibility: hidden;
   pointer-events: none;
-  transform: translate3d(0, var(--works-enter-px, 100svh), 0);
 }
 .hero.is-works > .works-viewport,
 .hero > .works-viewport.works-is-preview { visibility: visible; }
@@ -44,7 +43,6 @@
 .hero.is-works > .hero__datetime,
 .hero.is-works > .hero__footer,
 .hero.is-works > .hero__about-logo { z-index: 1000; visibility: visible; }
-.hero > .works-viewport.works-is-enhanced .works-cards { transform: translate3d(0, var(--works-card-offset-px, 0px), 0); }
 /* Shared mode keeps the hero's existing background. An opaque full-screen
    Works backdrop would conceal the centered heading underneath the cards. */
 .hero > .works-viewport.works-is-enhanced .works-backdrop { display: none; }

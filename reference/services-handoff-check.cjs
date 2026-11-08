@@ -238,7 +238,7 @@ function send(f,type,properties={}){
     const readingTravel=sectionHeight+height/2-f.headingCenter-height;
     const footerStart=start+intro+readingTravel;
     const finish=footerStart+footerHeight;
-    const cardStart=footerStart+footerHeight*(width===768?.76:.732);
+    const cardStart=footerStart+footerHeight*.96;
     const cardExit=footerStart+footerHeight*.88;
     roundedNear(parseFloat(page.nodes['.hero-journey'].style.height)-height,finish,'The footer extends the native budget by its natural height exactly once');
     assert.equal(footer.parentElement,page.hero,'The footer shares the pinned mobile and desktop viewport');
@@ -259,12 +259,18 @@ function send(f,type,properties={}){
     assert(!services.inert);assert(!footer.inert);
     assert(footer.classList.contains('site-footer-is-visible'));
     near(cardOpacity(),0,'The card stays hidden when the footer first enters');
+    page.scroll(footerStart+footerHeight*.8);page.frames();
+    const wordmarkPose=[wordmarkOpacity(),wordmarkFilter()];
+    roundedNear(cardY(),cardRestY,'The card stays at its final height as the footer moves');
+    near(wordmarkOpacity(),.5,'The wordmark fades in as it comes into view');
+    assert.match(wordmarkFilter(),/^blur\([\d.]+px\)$/,'The incoming wordmark is blurred');
     page.scroll(cardStart-.01*footerHeight);page.frames();
-    assert(wordmarkOpacity()>.2,'The wordmark is already visible before the card enters');
-    near(cardOpacity(),0,'The card waits for the intro and wordmark');
+    assert(wordmarkOpacity()>.94,'The wordmark is already almost visible before the card enters');
+    near(cardOpacity(),0,'The card waits for its late footer cue');
     roundedNear(cardY(),cardRestY,'The card waits at its settled height during the lead-in');
     const cancelsBeforeEntry=smoothCancels;
     page.scroll(cardStart+1);page.frame(0);
+    assert(wordmarkOpacity()>.97&&wordmarkOpacity()<1,'The card starts just before the wordmark finishes appearing');
     near(cardOpacity(),0,'The entry threshold starts the card at the first pose');
     assert(page.raf.size>0,'The card keeps the shared clock awake while scroll stands still');
     advance(page,66);
@@ -282,12 +288,6 @@ function send(f,type,properties={}){
     near(page.window.scrollY-120,cardStart+1,'The card does not move or pin the scroll position');
     assert.equal(smoothCancels,cancelsBeforeEntry,'The footer motion never cancels smooth scrolling');
     assert.equal(page.raf.size,0,'The shared clock sleeps once the footer stops animating');
-    page.scroll(footerStart+footerHeight*.8);page.frames();
-    const wordmarkPose=[wordmarkOpacity(),wordmarkFilter()];
-    roundedNear(cardY(),cardRestY,'The card stays at its final height as the footer moves');
-    near(wordmarkOpacity(),.5,'The wordmark fades in as it comes into view');
-    assert.match(wordmarkFilter(),/^blur\([\d.]+px\)$/,'The incoming wordmark is blurred');
-
     for(const distance of[finish,finish+125]){
       page.scroll(distance);page.frames();
       near(footerY(footer)+footerHeight,height,'The final footer frame stays aligned through end-of-page overscroll');
@@ -315,12 +315,10 @@ function send(f,type,properties={}){
 
     page.scroll(footerStart+footerHeight*.8);page.frames();
     assert.deepEqual([wordmarkOpacity(),wordmarkFilter()],wordmarkPose,'Reverse scrolling restores the same wordmark pose');
-    page.scroll(cardStart+2);page.frames();
-    near(cardOpacity(),0,'Continuing upward through the overlap does not reopen the card');
-    page.scroll(cardStart+4);page.frames();
-    near(cardOpacity(),0,'Small changes in direction do not reopen the card');
-    page.scroll(cardStart+8);page.frame(0);advance(page,66);
-    assert.deepEqual([cardOffset(),cardOpacity()],entryPose,'A real downward reversal reopens the card in the overlap');
+    page.scroll(cardStart-1);page.frames();
+    near(cardOpacity(),0,'Returning to the footer keeps the card hidden until its late cue');
+    page.scroll(cardStart+1);page.frame(0);advance(page,66);
+    assert.deepEqual([cardOffset(),cardOpacity()],entryPose,'Returning to the cue replays the entrance');
     page.scroll(footerStart-1);page.frame(0);
     assert.deepEqual([cardOffset(),cardOpacity()],entryPose,'A rapid reversal begins at the current pose');
     assert(footer.classList.contains('site-footer-is-visible'),'A fast exit still paints the card after the footer leaves');

@@ -59,7 +59,7 @@ for(const[width,height]of[[320,568],[375,667],[375,812],[390,600],[390,844],[410
 // a lone card in the middle of a short phone viewport.
 for(const[width,height]of[[414,700],[414,896]]){
   f.api.measure({width,height});
-  for(const phase of[.34842,.62,.65]){
+  for(const phase of[.34842,.45,.52]){
     const visible=f.api.getProjectedCards(phase).filter(p=>area(clip(hull(p.vertices),width,height))>200);
     assert(visible.length>=3,`The helix retains at least three recognizable cards at ${width}×${height}, phase${phase}`);
   }

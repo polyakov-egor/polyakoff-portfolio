@@ -7,7 +7,6 @@
   const footer=document.querySelector('[data-site-footer]');
   const backdrop=document.querySelector('[data-site-backdrop]');
   const footerBackground=footer?.querySelector('[data-site-footer-background]');
-  const footerIntro=footer?.querySelector('.site-footer__intro');
   const footerCard=footer?.querySelector('.site-footer__card');
   const footerWordmark=footer?.querySelector('.site-footer__wordmark');
   const footerWordmarkImage=footerWordmark?.querySelector('img');
@@ -69,7 +68,7 @@
       footerCardEdge=Math.min(footerCardEdge,entered);
       if(visible&&entered>=layout.footerCardStart&&entered-footerCardEdge>=footerCardHysteresis)target=true;
     }
-    // The entry and exit ranges overlap. Remember the last turn so upward scroll cannot reopen the card.
+    // Remember the last turn so a small change in direction cannot reopen the card.
     if(target!==footerCardTarget)footerCardEdge=entered;
     let phase=Number(footerCardTarget);
     if(footerCardMotion){
@@ -138,12 +137,10 @@
     // Read only during layout, never during the shared scroll clock.
     const sectionHeight=measureHeight(root,viewportHeight);
     const footerHeight=measureHeight(footer,viewportHeight);
-    const footerCardInset=footerHeight-(footerCard?.offsetTop||0);
     const footerWordmarkTop=footerWordmark?.offsetTop||0;
-    const footerIntroBottom=(footerIntro?.offsetTop||0)+(footerIntro?.offsetHeight||0);
-    const footerCardStart=Math.min(footerHeight-1,Math.max(footerIntroBottom,footerCardInset,
-      footerWordmarkTop+.33*(footerHeight-footerWordmarkTop)));
-    const footerCardExit=Math.max(footerCardStart,footerWordmarkTop+.7*(footerHeight-footerWordmarkTop));
+    const footerWordmarkTravel=footerHeight-footerWordmarkTop;
+    const footerCardStart=Math.min(footerHeight-1,footerWordmarkTop+.9*footerWordmarkTravel);
+    const footerCardExit=footerWordmarkTop+.7*footerWordmarkTravel;
     if(oldLayout&&(oldLayout.height!==viewportHeight||oldLayout.footerHeight!==footerHeight||
       oldLayout.footerCardStart!==footerCardStart||oldLayout.footerCardExit!==footerCardExit))resetFooterCard();
     const footerWordmarkBlur=clamp(width*.03,24,42);

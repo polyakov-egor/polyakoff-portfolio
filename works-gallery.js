@@ -15,6 +15,8 @@
   const frontThreshold=.2,foregroundBoost=1,maxBow=.118;
   const cardAspect=960/500,cornerRadius=.05;
   const worldStart=-16.8,worldTravel=54.744,pitchStart=2.4,pitchTaper=.168;
+  // This old terminal slot calibrates scroll speed without rendering another card.
+  const paceReferenceCards=[{index:11}];
   function liveDeformation(facing){
     const direct=clamp((facing-.45)/.5);
     return 1-.75*direct*direct*(3-2*direct)*(1-scrollBend);
@@ -41,9 +43,10 @@
     return lower;
   }
   const make=(tag,className)=>{const node=document.createElement(tag);node.className=className;return node;};
-  const cards=Array.from({length:12},(_,index)=>{
-    const project=projects[index%projects.length],element=make('figure',`works-card${project.crop?` works-card--${project.crop}`:''}`);
-    element.dataset.project=`${index%projects.length+1}`;element.dataset.sequence=`${index+1}`;element.dataset.nodeId=project.node;
+  const projectOrder=[0,1,2,5,3,4,5];
+  const cards=projectOrder.map((projectIndex,index)=>{
+    const project=projects[projectIndex],element=make('figure',`works-card${project.crop?` works-card--${project.crop}`:''}`);
+    element.dataset.project=`${projectIndex+1}`;element.dataset.sequence=`${index+1}`;element.dataset.nodeId=project.node;
     element.setAttribute('role','button');element.setAttribute('aria-label',`${project.name}, ${project.tags.join(', ')}`);
     const caption=make('figcaption','visually-hidden');caption.textContent=`${project.name} — ${project.tags.join(' · ')}`;
     const media=make('div','works-card__media'),image=make('img','works-card__image');
@@ -175,11 +178,8 @@
     // The last card faces the viewer when its world Y reaches zero.
     const lastCardPitchFactor=(cards.length-1)*layout.pitchFactor;
     layout.lastFrontalPhase=(pitchStart*lastCardPitchFactor-worldStart)/(worldTravel+pitchTaper*lastCardPitchFactor);
-    const entranceBounds=projectCardBounds(.13,0,false,1);
-    const visibleEntranceBounds=entranceBounds.filter(pose=>pose.maxX>0&&pose.minX<width);
-    // The title roll exposes just the first edge of this same helix pose.
-    layout.entrancePeek=clamp(height*.04,24,44);
-    layout.entranceOffset=height-layout.entrancePeek-Math.min(...(visibleEntranceBounds.length?visibleEntranceBounds:entranceBounds).map(pose=>pose.minY));
+    layout.entranceStartPhase=measureEntrancePhase(0);
+    layout.entrancePeekPhase=measureEntrancePhase(clamp(height*.04,24,44));
     const dpr=Math.min(1.5,window.devicePixelRatio||1),pixelWidth=Math.round(width*dpr),pixelHeight=Math.round(height*dpr);
     if(canvas.width!==pixelWidth)canvas.width=pixelWidth;
     if(canvas.height!==pixelHeight)canvas.height=pixelHeight;
@@ -190,7 +190,7 @@
     viewport.dataset.worksViewport=phone?'phone':tablet?'tablet':'desktop';update(lastProgress,{reducedMotion:lastReduced});
     return{...layout,foregroundWidth:planeWidth*focal/6};
   }
-  function projectCard(card,progress,offset=0,deformation=null,mesh=createMesh(card),interaction=false){
+  function projectCard(card,progress,deformation=null,mesh=createMesh(card),interaction=false){
     const{width,height,focal,radius,planeWidth,planeHeight,verticalSpread,camera,pitchFactor,centerSpreadX,centerSpreadY}=layout;
       // A little more pitch opens the narrow gaps without changing the
       // approved mesh sizes, cylinder radius or camera magnification.
@@ -211,25 +211,25 @@
         const u=uvs[i],v=uvs[i+1],localX=(u-.5)*planeWidth*renderedScale;
         const bow=bend?Math.sin(u*Math.PI)*planeWidth*maxBow*renderedScale*bend:0;
         const wx=centerX+cos*localX+sin*bow,wy=centerY+(.5-v)*planeHeight*renderedScale,wz=centerZ-sin*localX+cos*bow,distance=camera-wz;
-        const x=width/2+focal*(wx+(restArc+bend*wy*wy*.1))/distance+spreadX,y=height/2-focal*wy/distance+spreadY+offset;
+        const x=width/2+focal*(wx+(restArc+bend*wy*wy*.1))/distance+spreadX,y=height/2-focal*wy/distance+spreadY;
         const vertex=vertices[i/2];vertex.x=x;vertex.y=y;vertex.distance=distance;
         minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
         const c=i*2;clip[c]=(x/width*2-1)*distance;clip[c+1]=(1-y/height*2)*distance;clip[c+2]=100.1/99.9*distance-20/99.9;clip[c+3]=distance;
       }
       return Object.assign(mesh,{minX,maxX,minY,maxY,x:minX,y:minY,cardWidth:maxX-minX,cardHeight:maxY-minY,worldY,worldZ:centerZ,angle,facing,hover,scale,foregroundScale:depthScale,front:facing>frontThreshold,visible:maxX>0&&minX<width&&maxY>0&&minY<height});
   }
-  function projectCards(progress,offset=0,deformation=null,meshes=null){
-    if(!meshes)return cards.map(card=>projectCard(card,progress,offset,deformation));
-    for(let i=0;i<cards.length;i++)projectCard(cards[i],progress,offset,deformation,meshes[i]);
+  function projectCards(progress,deformation=null,meshes=null){
+    if(!meshes)return cards.map(card=>projectCard(card,progress,deformation));
+    for(let i=0;i<cards.length;i++)projectCard(cards[i],progress,deformation,meshes[i]);
     return meshes;
   }
-  function projectCardBounds(progress,offset=0,paceReference=false,deformation=paceReference?1:0){
+  function projectCardBounds(progress,paceReference=false,deformation=paceReference?1:0){
     const cacheKey=paceReference?`pace:${progress}`:deformation?`bend:${progress}`:progress;
     const cached=boundsCache.get(cacheKey);
-    if(cached)return offset?cached.map(pose=>({...pose,minY:pose.minY+offset,maxY:pose.maxY+offset})):cached;
+    if(cached)return cached;
     const{width,height,focal,radius,planeWidth,planeHeight,verticalSpread,camera,pitchFactor,centerSpreadX,centerSpreadY}=layout;
     const p=clamp(progress,0,2),pitch=(pitchStart-pitchTaper*p)*(paceReference&&layout.phone?1.025:pitchFactor);
-    const projected=cards.map(card=>{
+    const projected=(paceReference?paceReferenceCards:cards).map(card=>{
       const worldY=worldStart+worldTravel*p-card.index*pitch,lane=worldY/2.4,angle=lane*.85;
       const sin=Math.sin(angle),cos=Math.cos(angle),centerX=radius*sin,centerZ=radius*cos,centerY=lane*.5*verticalSpread;
       const facing=(camera*cos-radius)/Math.hypot(centerX,centerY,camera-centerZ);
@@ -263,17 +263,38 @@
     // resize notifications. Keep at most one bounded layout's probes.
     if(boundsCache.size>=2048)boundsCache.clear();
     boundsCache.set(cacheKey,projected);
-    return offset?projected.map(pose=>({...pose,minY:pose.minY+offset,maxY:pose.maxY+offset})):projected;
+    return projected;
   }
-  function entranceOffset(progress){const t=clamp((progress-.13)/.17);return layout.entranceOffset*(1-t)**3;}
+  function measureEntrancePhase(slice){
+    const {width,height}=layout;
+    const visible=phase=>{
+      const {minX,maxX,minY,maxY}=projectCardBounds(phase,false,1)[0];
+      const visibleWidth=Math.min(maxX,width)-Math.max(minX,0);
+      const visibleHeight=Math.min(maxY,height)-Math.max(minY,0);
+      return Math.min(visibleWidth,visibleHeight)>slice;
+    };
+    if(visible(0))return 0;
+    // Find the first viewport crossing on the real orbit. A tall tablet can
+    // meet the right edge before it meets the bottom of the viewport.
+    const step=.005;
+    for(let phase=step;phase<=.3;phase+=step){
+      if(!visible(phase))continue;
+      let low=phase-step,high=phase;
+      for(let i=0;i<20;i++){
+        const middle=(low+high)/2;
+        if(visible(middle))high=middle;else low=middle;
+      }
+      return high;
+    }
+    return .3;
+  }
   function getProjectedBounds(progress){
-    if(!layout)return null;const projected=projectCardBounds(Number.isFinite(progress)?progress:0,0,false,1),visibleX=projected.filter(pose=>pose.maxX>0&&pose.minX<layout.width);
+    if(!layout)return null;const projected=projectCardBounds(Number.isFinite(progress)?progress:0,false,1),visibleX=projected.filter(pose=>pose.maxX>0&&pose.minX<layout.width);
     if(!visibleX.length)return null;return{minY:Math.min(...visibleX.map(pose=>pose.minY)),maxY:Math.max(...visibleX.map(pose=>pose.maxY)),leadY:projected[0].minY};
   }
   function getProjectedMotionBounds(progress){
     if(!layout)return[];
-    const offset=entranceOffset(progress);
-    const flat=projectCardBounds(progress,offset),bent=projectCardBounds(progress,offset,false,1);
+    const flat=projectCardBounds(progress),bent=projectCardBounds(progress,false,1);
     // Each vertex coordinate is a ratio of linear functions of the bend.
     // Its extrema are therefore at the flat or fully bent pose.
     return flat.map(({index,minX,maxX,minY,maxY},i)=>({index,
@@ -324,8 +345,7 @@
   }
   function paintInteraction(){
     if(!canPaint()||!layout||lastReduced)return;
-    const offset=entranceOffset(lastProgress);
-    paintPoses=poses.map(pose=>hoverAmounts[pose.index]===0?pose:projectCard(cards[pose.index],lastProgress,offset,null,interactionMeshes[pose.index],true));
+    paintPoses=poses.map(pose=>hoverAmounts[pose.index]===0?pose:projectCard(cards[pose.index],lastProgress,null,interactionMeshes[pose.index],true));
     for(const pose of paintPoses){
       pose.element.style.transform=quadTransform(pose);
       pose.element.dataset.hoverScale=pose.scale.toFixed(5);
@@ -337,14 +357,14 @@
   function update(progress,{reducedMotion=false,now=0}={}){
     const nextProgress=Number.isFinite(progress)?progress:0;
     if(!canPaint()){lastProgress=nextProgress;lastReduced=reducedMotion;projectionDirty=true;return;}
-    const bendChanged=advanceScrollBend(nextProgress,reducedMotion?0:now);
+    const bendChanged=advanceScrollBend(nextProgress,reducedMotion||!chapterInteractive?0:now);
     const changed=projectionDirty||nextProgress!==lastProgress||reducedMotion!==lastReduced||bendChanged;
     if(!changed&&!hoverAnimating)return;
     lastProgress=nextProgress;lastReduced=reducedMotion;if(!layout)return;
     viewport.classList.toggle('works-is-static',reducedMotion);
     if(reducedMotion){projectionDirty=false;hoverAnimating=false;hoverAmounts.fill(0);for(const{element}of cards){element.removeAttribute('style');element.classList.remove('is-in-view');element.setAttribute('tabindex','0');}canvas.hidden=true;poses=[];paintPoses=[];hideProject();viewport.classList.remove('works-is-sleeping');return;}
     advanceHover(now);
-    if(changed)poses=projectCards(lastProgress,entranceOffset(lastProgress),null,baseMeshes);
+    if(changed)poses=projectCards(lastProgress,null,baseMeshes);
     projectionDirty=false;
     const active=poses.reduce((best,pose)=>Math.abs(pose.worldY)<Math.abs(best.worldY)?pose:best);
     for(const pose of poses){const{element}=pose;element.style.zIndex=`${Math.round((pose.worldZ+3)*100)+1}`;element.classList.toggle('is-in-view',pose.visible);element.classList.toggle('is-front',pose.front);element.setAttribute('tabindex',chapterInteractive&&pose.visible&&pose.front?'0':'-1');}
@@ -484,9 +504,9 @@
   window.addEventListener('blur',()=>{if(!canPaint())return;pointer=null;touch=null;domTouchCard=null;hideProject();});
   window.WorksGallery=Object.freeze({measure,update,setVisible,getProjectedBounds,getProjectedMotionBounds,
     leadFrontalPhase:-worldStart/worldTravel,
-    getProjectedCardBounds:progress=>layout?projectCardBounds(progress,entranceOffset(progress),false,1):[],
-    getPaceReferenceBounds:progress=>layout?projectCardBounds(progress,0,true):[],
+    getProjectedCardBounds:progress=>layout?projectCardBounds(progress,false,1):[],
+    getPaceReferenceBounds:progress=>layout?projectCardBounds(progress,true):[],
     isAnimating:()=>canPaint()&&(hoverAnimating||scrollBend>0),
-    getProjectedCards:(progress,deformation=1)=>layout?projectCards(progress,entranceOffset(progress),clamp(deformation)).map(({index,minX,maxX,minY,maxY,angle,worldY,worldZ,facing,front,visible,vertices,foregroundScale})=>({index,minX,maxX,minY,maxY,angle,worldY,worldZ,facing,front,visible,vertices,foregroundScale})):[],
+    getProjectedCards:(progress,deformation=1)=>layout?projectCards(progress,clamp(deformation)).map(({index,minX,maxX,minY,maxY,angle,worldY,worldZ,facing,front,visible,vertices,foregroundScale})=>({index,minX,maxX,minY,maxY,angle,worldY,worldZ,facing,front,visible,vertices,foregroundScale})):[],
     getProjects:()=>projects.map(project=>({...project,tags:[...project.tags]})),getLayout:()=>layout?{...layout}:null});
 })();

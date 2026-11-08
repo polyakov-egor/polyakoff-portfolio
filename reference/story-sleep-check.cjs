@@ -81,9 +81,11 @@ if(require.main===module)(async()=>{
     assert.deepEqual(f.counts(),sleeping,`${width}: covered Hero/About/Inspiration/Works does no hidden paint or projection work`);
     assert.equal(page.raf.size,0,'The shared clock sleeps after Services settles');
 
-    f.jump(Number(page.hero.dataset.worksStart)+Number(f.journey.dataset.totalTravel)*.3);
+    const worksMiddle=Number(f.journey.dataset.totalTravel)*.55;
+    f.jump(Number(page.hero.dataset.worksStart)+worksMiddle);
     assert(f.counts().projections>sleeping.projections,'Reverse entry resumes projected Works geometry');
     assert.equal(f.view.root.dataset.stage,'3','Rewinding through Works retains the last Inspiration category');
+    assert.equal(f.root.dataset.worksProgress,'1.00000','The closing title has already receded in this pose');
     const working=f.counts(),worksDistance=page.window.scrollY-120;
     for(let i=1;i<=30;i++){page.scroll(worksDistance+i*height*.004);page.frame();}page.frames();
     const worked=f.counts();
