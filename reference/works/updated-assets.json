@@ -1,0 +1,54 @@
+{
+  "section": "796:5650",
+  "pill": "792:5560",
+  "assets": [
+    {
+      "name": "01-amonra.png",
+      "node": "796:5638",
+      "width": 4096,
+      "height": 2361,
+      "bytes": 5818051,
+      "sha256": "a75a1df9830f2b5d2b5d89cc58f24230e0e604ac6da18ff6cb1b715a83c70b9d"
+    },
+    {
+      "name": "02-hermes.png",
+      "node": "796:5649",
+      "width": 4096,
+      "height": 3072,
+      "bytes": 17242296,
+      "sha256": "63ce3802cf142b16b7ce2e1b653db1b08e4e8b2f39d8eb7cde9f3584931c1432"
+    },
+    {
+      "name": "03-suborbia.png",
+      "node": "796:5627",
+      "width": 1600,
+      "height": 834,
+      "bytes": 562537,
+      "sha256": "6b4691daa25e9431d07f33271369e8f61d93f791750eee30b1d595132dc244a1"
+    },
+    {
+      "name": "04-skynews.png",
+      "node": "796:5598",
+      "width": 2457,
+      "height": 1620,
+      "bytes": 2502877,
+      "sha256": "3f26c8ebbd41c5e3f67f298cdbc6438dd03056012d662b27c1586d1a611e2834"
+    },
+    {
+      "name": "05-youtube-music.png",
+      "node": "796:5607",
+      "width": 3840,
+      "height": 1893,
+      "bytes": 641680,
+      "sha256": "15b5ca08b9d4d6c7a9c6382e303634d20a9f5056c87c48f68c8bcc576a0bec73"
+    },
+    {
+      "name": "06-itsme.png",
+      "node": "796:5618",
+      "width": 3840,
+      "height": 2160,
+      "bytes": 857410,
+      "sha256": "8ddc83f243dc02b62d71c9a0474e32c254b06cdc2e4bc21cd863abfd84a6d55e"
+    }
+  ]
+}

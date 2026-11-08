@@ -1,0 +1,8 @@
+{
+  "source": "https://github.com/karthikmudunuri/eldoraui/blob/main/apps/www/registry/eldoraui/card-flip-hover.tsx",
+  "sourceRevision": "6bb8fd211ecbdfa983f5780bead27d9f3890f20a",
+  "durationMs": 700,
+  "perspectivePx": 1000,
+  "timing": "Tailwind transition-all default cubic-bezier(0.4, 0, 0.2, 1)",
+  "adaptation": "Keep the existing scroll-triggered hero/girl faces and growth positions. Match the reference turn timing. Add a two-pixel analytic extrusion of the existing HeroSquircle silhouette in #DEDEDE."
+}

@@ -1,0 +1,104 @@
+{
+  "photos": {
+    "services-web": {
+      "originalWidth": 3300,
+      "originalHeight": 4096,
+      "originalBytes": 23079437,
+      "deliveryKey": "music-overlay",
+      "reusedFromInspiration": true,
+      "fallback": "./assets/images/optimized/music-overlay-1280.webp",
+      "variants": [
+        {
+          "url": "./assets/images/optimized/music-overlay-768.webp",
+          "width": 768,
+          "height": 953,
+          "bytes": 621270
+        },
+        {
+          "url": "./assets/images/optimized/music-overlay-1280.webp",
+          "width": 1280,
+          "height": 1589,
+          "bytes": 1756512
+        }
+      ]
+    },
+    "services-app": {
+      "originalWidth": 1792,
+      "originalHeight": 2392,
+      "originalBytes": 4661708,
+      "deliveryKey": "services-app",
+      "reusedFromInspiration": false,
+      "fallback": "./assets/images/optimized/services-app-1280.webp",
+      "variants": [
+        {
+          "url": "./assets/images/optimized/services-app-768.webp",
+          "width": 768,
+          "height": 1025,
+          "bytes": 608506
+        },
+        {
+          "url": "./assets/images/optimized/services-app-1280.webp",
+          "width": 1280,
+          "height": 1709,
+          "bytes": 1836200
+        }
+      ]
+    },
+    "services-motion": {
+      "originalWidth": 1972,
+      "originalHeight": 2968,
+      "originalBytes": 2839882,
+      "deliveryKey": "music-base",
+      "reusedFromInspiration": true,
+      "fallback": "./assets/images/optimized/music-base-1280.webp",
+      "variants": [
+        {
+          "url": "./assets/images/optimized/music-base-768.webp",
+          "width": 768,
+          "height": 1156,
+          "bytes": 397238
+        },
+        {
+          "url": "./assets/images/optimized/music-base-1280.webp",
+          "width": 1280,
+          "height": 1926,
+          "bytes": 883070
+        }
+      ]
+    }
+  },
+  "shared": {
+    "background": {
+      "url": "./assets/images/backgrounds/dark.webp",
+      "bytes": 252,
+      "exactPixels": true
+    },
+    "InterTight-Variable.ttf": {
+      "url": "./assets/fonts/InterTight-Variable.ttf",
+      "identicalBytes": true
+    },
+    "RobotoMono-Regular.ttf": {
+      "url": "./assets/fonts/RobotoMono-Regular.ttf",
+      "identicalBytes": true
+    },
+    "plus": {
+      "url": "./assets/icons/plus.svg",
+      "identicalBytes": true
+    }
+  },
+  "icons": {
+    "approach.svg": {
+      "url": "./assets/icons/services-approach.svg",
+      "bytes": 1126
+    },
+    "approach-mobile.svg": {
+      "url": "./assets/icons/services-approach-mobile.svg",
+      "bytes": 1126
+    }
+  },
+  "totalPhotoBytes": 6102796,
+  "largestViewportPhotoBytes": 4475782,
+  "newPhotoBytes": 2444706,
+  "newPhoneDownloadBytes": 608506,
+  "newDesktopDownloadBytes": 1836200
+}

@@ -1,0 +1,57 @@
+/* This text sits below the incoming Works images; its backdrop remains in
+   the existing inspiration layer and never moves with the headline. */
+.inspiration-closing {
+  position: absolute;
+  z-index: 6;
+  inset: 0;
+  color: #1d1d1d;
+  font-family: "Inter Tight", sans-serif;
+  font-size: var(--inspiration-closing-font, 64px);
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
+  pointer-events: none;
+}
+.inspiration-closing[hidden] { display: none; }
+.inspiration-closing__phrase,
+.inspiration-closing__ghost {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: max-content;
+  margin: 0;
+  white-space: nowrap;
+  transform-origin: 0 0;
+}
+.inspiration-closing__phrase--left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--inspiration-closing-gap, 16px);
+}
+.inspiration-closing__ghost { opacity: .2; transform-origin: 0 50%; }
+.inspiration-closing__stage,
+.inspiration-closing__old-layer,
+.inspiration-closing__new-layer { position: absolute; inset: 0; }
+.inspiration-closing__stage { perspective: 1000px; }
+.inspiration-closing__old-layer,
+.inspiration-closing__new-layer {
+  transform-origin: 50% 50%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.inspiration-closing__creation {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  justify-content: center;
+  gap: calc(var(--inspiration-closing-font) * .25);
+  width: max-content;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  white-space: nowrap;
+  text-align: center;
+  transform-origin: 50% 50%;
+}
+.inspiration-closing[data-layout="stacked"] .inspiration-closing__creation { flex-direction: column; gap: 8px; }

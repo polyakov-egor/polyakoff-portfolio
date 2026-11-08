@@ -1,0 +1,202 @@
+{
+  "people": {
+    "fallback": "./assets/images/inspiration/people.png",
+    "originalWidth": 2388,
+    "originalHeight": 2392,
+    "originalBytes": 5595200,
+    "variants": [
+      {
+        "url": "./assets/images/optimized/people-768.webp",
+        "width": 768,
+        "height": 769,
+        "bytes": 437642
+      },
+      {
+        "url": "./assets/images/optimized/people-1280.webp",
+        "width": 1280,
+        "height": 1282,
+        "bytes": 1232780
+      }
+    ]
+  },
+  "music-base": {
+    "fallback": "./assets/images/inspiration/music-base.png",
+    "originalWidth": 1972,
+    "originalHeight": 2968,
+    "originalBytes": 2839882,
+    "variants": [
+      {
+        "url": "./assets/images/optimized/music-base-768.webp",
+        "width": 768,
+        "height": 1156,
+        "bytes": 397238
+      },
+      {
+        "url": "./assets/images/optimized/music-base-1280.webp",
+        "width": 1280,
+        "height": 1926,
+        "bytes": 883070
+      }
+    ]
+  },
+  "music-overlay": {
+    "fallback": "./assets/images/inspiration/music-overlay.png",
+    "originalWidth": 3300,
+    "originalHeight": 4096,
+    "originalBytes": 23079437,
+    "variants": [
+      {
+        "url": "./assets/images/optimized/music-overlay-768.webp",
+        "width": 768,
+        "height": 953,
+        "bytes": 621270
+      },
+      {
+        "url": "./assets/images/optimized/music-overlay-1280.webp",
+        "width": 1280,
+        "height": 1589,
+        "bytes": 1756512
+      }
+    ]
+  },
+  "detail": {
+    "fallback": "./assets/images/inspiration/detail.png",
+    "originalWidth": 2012,
+    "originalHeight": 2874,
+    "originalBytes": 2554118,
+    "variants": [
+      {
+        "url": "./assets/images/optimized/detail-768.webp",
+        "width": 768,
+        "height": 1097,
+        "bytes": 348550
+      },
+      {
+        "url": "./assets/images/optimized/detail-1280.webp",
+        "width": 1280,
+        "height": 1828,
+        "bytes": 761808
+      }
+    ]
+  },
+  "work-amonra": {
+    "fallback": "./assets/images/works/01-amonra.png",
+    "originalWidth": 4096,
+    "originalHeight": 2361,
+    "originalBytes": 5818051,
+    "variants": [
+      {
+        "url": "./assets/images/optimized/work-amonra-1024.webp",
+        "width": 1024,
+        "height": 590,
+        "bytes": 84408
+      },
+      {
+        "url": "./assets/images/optimized/work-amonra-2048.webp",
+        "width": 2048,
+        "height": 1180,
+        "bytes": 384628
+      }
+    ]
+  },
+  "work-hermes": {
+    "fallback": "./assets/images/works/02-hermes.png",
+    "originalWidth": 4096,
+    "originalHeight": 3072,
+    "originalBytes": 17242296,
+    "variants": [
+      {
+        "url": "./assets/images/optimized/work-hermes-1024.webp",
+        "width": 1024,
+        "height": 768,
+        "bytes": 494598
+      },
+      {
+        "url": "./assets/images/optimized/work-hermes-2048.webp",
+        "width": 2048,
+        "height": 1536,
+        "bytes": 1963422
+      }
+    ]
+  },
+  "work-suborbia": {
+    "fallback": "./assets/images/works/03-suborbia.png",
+    "originalWidth": 1600,
+    "originalHeight": 834,
+    "originalBytes": 562537,
+    "variants": [
+      {
+        "url": "./assets/images/optimized/work-suborbia-1024.webp",
+        "width": 1024,
+        "height": 534,
+        "bytes": 182554
+      },
+      {
+        "url": "./assets/images/optimized/work-suborbia-2048.webp",
+        "width": 1600,
+        "height": 834,
+        "bytes": 318904
+      }
+    ]
+  },
+  "work-skynews": {
+    "fallback": "./assets/images/works/04-skynews.png",
+    "originalWidth": 2457,
+    "originalHeight": 1620,
+    "originalBytes": 2502877,
+    "variants": [
+      {
+        "url": "./assets/images/optimized/work-skynews-1024.webp",
+        "width": 1024,
+        "height": 675,
+        "bytes": 291350
+      },
+      {
+        "url": "./assets/images/optimized/work-skynews-2048.webp",
+        "width": 2048,
+        "height": 1350,
+        "bytes": 1157010
+      }
+    ]
+  },
+  "work-youtube-music": {
+    "fallback": "./assets/images/works/05-youtube-music.png",
+    "originalWidth": 3840,
+    "originalHeight": 1893,
+    "originalBytes": 641680,
+    "variants": [
+      {
+        "url": "./assets/images/optimized/work-youtube-music-1024.webp",
+        "width": 1024,
+        "height": 505,
+        "bytes": 47040
+      },
+      {
+        "url": "./assets/images/optimized/work-youtube-music-2048.webp",
+        "width": 2048,
+        "height": 1010,
+        "bytes": 134296
+      }
+    ]
+  },
+  "work-itsme": {
+    "fallback": "./assets/images/works/06-itsme.png",
+    "originalWidth": 3840,
+    "originalHeight": 2160,
+    "originalBytes": 857410,
+    "variants": [
+      {
+        "url": "./assets/images/optimized/work-itsme-1024.webp",
+        "width": 1024,
+        "height": 576,
+        "bytes": 161186
+      },
+      {
+        "url": "./assets/images/optimized/work-itsme-2048.webp",
+        "width": 2048,
+        "height": 1152,
+        "bytes": 1000688
+      }
+    ]
+  }
+}

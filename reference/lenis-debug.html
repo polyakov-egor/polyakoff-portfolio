@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" /><base href="/">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <script src="./bottom-logo-restart.js"></script>
+    <script src="./site-preloader.js"></script>
+    <style>
+      .site-preloader { display: none; }
+      html.is-site-loading body > main { opacity: 0; }
+      html.is-site-loading .site-preloader { display: grid; position: fixed; inset: 0; z-index: 20000; place-items: center; background: #000; color: #fff; }
+    </style>
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Egor Polyakoff — designer. Welcome to the club, buddy." />
+    <title>Egor Polyakoff — Designer</title>
+    <link rel="icon" href="./assets/icons/logo.svg" type="image/svg+xml" />
+    <link rel="preload" href="./assets/fonts/RobotoMono-Regular.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="preload" href="./assets/fonts/InterTight-Variable.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="preload" href="./assets/images/hero/portrait-1280.webp" as="image" media="(max-width: 1099px)" />
+    <link rel="preload" href="./assets/images/hero/portrait-2456.webp" as="image" media="(min-width: 1100px)" />
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./assets/vendor/lenis-1.3.27/lenis.css" />
+    <link rel="stylesheet" href="./site-preloader.css" />
+    <link rel="stylesheet" href="./hero-welcome-stack.css" />
+    <link rel="stylesheet" href="./hero-effect-controls.css" />
+    <link rel="stylesheet" href="./hero-effect-presets.css" />
+    <link rel="stylesheet" href="./about-copy.css" />
+    <link rel="stylesheet" href="./about-flight.css" />
+    <link rel="stylesheet" href="./hero-scroll.css" />
+    <link rel="stylesheet" href="./about-reveal.css" />
+    <link rel="stylesheet" href="./music-equalizer.css" />
+    <link rel="stylesheet" href="./inspiration.css" />
+    <link rel="stylesheet" href="./inspiration-flip-thickness.css" />
+    <link rel="stylesheet" href="./inspiration-headings.css" />
+    <link rel="stylesheet" href="./inspiration-hover.css" />
+    <link rel="stylesheet" href="./inspiration-glass.css" />
+    <link rel="stylesheet" href="./inspiration-card-flip.css" />
+    <link rel="stylesheet" href="./inspiration-closing.css" />
+    <link rel="stylesheet" href="./works-gallery.css" />
+    <link rel="stylesheet" href="./works-scroll.css" />
+    <link rel="stylesheet" href="./background-raster.css" />
+    <link rel="stylesheet" href="./services.css" />
+    <link rel="stylesheet" href="./services-scroll.css" />
+    <script src="./published-effect-preset.js" defer></script>
+    <script src="./hero-layout.js" defer></script>
+    <script src="./hero-status.js" defer></script>
+    <script src="./music-equalizer.js" defer></script>
+  <script src="./hero-depth.js" defer></script>
+    <script src="./squircle.js" defer></script>
+    <script src="./about-copy.js" defer></script>
+    <script src="./about-flight.js" defer></script>
+    <script src="./hero-welcome-stack.js" defer></script>
+    <script src="./chapter-assets.js" defer></script>
+    <script src="./services.js" defer></script>
+    <script src="./services-scroll.js" defer></script>
+    <script src="./inspiration-view.js" defer></script>
+    <script src="./inspiration-headings.js" defer></script>
+    <script src="./inspiration-hover.js" defer></script>
+    <script src="./inspiration-gestures.js" defer></script>
+    <script src="./inspiration-closing.js" defer></script>
+    <script src="./inspiration-flip-thickness.js" defer></script>
+    <script src="./inspiration-card-flip.js" defer></script>
+    <script src="./inspiration.js" defer></script>
+    <script src="./about-reveal.js" defer></script>
+    <script src="./hero-scroll.js" defer></script>
+    <script src="./works-gallery.js" defer></script>
+    <script src="./works-scroll.js" defer></script>
+    <script src="./hero-effect-controls.js" defer></script>
+    <script src="./hero-effect-presets.js" defer></script>
+    <script src="./assets/vendor/lenis-1.3.27/lenis.min.js" defer></script>
+    <script src="./site-smooth-scroll.js" defer></script>
+    <script src="./reference/lenis-debug.js" defer></script><script src="./cursor.js" defer></script>
+  </head>
+  <body>
+    <section class="site-preloader" data-site-preloader data-state="loading" role="dialog" aria-modal="true" aria-label="Loading portfolio" aria-busy="true" tabindex="-1">
+      <div class="site-preloader__stage">
+        <div class="site-preloader__progress" data-preloader-progress role="progressbar" aria-label="Loading first screen" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <svg class="site-preloader__ring" width="200" height="200" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
+            <circle class="site-preloader__ring-base" cx="100" cy="100" r="99.5" />
+            <circle class="site-preloader__ring-fill" cx="100" cy="100" r="99.5" pathLength="100" transform="rotate(-90 100 100) translate(0 200) scale(1 -1)" />
+          </svg>
+        </div>
+        <button class="site-preloader__button" data-preloader-enter type="button" aria-label="Enter portfolio" aria-describedby="site-preloader-status" disabled><span data-preloader-label>0%</span></button>
+      </div>
+      <p class="visually-hidden" id="site-preloader-status" data-preloader-status role="status" aria-live="polite">Loading the first screen</p>
+      <button class="site-preloader__retry" data-preloader-retry type="button" hidden>Retry</button>
+    </section>
+    <div class="about-backdrop" data-site-backdrop aria-hidden="true">
+      <div class="about-backdrop__art">
+        <img class="about-backdrop__lines" src="./assets/images/backgrounds/dark.webp" width="2560" height="1305" alt="" draggable="false" />
+      </div>
+      <div class="about-backdrop__light">
+        <div class="about-backdrop__light-art">
+          <img class="about-backdrop__light-lines" src="./assets/images/backgrounds/light.webp" width="2560" height="1305" alt="" draggable="false" />
+        </div>
+      </div>
+    </div>
+    <main>
+      <div class="hero-journey">
+      <section class="hero" id="hero" aria-labelledby="hero-title">
+        <h1 class="visually-hidden" id="hero-title">Egor Polyakoff — Designer</h1>
+
+        <div class="hero__scene" aria-hidden="true">
+          <div class="hero__scenery">
+            <div class="hero__wordmark-frame">
+              <div class="hero__wordmark-scale">
+                <picture class="hero__wordmark-source">
+                  <source media="(max-width: 599px)" srcset="./assets/images/wordmark-mobile-render.png" />
+                  <source media="(max-width: 1023px)" srcset="./assets/images/figma-refresh/wordmark-tablet.svg" />
+                  <source media="(min-width: 2240px)" srcset="./assets/images/wordmark-2k-render.png" />
+                  <source media="(min-width: 1650px)" srcset="./assets/images/wordmark-wide-render.png" />
+                  <img class="scene-layer scene-layer--wordmark" data-layer="wordmark" src="./assets/images/wordmark-desktop-render.png" alt="" draggable="false" />
+                </picture>
+              </div>
+            </div>
+            <div class="hero__decoration-scale">
+              <div class="hero__scanlines">
+                <img class="scene-layer" data-layer="scanlines" src="./assets/images/backgrounds/dark.webp" width="2560" height="1305" alt="" draggable="false" />
+              </div>
+            </div>
+          </div>
+          <picture class="hero__portrait-source">
+            <source media="(max-width: 1099px)" srcset="./assets/images/hero/portrait-1280.webp" />
+            <img class="scene-layer scene-layer--portrait" data-layer="portrait" src="./assets/images/hero/portrait-2456.webp" data-color-small="./assets/images/hero/portrait-1280.webp" data-color-large="./assets/images/hero/portrait-2456.webp" data-depth-small="./assets/images/hero/depth-1280.webp" data-depth-large="./assets/images/hero/depth-2456.webp" width="2456" height="2904" alt="" draggable="false" fetchpriority="high" />
+          </picture>
+          <canvas class="scene-layer scene-layer--depth" data-layer="depth" data-state="loading" aria-hidden="true"></canvas>
+        </div>
+
+        <section class="about-copy" aria-labelledby="about-title" aria-hidden="true">
+          <div class="about-copy__content">
+            <h2 class="visually-hidden" id="about-title">About me</h2>
+            <p>I’m a designer</p>
+            <p>specializing in websites,</p>
+            <p>branding and redesigns.</p>
+            <p>I’m passionate about</p>
+            <p>my work and always</p>
+            <p class="about-copy__last">aim to deliver fresh ideas,<br class="about-copy__desktop-break" /> clarity, and high-quality<br class="about-copy__desktop-break" /> results</p>
+          </div>
+        </section>
+
+        <div class="hero__intro-frame">
+          <div class="hero__intro mono">
+            <p>I’m Egor</p>
+            <p>And I’m a designer</p>
+          </div>
+        </div>
+
+        <div class="hero__datetime mono" aria-label="Moscow time">
+          <div class="hero__date"><span data-live-date></span><span class="hero__date-dot" aria-hidden="true"></span><span data-live-weekday></span></div>
+          <time></time>
+        </div>
+        <button class="glass-button hero__motion mono" data-motion-enable type="button" aria-label="Enable portrait motion with device tilt" hidden><span>Motion</span><img src="./assets/icons/plus.svg" width="16" height="16" alt="" /></button>
+
+        <div class="hero__welcome">
+          <div class="welcome-card">
+            <img class="welcome-card__pagination" src="./assets/icons/pagination.svg" width="20" height="36" alt="" />
+            <p class="welcome-card__text" lang="zh-Hans">欢迎加入俱乐部，伙计！<br />我是叶戈尔。</p>
+            <img class="welcome-card__logo" src="./assets/icons/logo.svg" width="24" height="24" alt="" />
+          </div>
+          <div class="welcome-card__back" aria-hidden="true"></div>
+        </div>
+        <button class="hero__about-logo" data-return-hero type="button" aria-label="Reload site and return to hero" disabled tabindex="-1"><span class="theme-icon theme-icon--logo" aria-hidden="true"><img src="./assets/icons/about-logo.svg" width="20" height="20" alt="" /><img class="theme-icon__light" src="./assets/icons/about-logo-dark.svg" width="20" height="20" alt="" /></span></button>
+
+        <footer class="hero__footer mono">
+          <nav class="hero__navigation" aria-label="Main navigation">
+            <button class="glass-button" type="button" aria-disabled="true"><span>Contact</span><span class="theme-icon" aria-hidden="true"><img src="./assets/icons/plus.svg" width="16" height="16" alt="" /><img class="theme-icon__light" src="./assets/icons/plus-dark.svg" width="16" height="16" alt="" /></span></button>
+            <button class="glass-button glass-button--menu" type="button" aria-disabled="true"><span>Menu</span><span class="theme-icon" aria-hidden="true"><img src="./assets/icons/plus.svg" width="16" height="16" alt="" /><img class="theme-icon__light" src="./assets/icons/plus-dark.svg" width="16" height="16" alt="" /></span></button>
+          </nav>
+          <div class="hero__utilities">
+            <button class="music-control" type="button" aria-label="Music" aria-disabled="true">
+              <span class="theme-icon" aria-hidden="true"><img src="./assets/icons/music.svg" width="16" height="16" alt="" /><img class="theme-icon__light" src="./assets/icons/music-dark.svg" width="16" height="16" alt="" /></span>
+              <span class="music-control__time" aria-hidden="true"><span><span data-music-elapsed>00:00</span>/</span><span class="theme-icon"><img src="./assets/icons/infinity.svg" width="16" height="16" alt="" /><img class="theme-icon__light" src="./assets/icons/infinity-dark.svg" width="16" height="16" alt="" /></span></span>
+            </button>
+            <div class="language-control" aria-label="Language">
+              <span>En</span><button class="language-control__switch" type="button" aria-label="Switch language" aria-disabled="true"><span></span></button><span class="language-control__inactive">Ru</span>
+            </div>
+          </div>
+        </footer>
+      </section>
+      </div>
+      <!-- The next content screen can be inserted here without changing either scroll story. -->
+      <section class="works-journey" id="works" aria-labelledby="works-title">
+        <div class="works-viewport" data-works-gallery>
+          <h2 class="visually-hidden" id="works-title">Selected works</h2>
+          <div class="works-backdrop" aria-hidden="true">
+            <div class="works-backdrop__art">
+              <img class="works-backdrop__lines" src="./assets/images/backgrounds/light.webp" width="2560" height="1305" alt="" draggable="false" />
+            </div>
+          </div>
+          <div class="works-cards" data-works-cards></div>
+          <div class="hero__datetime mono" aria-label="Moscow time">
+            <div class="hero__date"><span data-live-date></span><span class="hero__date-dot" aria-hidden="true"></span><span data-live-weekday></span></div>
+            <time></time>
+          </div>
+          <button class="hero__about-logo" data-return-hero type="button" aria-label="Reload site and return to hero"><span class="theme-icon theme-icon--logo" aria-hidden="true"><img class="theme-icon__light" src="./assets/icons/about-logo-dark.svg" width="20" height="20" alt="" /></span></button>
+          <footer class="hero__footer mono">
+            <nav class="hero__navigation" aria-label="Project navigation">
+              <button class="glass-button" type="button" aria-disabled="true"><span>Contact</span><span class="theme-icon" aria-hidden="true"><img class="theme-icon__light" src="./assets/icons/plus-dark.svg" width="16" height="16" alt="" /></span></button>
+              <button class="glass-button glass-button--menu" type="button" aria-disabled="true"><span>Menu</span><span class="theme-icon" aria-hidden="true"><img class="theme-icon__light" src="./assets/icons/plus-dark.svg" width="16" height="16" alt="" /></span></button>
+            </nav>
+            <div class="hero__utilities">
+              <button class="music-control" type="button" aria-label="Music" aria-disabled="true">
+                <span class="theme-icon" aria-hidden="true"><img class="theme-icon__light" src="./assets/icons/music-dark.svg" width="16" height="16" alt="" /></span>
+                <span class="music-control__time" aria-hidden="true"><span><span data-music-elapsed>00:00</span>/</span><span class="theme-icon"><img class="theme-icon__light" src="./assets/icons/infinity-dark.svg" width="16" height="16" alt="" /></span></span>
+              </button>
+              <div class="language-control" aria-label="Language">
+                <span>En</span><button class="language-control__switch" type="button" aria-label="Switch language" aria-disabled="true"><span></span></button><span class="language-control__inactive">Ru</span>
+              </div>
+            </div>
+          </footer>
+        </div>
+      </section>
+      <section class="services" data-services data-active-service="web" aria-labelledby="services-heading">
+        <img class="services__background" src="./assets/images/backgrounds/dark.webp" width="2560" height="1305" alt="" aria-hidden="true" draggable="false">
+        <div class="services__layout">
+          <header class="services__header">
+            <p class="services__counter" data-services-counter aria-hidden="true">1 - 3</p>
+            <h2 class="services__heading" id="services-heading" aria-label="Ideas take shape through web, apps and motion"><span aria-hidden="true">Ideas take shape through<br><span class="services__word" data-services-word="web" data-text="web" data-active="true">web</span>, <span class="services__word" data-services-word="app" data-text="apps">apps</span> and <span class="services__word" data-services-word="motion" data-text="motion">motion</span></span></h2>
+          </header>
+
+          <div class="services__deck" data-services-deck role="region" aria-roledescription="carousel" aria-label="Design services. Use left and right arrow keys to browse." tabindex="0">
+            <article class="services-card" data-service-id="web" data-title="Web design" data-position="active" data-flipped="false" aria-label="1 of 3: Web design" aria-roledescription="slide">
+              <div class="services-card__shadow" aria-hidden="true"></div>
+              <div class="services-card__hover" data-services-hover>
+              <div class="services-card__side" data-services-side data-services-surface aria-hidden="true"><img data-chapter-image="services-web" decoding="async" width="3300" height="4096" alt="" draggable="false"></div>
+              <div class="services-card__rotator">
+                <div class="services-card__face services-card__front" data-services-front data-services-surface>
+                  <img class="services-card__image" data-chapter-image="services-web" decoding="async" width="3300" height="4096" alt="Sunlit sand dunes" draggable="false">
+                  <div class="services-card__caption">
+                    <div class="services-card__labels"><h3>Web design</h3><p>Structure &amp; character</p></div>
+                    <button class="services-card__control" data-services-flip type="button" aria-label="Read about Web design" aria-expanded="false" aria-controls="services-web-back"><img src="./assets/icons/plus.svg" width="16" height="16" alt="" draggable="false"></button>
+                  </div>
+                </div>
+                <div class="services-card__face services-card__back" id="services-web-back" data-services-back data-services-surface inert aria-hidden="true">
+                  <span class="services-card__index">01 / 03</span>
+                  <div class="services-card__description"><h3>Web design</h3><p>I shape websites around a clear idea, bringing structure, typography and imagery together into a distinct digital presence.</p></div>
+                  <div class="services-card__back-footer"><p>Structure &amp; character</p><button class="services-card__control services-card__control--close" data-services-close type="button" aria-label="Back to Web design image"><img src="./assets/icons/plus.svg" width="16" height="16" alt="" draggable="false"></button></div>
+                </div>
+              </div>
+              </div>
+              <button class="services-card__select" data-services-select type="button" aria-label="Show Web design" hidden></button>
+            </article>
+
+            <article class="services-card" data-service-id="app" data-title="App design" data-position="next" data-flipped="false" aria-label="2 of 3: App design" aria-roledescription="slide">
+              <div class="services-card__shadow" aria-hidden="true"></div>
+              <div class="services-card__hover" data-services-hover>
+              <div class="services-card__side" data-services-side data-services-surface aria-hidden="true"><img data-chapter-image="services-app" decoding="async" width="1792" height="2392" alt="" draggable="false"></div>
+              <div class="services-card__rotator">
+                <div class="services-card__face services-card__front" data-services-front data-services-surface inert aria-hidden="true">
+                  <img class="services-card__image" data-chapter-image="services-app" decoding="async" width="1792" height="2392" alt="Portrait with a band of warm light across the eyes" draggable="false">
+                  <div class="services-card__caption"><div class="services-card__labels"><h3>App design</h3><p>Logic &amp; interaction</p></div><button class="services-card__control" data-services-flip type="button" aria-label="Read about App design" aria-expanded="false" aria-controls="services-app-back"><img src="./assets/icons/plus.svg" width="16" height="16" alt="" draggable="false"></button></div>
+                </div>
+                <div class="services-card__face services-card__back" id="services-app-back" data-services-back data-services-surface inert aria-hidden="true">
+                  <span class="services-card__index">02 / 03</span>
+                  <div class="services-card__description"><h3>App design</h3><p>I turn complex tasks into clear, intuitive interfaces. Thoughtful flows and consistent systems make every interaction feel natural.</p></div>
+                  <div class="services-card__back-footer"><p>Logic &amp; interaction</p><button class="services-card__control services-card__control--close" data-services-close type="button" aria-label="Back to App design image"><img src="./assets/icons/plus.svg" width="16" height="16" alt="" draggable="false"></button></div>
+                </div>
+              </div>
+              </div>
+              <button class="services-card__select" data-services-select type="button" aria-label="Show App design"></button>
+            </article>
+
+            <article class="services-card" data-service-id="motion" data-title="Motion design" data-position="previous" data-flipped="false" aria-label="3 of 3: Motion design" aria-roledescription="slide">
+              <div class="services-card__shadow" aria-hidden="true"></div>
+              <div class="services-card__hover" data-services-hover>
+              <div class="services-card__side" data-services-side data-services-surface aria-hidden="true"><img data-chapter-image="services-motion" decoding="async" width="1972" height="2968" alt="" draggable="false"></div>
+              <div class="services-card__rotator">
+                <div class="services-card__face services-card__front" data-services-front data-services-surface inert aria-hidden="true">
+                  <img class="services-card__image" data-chapter-image="services-motion" decoding="async" width="1972" height="2968" alt="Colorful dried flowers in a pale yellow vase" draggable="false">
+                  <div class="services-card__caption"><div class="services-card__labels"><h3>Motion design</h3><p>Rhythm &amp; expression</p></div><button class="services-card__control" data-services-flip type="button" aria-label="Read about Motion design" aria-expanded="false" aria-controls="services-motion-back"><img src="./assets/icons/plus.svg" width="16" height="16" alt="" draggable="false"></button></div>
+                </div>
+                <div class="services-card__face services-card__back" id="services-motion-back" data-services-back data-services-surface inert aria-hidden="true">
+                  <span class="services-card__index">03 / 03</span>
+                  <div class="services-card__description"><h3>Motion design</h3><p>I use movement to guide attention and give ideas a rhythm. From subtle interface details to expressive sequences, motion adds meaning.</p></div>
+                  <div class="services-card__back-footer"><p>Rhythm &amp; expression</p><button class="services-card__control services-card__control--close" data-services-close type="button" aria-label="Back to Motion design image"><img src="./assets/icons/plus.svg" width="16" height="16" alt="" draggable="false"></button></div>
+                </div>
+              </div>
+              </div>
+              <button class="services-card__select" data-services-select type="button" aria-label="Show Motion design"></button>
+            </article>
+          </div>
+
+          <footer class="services__approach">
+            <picture class="services__approach-icon"><source media="(max-width: 1023px)" srcset="./assets/icons/services-approach-mobile.svg"><img src="./assets/icons/services-approach.svg" width="16" height="16" alt="" draggable="false"></picture>
+            <p>I look for a clear idea, then carry it through the whole project. Structure, typography, imagery, and motion each have a role. I refine the details until they feel like parts of the same thought.</p>
+          </footer>
+          <p class="services__sr-only" data-services-status role="status" aria-live="polite" aria-atomic="true"></p>
+        </div>
+      </section>
+
+    </main>
+    <div class="about-flight-guide" aria-hidden="true" hidden>
+      <div class="about-flight-guide__outer"></div>
+      <div class="about-flight-guide__inner"></div>
+      <span class="about-flight-guide__label mono">ГРАНИЦА ФЕЙДА</span>
+    </div>
+    <div class="custom-cursor" aria-hidden="true"><span class="custom-cursor__square"></span><span class="custom-cursor__label mono">Scroll</span></div>
+  </body>
+</html>

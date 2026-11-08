@@ -1,0 +1,71 @@
+/* Static/accessibility fallback retains original images without upper labels. */
+.works-is-sleeping { visibility: hidden !important; pointer-events: none !important; }
+.works-is-sleeping .works-card.is-in-view { will-change: auto; }
+.works-cards { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 72px 36px; width: 100%; padding: 100px var(--page-inset, 24px); color: #1d1d1d; }
+.works-card { position: relative; min-width: 0; margin: 0; user-select: none; }
+.works-card__media { position: relative; width: 100%; aspect-ratio: 960 / 500; overflow: hidden; border-radius: 5%; transition: filter 300ms ease, transform 300ms ease; }
+.works-card.is-hovered .works-card__media { filter: brightness(.6); }
+.works-is-static .works-card.is-hovered .works-card__media { transform: scale(.9); }
+.works-card__media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.works-card--amonra .works-card__media img { inset: auto 0; top: -8.15%; height: 110.67%; object-fit: fill; }
+.works-card--itsme .works-card__media img { object-fit: fill; }
+.works-is-enhanced .works-cards { position: absolute; inset: 0; display: block; padding: 0; pointer-events: none; }
+.works-is-enhanced .works-card { position: absolute; left: 0; top: 0; width: 960px; height: 500px; transform-origin: 0 0; }
+.works-is-enhanced .works-card.is-in-view { will-change: transform; }
+.works-is-enhanced .works-card__media { height: 500px; }
+.works-is-enhanced .works-card:not(.is-front) .works-card__media img { filter: blur(28px); }
+.works-is-enhanced.works-has-canvas .works-card__media { opacity: 0; }
+.works-is-enhanced:not(.works-has-canvas) .works-card.is-front { pointer-events: auto; cursor: pointer; }
+.works-card:focus-visible { outline: 3px solid #1d1d1d; outline-offset: 10px; border-radius: 5%; }
+.works-gallery-canvas { display: none; position: absolute; inset: 0; z-index: 700; width: 100%; height: 100%; pointer-events: auto; touch-action: pan-y; }
+.works-is-enhanced.works-has-canvas .works-gallery-canvas { display: block; }
+.works-gallery-canvas[hidden] { display: none; }
+.works-gallery-canvas.is-project-hovered { cursor: pointer; }
+.works-project {
+  --works-project-frost: 32px;
+  position: absolute; z-index: 800; left: 50%; bottom: 68px;
+  display: flex; align-items: center; justify-content: space-between;
+  width: 280px; padding: 16px 16px 16px 28px; border-radius: 48px;
+  background: transparent; color: #fff; isolation: isolate;
+  /* Keep the glass's ancestor opaque and unfiltered throughout the motion.
+     Fading each painted child lets frost sample the scene from frame one. */
+  opacity: 1; transform: translate3d(-50%, 28px, 0) scale(.97); filter: none;
+  visibility: hidden; pointer-events: none;
+  transition: transform 500ms cubic-bezier(.2,.7,.25,1), visibility 0s linear 500ms;
+}
+.works-project::before {
+  content: ""; position: absolute; z-index: 0; inset: 0; border-radius: inherit; pointer-events: none;
+  background: rgb(29 29 29 / 60%);
+  -webkit-backdrop-filter: blur(var(--works-project-frost));
+  backdrop-filter: blur(var(--works-project-frost));
+  box-shadow: none;
+}
+.works-project::after {
+  content: ""; position: absolute; z-index: 1; inset: 0; border-radius: inherit; pointer-events: none;
+  background: none;
+}
+.works-project::before, .works-project::after, .works-project > .works-project__details, .works-project > .works-project__button { opacity: 0; transition: opacity 500ms ease; }
+.works-project.is-visible { transform: translate3d(-50%, 0, 0) scale(1); visibility: visible; pointer-events: auto; transition-delay: 0s; }
+.works-project.is-visible::before, .works-project.is-visible::after, .works-project.is-visible > .works-project__details, .works-project.is-visible > .works-project__button { opacity: 1; }
+.works-project.is-leaving { transform: translate3d(-50%, -12px, 0) scale(.9); visibility: visible; pointer-events: none; }
+.works-project.is-entering { animation: works-project-enter 500ms cubic-bezier(.2,.7,.25,1) both; }
+.works-project.is-entering-alt { animation-name: works-project-enter-alt; }
+.works-project.is-entering::before, .works-project.is-entering::after, .works-project.is-entering > .works-project__details, .works-project.is-entering > .works-project__button { animation: works-project-paint-in 500ms ease both; }
+.works-project.is-entering-alt::before, .works-project.is-entering-alt::after, .works-project.is-entering-alt > .works-project__details, .works-project.is-entering-alt > .works-project__button { animation-name: works-project-paint-in-alt; }
+@keyframes works-project-enter { from { transform: translate3d(-50%, 28px, 0) scale(.97); } to { transform: translate3d(-50%, 0, 0) scale(1); } }
+@keyframes works-project-enter-alt { from { transform: translate3d(-50%, 28px, 0) scale(.97); } to { transform: translate3d(-50%, 0, 0) scale(1); } }
+@keyframes works-project-paint-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes works-project-paint-in-alt { from { opacity: 0; } to { opacity: 1; } }
+.works-project__details { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.works-project__name { margin: 0; font-size: 14px; line-height: 1; letter-spacing: -.28px; text-transform: uppercase; text-shadow: none; }
+.works-project__tags { display: flex; align-items: center; gap: 6px; margin: 0; color: rgb(255 255 255 / 40%); font-size: 12px; line-height: 1; letter-spacing: -.24px; text-transform: uppercase; }
+.works-project__dot { flex: 0 0 2px; width: 2px; height: 2px; background: rgb(255 255 255 / 20%); }
+.works-project__button { position: relative; z-index: 2; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; border: 0; padding: 12px; border-radius: 60px; background: rgb(29 29 29 / 80%); color: #fff; }
+.works-project__arrow { display: block; flex: 0 0 16px; }
+@media (max-width: 599px) {
+  .works-cards { grid-template-columns: minmax(0, 1fr); gap: 48px; padding: 92px 16px 80px; }
+  .works-project { bottom: calc(94px + env(safe-area-inset-bottom, 0px)); max-width: calc(100% - 32px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .works-project, .works-project::before, .works-project::after, .works-project > .works-project__details, .works-project > .works-project__button, .works-card__media { transition: none; animation: none !important; }
+}

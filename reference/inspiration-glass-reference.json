@@ -1,0 +1,22 @@
+{
+  "source": "https://wwake.com/?ref=minimal.gallery",
+  "stylesheet": "https://wwake.com/cdn/shop/t/132/assets/liquid-glass.css?v=145378582052878773011791969631",
+  "observed": {
+    "blurPx": 5,
+    "tint": "white 15% to 2%",
+    "shine": "thin white side edges",
+    "distortion": "static SVG displacement"
+  },
+  "adapted": {
+    "blurPx": 8,
+    "phoneBlurPx": 6,
+    "saturation": 1.15,
+    "photoAlignment": "card coordinates during hover",
+    "noiseFilter": "single shared static .012 seed5 map, gaussian2, displacement8px, photo-only"
+  },
+  "runtime": [
+    "inspiration-glass.css",
+    "inspiration-glass.js"
+  ],
+  "originalImagesModified": false
+}

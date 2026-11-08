@@ -1,0 +1,12 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="208" height="208" viewBox="0 0 208 208" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Ellipse 75" filter="url(#filter0_f_0_47)">
+<path d="M104 4.25C117.099 4.25 130.07 6.83011 142.173 11.843C154.275 16.8559 165.271 24.2035 174.534 33.4661C183.797 42.7288 191.144 53.7251 196.157 65.8273C201.17 77.9296 203.75 90.9007 203.75 104C203.75 117.099 201.17 130.07 196.157 142.173C191.144 154.275 183.797 165.271 174.534 174.534C165.271 183.797 154.275 191.144 142.173 196.157C130.07 201.17 117.099 203.75 104 203.75C90.9006 203.75 77.9295 201.17 65.8273 196.157C53.7251 191.144 42.7287 183.797 33.4661 174.534C24.2034 165.271 16.8559 154.275 11.843 142.173C6.8301 130.07 4.24999 117.099 4.25 104C4.25001 90.9006 6.83012 77.9295 11.843 65.8273C16.856 53.7251 24.2035 42.7287 33.4661 33.4661C42.7288 24.2034 53.7252 16.8559 65.8274 11.843C77.9296 6.83009 90.9007 4.24999 104 4.25L104 4.25Z" stroke-width="0.5" stroke="white"/>
+</g>
+<defs>
+<filter id="filter0_f_0_47" x="0" y="0" width="208" height="208" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="2" result="effect1_foregroundBlur_0_47"/>
+</filter>
+</defs>
+</svg>

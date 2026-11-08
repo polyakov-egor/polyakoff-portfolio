@@ -1,0 +1,18 @@
+/* Light is painted through the exact existing line artwork, behind all content. */
+.background-lines {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+.about-backdrop > .background-lines { z-index: 1; }
+.background-line-warp {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}

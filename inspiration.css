@@ -1,0 +1,214 @@
+/* The existing hero viewport supplies the background, clock and navigation. */
+.inspiration {
+  --inspiration-card-size: 400px;
+  --inspiration-card-radius: 80px;
+  --inspiration-heading-size: 64px;
+  --inspiration-glass-inset: 24px;
+  --inspiration-glass-height: 96px;
+  --inspiration-glass-pad-x: 32px;
+  --inspiration-glass-pad-y: 28px;
+  --inspiration-copy-gap: 8px;
+  --inspiration-kind-inset: 52px;
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  color: #1d1d1d;
+  pointer-events: none;
+}
+.inspiration__backdrop {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  background: #eee;
+  opacity: var(--inspiration-background-opacity, 0);
+  pointer-events: none;
+}
+.inspiration__backdrop-art { position: absolute; inset: 0; background: #eee; opacity: .3; isolation: isolate; }
+.hero.is-inspiration { --glass-background: rgb(29 29 29 / 10%); }
+.hero.is-inspiration > .hero__datetime { z-index: 6; }
+.hero.is-inspiration > .about-copy { visibility: hidden; }
+.inspiration__backdrop-art .hero__tint { display: block; }
+.inspiration__lines { position: absolute; top: 0; left: 0; max-width: none; transform-origin: 0 0; }
+.inspiration__flip-front {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  top: 0;
+  overflow: hidden;
+  background: #dedede;
+  transform-origin: 50% 50%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  pointer-events: none;
+}
+.inspiration__flip-front > img {
+  position: absolute;
+  left: -15.085%;
+  top: -10%;
+  width: 130.0883%;
+  height: 153.5%;
+  object-fit: cover;
+}
+
+.inspiration__eyebrow,
+.inspiration__counter {
+  position: absolute;
+  left: 50%;
+  z-index: 4;
+  margin: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  text-align: center;
+}
+.inspiration__counter { font-variant-numeric: tabular-nums; }
+
+.inspiration__heading {
+  position: absolute;
+  z-index: 4;
+  margin: 0;
+  font-family: "Inter Tight", sans-serif;
+  font-size: var(--inspiration-heading-size);
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.inspiration__heading--left {
+  left: var(--page-inset, 24px);
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 16px;
+  transform-origin: 0 50%;
+}
+.inspiration__heading--right {
+  right: var(--page-inset, 24px);
+  text-align: right;
+  transform-origin: 100% 50%;
+}
+.inspiration__words { display: inline-grid; align-items: start; }
+.inspiration__word { grid-area: 1 / 1; }
+.inspiration__word:not([data-inspiration-word="0"]) { opacity: 0; }
+
+.inspiration__cards { position: absolute; z-index: 2; inset: 0; }
+.inspiration__card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--inspiration-card-size);
+  height: var(--inspiration-card-size);
+  overflow: hidden;
+  border-radius: var(--inspiration-card-radius);
+  background: #fff;
+  transform-origin: 0 0;
+  user-select: none;
+}
+.inspiration.is-flipping .inspiration__card--people,
+.inspiration.is-flipping .inspiration__flip-front { will-change: transform; }
+.inspiration__media {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.inspiration__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  pointer-events: none;
+}
+.inspiration__image--people {
+  inset: auto;
+  top: -.12%;
+  left: .02%;
+  width: 99.95%;
+  height: 100.12%;
+  object-fit: fill;
+}
+.inspiration__card--music .inspiration__media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: var(--inspiration-back-shade, 0);
+}
+.inspiration__kind {
+  position: absolute;
+  top: var(--inspiration-kind-inset);
+  left: var(--inspiration-kind-inset);
+  pointer-events: none;
+}
+.inspiration__glass {
+  --inspiration-glass-background: rgb(255 255 255 / 10%);
+  position: absolute;
+  z-index: 2;
+  left: var(--inspiration-glass-inset);
+  right: var(--inspiration-glass-inset);
+  bottom: var(--inspiration-glass-inset);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--inspiration-glass-height);
+  padding: var(--inspiration-glass-pad-y) var(--inspiration-glass-pad-x);
+  border-radius: 48px;
+  color: #fff;
+}
+.inspiration__glass::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--inspiration-glass-background);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%), inset 0 -1px 0 rgb(255 255 255 / 5%);
+  -webkit-backdrop-filter: blur(64px);
+  backdrop-filter: blur(64px);
+  pointer-events: none;
+  opacity: var(--inspiration-plate-opacity, 1);
+}
+.inspiration__card--people .inspiration__glass {
+  height: calc(var(--inspiration-glass-pad-y) * 2 + 26px + var(--inspiration-copy-gap));
+}
+.inspiration__card--detail .inspiration__glass { --inspiration-glass-background: rgb(29 29 29 / 10%); }
+.inspiration__card-copy,
+.inspiration__plus { position: relative; z-index: 1; }
+.inspiration__card-copy, .inspiration__plus { opacity: var(--inspiration-plate-opacity, 1); }
+.inspiration__card-copy { display: flex; flex-direction: column; gap: var(--inspiration-copy-gap); }
+.inspiration__card-title { margin: 0; font-size: 14px; line-height: 1; letter-spacing: -.28px; white-space: nowrap; }
+.inspiration__card-subtitle { margin: 0; font-size: 12px; line-height: 1; letter-spacing: -.24px; white-space: nowrap; color: rgb(255 255 255 / 40%); }
+.inspiration__plus { flex: 0 0 auto; margin-left: 12px; pointer-events: none; }
+
+@media (max-width: 1649px) {
+  .inspiration {
+    --inspiration-card-size: 320px;
+    --inspiration-card-radius: 60px;
+    --inspiration-heading-size: 40px;
+    --inspiration-glass-height: 74px;
+    --inspiration-glass-pad-x: 28px;
+    --inspiration-glass-pad-y: 20px;
+    --inspiration-kind-inset: 44px;
+  }
+}
+@media (min-width: 600px) and (max-width: 1023px) {
+  .inspiration { --inspiration-heading-size: 48px; }
+  .inspiration__heading--left { gap: 12px; }
+}
+@media (max-width: 599px) {
+  .inspiration {
+    --inspiration-card-size: 260px;
+    --inspiration-card-radius: 48px;
+    --inspiration-heading-size: 32px;
+    --inspiration-glass-inset: 12px;
+    --inspiration-glass-height: 70px;
+    --inspiration-glass-pad-x: 24px;
+    --inspiration-glass-pad-y: 20px;
+    --inspiration-copy-gap: 4px;
+    --inspiration-kind-inset: 32px;
+  }
+  .inspiration__heading--left { gap: 8px; }
+}

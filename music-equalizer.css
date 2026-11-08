@@ -1,0 +1,52 @@
+/* The supplied 16x16 vector stays intact. Only the top of each original
+   rounded path moves; calm broad cycles preserve the y=12 baseline. */
+.music-equalizer { overflow: hidden; pointer-events: none; }
+.music-equalizer > img { visibility: hidden; }
+.music-equalizer__vector {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 16px;
+  height: 16px;
+  color: rgb(calc(255 - 226 * var(--about-light-progress, 0)) calc(255 - 226 * var(--about-light-progress, 0)) calc(255 - 226 * var(--about-light-progress, 0)));
+  pointer-events: none;
+}
+/* Unsupported path interpolation falls back to the exact static source. */
+@supports (d: path("M0 0")) {
+  .music-equalizer__bar {
+    animation-timing-function: cubic-bezier(.45, 0, .55, 1);
+    animation-iteration-count: infinite;
+  }
+  .music-equalizer__bar[data-equalizer-bar="0"] { animation-name: music-equalizer-calm-0; animation-duration: calc(3200ms / var(--music-activity, 1.35)); animation-delay: -420ms; }
+  .music-equalizer__bar[data-equalizer-bar="1"] { animation-name: music-equalizer-calm-1; animation-duration: calc(2800ms / var(--music-activity, 1.35)); animation-delay: -1350ms; }
+  .music-equalizer__bar[data-equalizer-bar="2"] { animation-name: music-equalizer-calm-2; animation-duration: calc(3800ms / var(--music-activity, 1.35)); animation-delay: -2210ms; }
+  .music-equalizer__bar[data-equalizer-bar="3"] { animation-name: music-equalizer-calm-3; animation-duration: calc(3450ms / var(--music-activity, 1.35)); animation-delay: -920ms; }
+}
+@keyframes music-equalizer-calm-0 {
+  0% { d: path("M3.7998 11.1001C3.7998 11.5971 3.3969 12 2.8999 12C2.4029 12 2 11.5971 2 11.1001V8.8999C2 8.4029 2.4029 8 2.8999 8C3.3969 8 3.7998 8.4029 3.7998 8.8999V11.1001Z"); }
+  34% { d: path("M3.7998 11.1001C3.7998 11.5971 3.3969 12 2.8999 12C2.4029 12 2 11.5971 2 11.1001V6.0999C2 5.6029 2.4029 5.2 2.8999 5.2C3.3969 5.2 3.7998 5.6029 3.7998 6.0999V11.1001Z"); }
+  70% { d: path("M3.7998 11.1001C3.7998 11.5971 3.3969 12 2.8999 12C2.4029 12 2 11.5971 2 11.1001V9.5999C2 9.1029 2.4029 8.7 2.8999 8.7C3.3969 8.7 3.7998 9.1029 3.7998 9.5999V11.1001Z"); }
+  100% { d: path("M3.7998 11.1001C3.7998 11.5971 3.3969 12 2.8999 12C2.4029 12 2 11.5971 2 11.1001V8.8999C2 8.4029 2.4029 8 2.8999 8C3.3969 8 3.7998 8.4029 3.7998 8.8999V11.1001Z"); }
+}
+@keyframes music-equalizer-calm-1 {
+  0% { d: path("M7.10059 11.1001C7.10059 11.5971 6.69769 12 6.20068 12C5.70368 12 5.30078 11.5971 5.30078 11.1001V3.8999C5.30078 3.4029 5.70368 3 6.20068 3C6.69769 3 7.10059 3.4029 7.10059 3.8999V11.1001Z"); }
+  34% { d: path("M7.10059 11.1001C7.10059 11.5971 6.69769 12 6.20068 12C5.70368 12 5.30078 11.5971 5.30078 11.1001V7.3999C5.30078 6.9029 5.70368 6.5 6.20068 6.5C6.69769 6.5 7.10059 6.9029 7.10059 7.3999V11.1001Z"); }
+  70% { d: path("M7.10059 11.1001C7.10059 11.5971 6.69769 12 6.20068 12C5.70368 12 5.30078 11.5971 5.30078 11.1001V4.8999C5.30078 4.4029 5.70368 4 6.20068 4C6.69769 4 7.10059 4.4029 7.10059 4.8999V11.1001Z"); }
+  100% { d: path("M7.10059 11.1001C7.10059 11.5971 6.69769 12 6.20068 12C5.70368 12 5.30078 11.5971 5.30078 11.1001V3.8999C5.30078 3.4029 5.70368 3 6.20068 3C6.69769 3 7.10059 3.4029 7.10059 3.8999V11.1001Z"); }
+}
+@keyframes music-equalizer-calm-2 {
+  0% { d: path("M10.3994 11.1001C10.3994 11.5971 9.99651 12 9.49951 12C9.00251 12 8.59961 11.5971 8.59961 11.1001V10.8999C8.59961 10.4029 9.00251 10 9.49951 10C9.99651 10 10.3994 10.4029 10.3994 10.8999V11.1001Z"); }
+  34% { d: path("M10.3994 11.1001C10.3994 11.5971 9.99651 12 9.49951 12C9.00251 12 8.59961 11.5971 8.59961 11.1001V8.2999C8.59961 7.8029 9.00251 7.4 9.49951 7.4C9.99651 7.4 10.3994 7.8029 10.3994 8.2999V11.1001Z"); }
+  70% { d: path("M10.3994 11.1001C10.3994 11.5971 9.99651 12 9.49951 12C9.00251 12 8.59961 11.5971 8.59961 11.1001V9.4999C8.59961 9.0029 9.00251 8.6 9.49951 8.6C9.99651 8.6 10.3994 9.0029 10.3994 9.4999V11.1001Z"); }
+  100% { d: path("M10.3994 11.1001C10.3994 11.5971 9.99651 12 9.49951 12C9.00251 12 8.59961 11.5971 8.59961 11.1001V10.8999C8.59961 10.4029 9.00251 10 9.49951 10C9.99651 10 10.3994 10.4029 10.3994 10.8999V11.1001Z"); }
+}
+@keyframes music-equalizer-calm-3 {
+  0% { d: path("M13.6982 11.1001C13.6982 11.5971 13.2953 12 12.7983 12C12.3013 12 11.8984 11.5971 11.8984 11.1001V7.8999C11.8984 7.4029 12.3013 7 12.7983 7C13.2953 7 13.6982 7.4029 13.6982 7.8999V11.1001Z"); }
+  34% { d: path("M13.6982 11.1001C13.6982 11.5971 13.2953 12 12.7983 12C12.3013 12 11.8984 11.5971 11.8984 11.1001V9.6999C11.8984 9.2029 12.3013 8.8 12.7983 8.8C13.2953 8.8 13.6982 9.2029 13.6982 9.6999V11.1001Z"); }
+  70% { d: path("M13.6982 11.1001C13.6982 11.5971 13.2953 12 12.7983 12C12.3013 12 11.8984 11.5971 11.8984 11.1001V6.0999C11.8984 5.6029 12.3013 5.2 12.7983 5.2C13.2953 5.2 13.6982 5.6029 13.6982 6.0999V11.1001Z"); }
+  100% { d: path("M13.6982 11.1001C13.6982 11.5971 13.2953 12 12.7983 12C12.3013 12 11.8984 11.5971 11.8984 11.1001V7.8999C11.8984 7.4029 12.3013 7 12.7983 7C13.2953 7 13.6982 7.4029 13.6982 7.8999V11.1001Z"); }
+}
+.equalizer-is-paused .music-equalizer__bar { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .music-equalizer__bar { animation: none; }
+}

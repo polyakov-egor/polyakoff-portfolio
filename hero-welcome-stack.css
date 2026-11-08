@@ -1,0 +1,94 @@
+@property --stack-surface-opacity {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+@property --stack-content-opacity {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+/* Stable cards have no ancestor opacity/filter: each glass surface sees the scene. */
+.hero__welcome.has-welcome-stack > .welcome-card__back { display: none; }
+.hero__welcome.has-welcome-stack > .welcome-card {
+  --stack-surface-opacity: 0;
+  --stack-content-opacity: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  width: 280px;
+  height: 60px;
+  transform-origin: 50% 0;
+  transform: translate3d(0, 22px, 0) scale(.8);
+  filter: none;
+  transition: none;
+  pointer-events: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.hero__welcome.has-welcome-stack[data-welcome-visible="true"] > .welcome-card--active { pointer-events: auto; cursor: grab; }
+.hero__welcome.has-welcome-stack.is-welcome-dragging > .welcome-card--active {
+  cursor: grabbing;
+  transform: translate3d(0, var(--welcome-drag-y, 0px), 0) scale(1);
+}
+.hero__welcome.has-welcome-stack .welcome-card__pagination { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 20px; height: 36px; }
+.hero__welcome.has-welcome-stack .welcome-card__dot { display: block; width: 4px; height: 4px; border-radius: 50%; background: #fff; opacity: .2; }
+.hero__welcome.has-welcome-stack .welcome-card__dot.is-active { opacity: 1; }
+.hero__welcome.has-welcome-stack .welcome-card__text { flex: 1 1 auto; min-width: 0; }
+.hero__welcome.has-welcome-stack .welcome-card__text[lang="en"] { font-size: 12px; letter-spacing: -.01em; }
+.hero__welcome.has-welcome-stack .welcome-card__logo { margin-left: 12px; }
+.hero__welcome.has-welcome-stack > .welcome-card::before {
+  -webkit-backdrop-filter: blur(32px);
+  backdrop-filter: blur(32px);
+  opacity: calc(var(--welcome-opacity, 1) * var(--stack-surface-opacity));
+  transition: none;
+}
+.hero__welcome.has-welcome-stack > .welcome-card > * {
+  opacity: calc(var(--welcome-opacity, 1) * var(--stack-content-opacity));
+  transition: none;
+}
+.hero__welcome.has-welcome-stack > .welcome-card--active,
+.hero__welcome.has-welcome-stack > .welcome-card--entering {
+  --stack-surface-opacity: 1;
+  --stack-content-opacity: 1;
+  z-index: 2;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+.hero__welcome.has-welcome-stack > .welcome-card--active { z-index: 3; }
+.hero__welcome.has-welcome-stack > .welcome-card--rear,
+.hero__welcome.has-welcome-stack > .welcome-card--forming-rear {
+  --stack-surface-opacity: 1;
+}
+.hero__welcome.has-welcome-stack > .welcome-card--rear { z-index: 2; }
+.hero__welcome.has-welcome-stack > .welcome-card--leaving {
+  z-index: 3;
+  transform: translate3d(0, -32px, 0) scale(1);
+  filter: blur(8px);
+}
+.hero__welcome.has-welcome-stack.is-welcome-cycling > .welcome-card {
+  transition: transform var(--welcome-stack-duration, 650ms) cubic-bezier(.22, 1, .36, 1), filter var(--welcome-stack-duration, 650ms) cubic-bezier(.22, 1, .36, 1), --stack-surface-opacity var(--welcome-stack-duration, 650ms) cubic-bezier(.22, 1, .36, 1), --stack-content-opacity var(--welcome-stack-duration, 650ms) cubic-bezier(.22, 1, .36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero__welcome.has-welcome-stack.is-welcome-cycling > .welcome-card { transition: none; }
+}
+
+/* A single clipped baseline rolls SCROLL up and brings DRAG from below. */
+.custom-cursor__label-mask { display: block; position: relative; width: 3.7em; height: 1em; overflow: hidden; }
+.custom-cursor__word { position: absolute; inset: 0; display: block; white-space: nowrap; transition: transform 350ms cubic-bezier(.22, 1, .36, 1); }
+.custom-cursor__word--scroll { transform: translateY(0); }
+.custom-cursor__word--drag { transform: translateY(100%); }
+.custom-cursor__word--press { transform: translateY(100%); }
+.custom-cursor.is-drag-target .custom-cursor__word--scroll { transform: translateY(-100%); }
+.custom-cursor.is-drag-target .custom-cursor__word--drag { transform: translateY(0); }
+.custom-cursor__square { transform-origin: 50% 50%; transition: transform 200ms cubic-bezier(.22, 1, .36, 1); }
+.custom-cursor.is-click-target .custom-cursor__square { transform: scale(1.9); }
+.custom-cursor.is-press-target .custom-cursor__word--scroll,
+.custom-cursor.is-press-target .custom-cursor__word--drag { transform: translateY(-100%); }
+.custom-cursor.is-press-target .custom-cursor__word--press { transform: translateY(0); }
+.custom-cursor.is-visible.is-press-target .custom-cursor__label { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .custom-cursor__word, .custom-cursor__square { transition: none; }
+}

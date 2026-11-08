@@ -1,0 +1,45 @@
+name: Publish portfolio to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out site source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Stage and check the website
+        run: |
+          mkdir dist
+          cp ./*.html ./*.css ./*.js dist/
+          cp -R assets dist/
+          rm -f dist/background-lines.js dist/background-line-warp.js \
+            dist/background-lines.css dist/inspiration-glass.js \
+            dist/assets/images/line-masks.js
+          node reference/production-source-check.cjs dist --staged
+      - name: Upload website files
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - name: Publish the website
+        id: deployment
+        uses: actions/deploy-pages@v5

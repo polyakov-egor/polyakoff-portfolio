@@ -1,0 +1,109 @@
+@font-face {
+  font-family: "Inter Tight";
+  src: url("./assets/fonts/InterTight-Variable.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+html { scrollbar-width: none; }
+html::-webkit-scrollbar { display: none; }
+.hero-journey { position: relative; }
+.has-scroll-story .hero { position: sticky; top: 0; min-height: 0; }
+/* Category gestures rebase the document scroll while the visible story stays
+   still. WebKit can cull a sticky backing for a frame during that rebase.
+   Keep one fixed viewport on touch/narrow screens; the journey retains its
+   complete scroll budget, and every scene (including the final black screen)
+   still uses the same coordinates and clock. Wide pointer desktops keep sticky. */
+@media (hover: none) and (pointer: coarse), (max-width: 1023px) {
+  .has-scroll-story .hero { position: fixed; left: 0; right: 0; }
+}
+.about-backdrop { position: absolute; z-index: 0; inset: 0; background: #000; overflow: hidden; pointer-events: none; }
+.about-backdrop__art { position: absolute; inset: 0; opacity: .3; isolation: isolate; }
+.about-backdrop__image { display: none; }
+.about-backdrop .hero__tint { display: none; }
+.about-backdrop__lines { position: absolute; top: 0; left: 0; max-width: none; transform-origin: 0 0; }
+.about-backdrop__light {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #eee;
+  opacity: 1;
+  /* The existing timed progress raises a tunable soft edge from the bottom.
+     At 0 the approved light artwork is hidden; at 1 it is fully revealed. */
+  -webkit-mask-image: linear-gradient(to bottom,
+    transparent calc(100% - (100% + 100% * var(--about-fill-feather, .7)) * var(--about-light-progress, 0)),
+    #000 calc((100% + 100% * var(--about-fill-feather, .7)) * (1 - var(--about-light-progress, 0))));
+  mask-image: linear-gradient(to bottom,
+    transparent calc(100% - (100% + 100% * var(--about-fill-feather, .7)) * var(--about-light-progress, 0)),
+    #000 calc((100% + 100% * var(--about-fill-feather, .7)) * (1 - var(--about-light-progress, 0))));
+}
+.about-backdrop__light-art { position: absolute; inset: 0; overflow: hidden; background: #eee; opacity: .3; isolation: isolate; }
+.about-backdrop__light-art .hero__tint { display: block; }
+.about-backdrop__light-lines { position: absolute; top: 0; left: 0; max-width: none; transform-origin: 0 0; }
+
+/* One progress value drives the rising fill and the text theme. */
+.hero {
+  --about-light-progress: 0;
+  --about-fill-feather: .7;
+  --about-fill-progress: var(--about-light-progress);
+  --about-ink: calc(255 - 226 * var(--about-light-progress));
+  --color-base: rgb(var(--about-ink) var(--about-ink) var(--about-ink));
+  --color-muted: rgb(var(--about-ink) var(--about-ink) var(--about-ink) / 40%);
+  --glass-background: rgb(255 255 255 / calc(.1 + .1 * var(--about-light-progress)));
+  color: var(--color-base);
+}
+.hero > .hero__datetime,
+.hero > .hero__footer,
+.hero > .hero__about-logo {
+  --about-ink: calc(255 - 226 * var(--about-light-progress));
+  --color-base: rgb(var(--about-ink) var(--about-ink) var(--about-ink));
+  --color-muted: rgb(var(--about-ink) var(--about-ink) var(--about-ink) / 40%);
+  --glass-background: rgb(var(--about-ink) var(--about-ink) var(--about-ink) / 10%);
+  color: var(--color-base);
+}
+.hero > .hero__datetime { --about-light-progress: clamp(0, calc(((1 + var(--about-fill-feather, .7)) * var(--about-fill-progress) - .96) / var(--about-fill-feather, .7)), 1); }
+.hero > .hero__footer,
+.hero > .hero__about-logo { --about-light-progress: clamp(0, calc(((1 + var(--about-fill-feather, .7)) * var(--about-fill-progress) - .05) / var(--about-fill-feather, .7)), 1); }
+.hero .about-copy { color: var(--color-base); }
+.hero .language-control__switch span { background: var(--color-base); }
+.hero button:focus-visible { outline-color: currentColor; }
+.theme-icon { display: inline-block; position: relative; flex: 0 0 auto; width: 16px; height: 16px; }
+.theme-icon--logo { width: 20px; height: 20px; }
+.theme-icon > img { position: absolute; top: 0; left: 0; opacity: calc(1 - var(--about-light-progress)); }
+.theme-icon > .theme-icon__light { opacity: var(--about-light-progress); }
+.custom-cursor { mix-blend-mode: difference; }
+.hero__scene { z-index: 4; right: auto; bottom: auto; width: 100%; height: 100%; background: #000; will-change: transform; }
+.hero__scenery { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform-origin: 0 0; mix-blend-mode: screen; }
+.hero__wordmark-frame { position: absolute; inset: 0; }
+.hero__wordmark-scale, .hero__decoration-scale { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform-origin: 0 0; }
+.about-copy { position: absolute; z-index: 3; }
+.hero__intro-frame { position: absolute; z-index: 4; inset: 0; pointer-events: none; transform-origin: 0 0; }
+.hero__intro { z-index: 4; }
+.hero__about-logo { position: absolute; z-index: 6; left: calc(50% - 10px); bottom: 24px; width: 20px; height: 20px; opacity: 0; pointer-events: none; }
+.hero__welcome { pointer-events: none; transform: translate3d(-50%, var(--welcome-scroll-y, 0px), 0) scale(var(--welcome-scroll-scale, 1)); }
+.about-copy__desktop-break { display: initial; }
+.custom-cursor.is-past-hero .custom-cursor__label { opacity: 0; }
+
+@media (max-width: 599px) {
+  .about-copy__desktop-break { display: none; }
+  .hero__about-logo { bottom: calc(42px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* Keep the exact 20px artwork and provide a transparent touch-sized target. */
+.hero__about-logo[data-return-hero] {
+  z-index: 7;
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  line-height: 0;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.hero__about-logo[data-return-hero]::before { content: ""; position: absolute; inset: -12px; }
+.hero__about-logo[data-return-hero]:disabled { pointer-events: none; }
+.hero.is-works > .hero__about-logo[data-return-hero],
+.works-viewport .hero__about-logo[data-return-hero] { z-index: 1001; }

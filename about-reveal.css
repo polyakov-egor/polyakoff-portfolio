@@ -1,0 +1,15 @@
+.about-reveal { position: absolute; inset: 0; z-index: 2; display: block; width: 100%; height: 100%; overflow: hidden; pointer-events: none; visibility: hidden; }
+.about-backdrop::after { content: ""; position: absolute; inset: 0; z-index: 3; background: #000 url('./assets/images/backgrounds/dark.webp') center / var(--dark-raster-width, 2560px) var(--dark-raster-height, 1305px) no-repeat; opacity: var(--works-black-opacity, 0); -webkit-mask-image: var(--works-black-mask, none); mask-image: var(--works-black-mask, none); pointer-events: none; }
+.hero[data-about-reveal] > .hero__datetime { --about-light-progress: var(--about-clock-progress, 0); }
+.hero[data-about-reveal] > .hero__footer,
+.hero[data-about-reveal] > .hero__about-logo { --about-light-progress: var(--about-reveal-footer-progress, 0); }
+.hero[data-about-reveal] .about-copy { color: rgb(calc(255 - 226 * var(--about-copy-progress, 0)) calc(255 - 226 * var(--about-copy-progress, 0)) calc(255 - 226 * var(--about-copy-progress, 0))); }
+.hero[data-about-reveal] > .hero__footer .glass-button,
+.hero[data-about-reveal] > .hero__footer .music-control,
+.hero[data-about-reveal] > .hero__footer .language-control {
+  --about-ink: calc(255 - 226 * var(--about-light-progress));
+  --color-base: rgb(var(--about-ink) var(--about-ink) var(--about-ink));
+  --color-muted: rgb(var(--about-ink) var(--about-ink) var(--about-ink) / 40%);
+  --glass-background: rgb(var(--about-ink) var(--about-ink) var(--about-ink) / 10%);
+  color: var(--color-base);
+}

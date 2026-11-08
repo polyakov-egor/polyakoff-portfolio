@@ -1,0 +1,59 @@
+/* Figma 770:8021 / 821:5661 / 822:5739: simple background blur.
+   Photo and capsule share the same face; there are no sampled photo copies. */
+.inspiration__glass {
+  --inspiration-glass-tint: 20%;
+  --inspiration-glass-frost: 32px;
+  height: 88px;
+  padding: 24px 24px 24px 32px;
+  overflow: hidden;
+  -webkit-clip-path: inset(0 round 48px);
+  clip-path: inset(0 round 48px);
+  background: rgb(29 29 29 / calc(var(--inspiration-glass-tint) * var(--inspiration-plate-opacity, 1)));
+  -webkit-backdrop-filter: blur(calc(var(--inspiration-glass-frost) * var(--inspiration-plate-opacity, 1)));
+  backdrop-filter: blur(calc(var(--inspiration-glass-frost) * var(--inspiration-plate-opacity, 1)));
+  box-shadow: none;
+  isolation: auto;
+}
+/* Keep the rounded blur and its clipping on the same compositor surface.
+   The explicit clip also constrains the backdrop surface inside the 3D face. */
+.inspiration__glass::before {
+  content: none;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+.inspiration__glass::after { content: none; }
+.inspiration__card--people .inspiration__glass { height: 88px; }
+.inspiration__card-title { text-shadow: none; }
+.inspiration__card-subtitle { color: rgb(255 255 255 / 40%); }
+.inspiration__plate-action {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  margin-left: 12px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 60px;
+  opacity: var(--inspiration-plate-opacity, 1);
+  pointer-events: none;
+}
+.inspiration__plate-action > .inspiration__plus {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  opacity: 1;
+}
+@media (max-width: 1649px) {
+  .inspiration__glass { height: 72px; padding: 16px 16px 16px 28px; }
+  .inspiration__card--people .inspiration__glass { height: 72px; }
+  .inspiration__card-title { font-size: 12px; letter-spacing: -.24px; }
+}
+@media (max-width: 599px) {
+  .inspiration__glass { height: 64px; padding: 12px 12px 12px 24px; }
+  .inspiration__card--people .inspiration__glass { height: 64px; }
+  .inspiration__card-copy { gap: 6px; }
+}

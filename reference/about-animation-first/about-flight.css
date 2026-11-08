@@ -1,0 +1,41 @@
+.about-copy {
+  --about-flight: -1;
+  --about-flight-opacity: 1;
+  opacity: calc(var(--about-text-opacity, 0) * var(--about-flight-opacity, 1));
+}
+
+/* Only the clear original scatters. Lower blur planes keep whole paragraphs. */
+.about-copy__content[data-flight-original="true"] { filter: none; }
+
+.about-flight__word {
+  --flight-row-progress: calc(var(--about-flight, -1) - var(--flight-row, 0));
+  --flight-active: clamp(0, calc(var(--flight-row-progress) * 100000), 1);
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
+.about-flight__source {
+  opacity: calc(1 - var(--flight-active));
+}
+
+.about-flight__glyph {
+  --flight-t: clamp(0, calc(var(--flight-row-progress) - var(--flight-lag, 0)), 1);
+  --flight-ease: calc(var(--flight-t) * var(--flight-t) * (3 - 2 * var(--flight-t)));
+  position: absolute;
+  top: 0;
+  display: block;
+  white-space: pre;
+  line-height: inherit;
+  transform-origin: 50% 50%;
+  opacity: calc(var(--flight-active) * (1 - clamp(0, calc((var(--flight-t) - .6) / .4), 1)));
+  transform: translate3d(calc(var(--flight-dx, 0px) * var(--flight-ease)), calc(var(--flight-dy, 0px) * var(--flight-ease)), 0) rotate(calc(var(--flight-rotate, 0deg) * var(--flight-ease)));
+}
+
+.about-copy[data-flight-reduced="true"] {
+  --about-flight-opacity: calc(1 - clamp(0, var(--about-flight, -1), 1));
+}
+
+.about-copy[data-flight-reduced="true"] .about-flight__source { opacity: 1; }
+.about-copy[data-flight-reduced="true"] .about-flight__glyph { display: none; }

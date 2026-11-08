@@ -1,0 +1,19 @@
+/* Keep the widest word's grid width and the original resting baseline.
+   Complete per-face 3D transforms share the same axis and perspective;
+   visible overflow leaves room for the cuboid's diagonal mid-turn. */
+.inspiration__words--cuboid {
+  position: relative;
+  overflow: visible;
+  height: 1.12em;
+  margin-top: -.04em;
+  padding-top: .04em;
+  line-height: 1;
+}
+.inspiration__words--cuboid .inspiration__word {
+  /* Half of the 1.12em face, offset by the group's .04em padding. */
+  transform-origin: 50% .52em;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  pointer-events: none;
+  color: #1d1d1d;
+}

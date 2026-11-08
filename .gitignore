@@ -1,0 +1,60 @@
+# Dependencies and generated builds
+node_modules/
+dist/
+build/
+coverage/
+.cache/
+.tmp/
+tmp/
+temp/
+__pycache__/
+*.pyc
+
+# Local credentials, environment and hosting metadata
+.env
+.env.*
+!.env.example
+.openai/
+.codex/
+.aws/
+credentials.json
+*credentials*.json
+*.pem
+*.key
+*.p12
+*.pfx
+
+# OS/editor state, logs and export archives
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.log
+*.tmp
+*.bak
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+
+# Generated QA evidence and reference media
+/reference/verification/
+/reference/headline-102-frames/
+/reference/**/*.png
+/reference/**/*.jpg
+/reference/**/*.jpeg
+/reference/**/*.webp
+/reference/**/*.gif
+/reference/**/*.mp4
+/reference/**/*.mov
+/reference/**/*.avi
+/reference/**/*.mkv
+
+# Downloaded external website snapshots and retired experiment registries
+/reference/pacome-entry.js
+/reference/pacome-source.html
+/reference/wwake-reference.html
+/reference/wwake-liquid-glass.css
+/reference/topography-registry.json

@@ -1,0 +1,20 @@
+{
+  "portrait": {
+    "source": "C:\\Users\\egora\\Desktop\\Пиджак\\герой.webp",
+    "size": [
+      2456,
+      2904
+    ],
+    "fullBytes": 166614,
+    "smallBytes": 84752
+  },
+  "depth": {
+    "source": "C:\\Users\\egora\\Desktop\\Пиджак\\глубина-герой.webp",
+    "size": [
+      2456,
+      2898
+    ],
+    "fullBytes": 211278,
+    "smallBytes": 98614
+  }
+}

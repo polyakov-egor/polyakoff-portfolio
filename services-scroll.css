@@ -1,0 +1,23 @@
+/* The oversized panel scrolls through the existing fixed/sticky story shell.
+   Its Figma content height and internal spacing are left to services.css. */
+.hero > .services.services-is-shared {
+  position: absolute;
+  z-index: 8;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  visibility: hidden;
+  transform: translate3d(0, var(--services-scroll-y, 100svh), 0);
+}
+.hero > .services.services-is-shared.services-is-visible { visibility: visible; }
+.hero.is-services > .hero__datetime,
+.hero.is-services > .hero__footer,
+.hero.is-services > .hero__about-logo { z-index: 1000; visibility: visible; }
+.hero.is-services-covered > .works-viewport.works-is-enhanced { visibility: hidden; pointer-events: none; }
+/* Static Works and Services remain ordinary page sections when motion is
+   reduced; the mobile WebKit backing workaround is only for the timed story. */
+@media (prefers-reduced-motion: reduce) {
+  .services { margin-block-start: var(--services-entry-gap,80px); }
+  .has-scroll-story .hero { position: sticky; left: auto; right: auto; }
+}

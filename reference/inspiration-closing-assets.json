@@ -1,0 +1,19 @@
+{
+  "frames": [
+    "782:10011",
+    "782:10112",
+    "782:10210",
+    "782:10313"
+  ],
+  "reuse": [
+    {
+      "export": "reference/closing-lines-desktop.svg",
+      "runtime": "assets/images/inspiration/lines-desktop.svg"
+    },
+    {
+      "export": "reference/closing-lines-tablet.svg",
+      "runtime": "assets/images/inspiration/lines-mobile.svg"
+    }
+  ],
+  "comparison": "Same dimensions, paths, fills and opacity. Exports differ only in generated filter id/result references. Runtime reuses existing exact geometry without SVG edits."
+}

@@ -1,0 +1,9 @@
+.inspiration-flip-thickness {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.inspiration-flip-thickness[hidden] { display: none; }

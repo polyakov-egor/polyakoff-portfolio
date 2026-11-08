@@ -1,0 +1,59 @@
+{
+  "parentCommit": "4133f4c140170614d6b48bb44e1726b958eb2de0",
+  "geometry": {
+    "description": "Approved local 200% foreground geometry with signed visible-bounds entrance alignment, captured after the parent publication; not a published source commit.",
+    "foregroundMaxScale": 2,
+    "desktopCenterSpreadX": 2.2,
+    "desktopCenterSpreadY": 2.3,
+    "pitchFactor": 1.025,
+    "mobile": "Retained 16px safe-width fit and approved adaptive spacing"
+  },
+  "phases": [
+    0,
+    0.13,
+    0.2,
+    0.2307,
+    0.3068841137,
+    0.33457,
+    0.45,
+    0.62,
+    0.75462,
+    0.80925,
+    1,
+    1.2,
+    1.5,
+    2
+  ],
+  "frames": [
+    {
+      "width": 600,
+      "height": 800,
+      "sha256": "160464e38fb2e3046ad342fa3ec18f4f75b28fd01b76a53d16f835e31e91c615"
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "sha256": "c50ac9680a98b5a058a28922c809511f7779adb40bb7da32d5981b3a3443bfee"
+    },
+    {
+      "width": 1099,
+      "height": 800,
+      "sha256": "327ca7bbeca238d53aa738a9862d425420fb180388f185686d030c379e11035b"
+    },
+    {
+      "width": 1267,
+      "height": 713,
+      "sha256": "6b7d044ba9c890f0ce98c96392495d0e36d5f4bbde51a60f66b6f556ba4664bd"
+    },
+    {
+      "width": 1920,
+      "height": 960,
+      "sha256": "1d22ac7c46bebcd35255a97356a362d2bea7d7f98f86e2cd9250008c7ae3ddde"
+    },
+    {
+      "width": 2560,
+      "height": 1305,
+      "sha256": "f2f73a2548ff08bafbfda493a94e91a662760fd200fd2c2c5b07a16f6e12da0d"
+    }
+  ]
+}

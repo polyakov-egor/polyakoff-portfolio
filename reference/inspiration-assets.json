@@ -1,0 +1,129 @@
+{
+  "files": [
+    {
+      "path": "assets/icons/inspiration/eye.svg",
+      "bytes": 1404,
+      "sha256": "41239fc395156f8c53dcb447c693beb9c4229a41976879f01f8ed6a458280477",
+      "width": "16",
+      "height": "16",
+      "viewBox": "0 0 16 16"
+    },
+    {
+      "path": "assets/icons/inspiration/heart.svg",
+      "bytes": 742,
+      "sha256": "64e48551a3aa5ac22294e3a868d91aa91cc964c979f76b3a4287519e606c9e4c",
+      "width": "16",
+      "height": "16",
+      "viewBox": "0 0 16 16"
+    },
+    {
+      "path": "assets/icons/inspiration/note.svg",
+      "bytes": 1347,
+      "sha256": "292cbfab4f7ae2e22b728c702ae2a906f1c773cdd3b39f7c8d5db54571bb3a7c",
+      "width": "16",
+      "height": "16",
+      "viewBox": "0 0 16 16"
+    },
+    {
+      "path": "assets/icons/inspiration/plus.svg",
+      "bytes": 528,
+      "sha256": "0b0dddb71b50a2ad673c0200457a7ce0452687169d6033a5458807a206e39d02",
+      "width": "16",
+      "height": "16",
+      "viewBox": "0 0 16 16"
+    },
+    {
+      "path": "assets/images/inspiration/detail.png",
+      "bytes": 2554118,
+      "sha256": "359483d4db7744fd90ba5259df06ea0ba66e1a81f964263f7ac19230120ddc0d",
+      "width": 2012,
+      "height": 2874,
+      "mode": "RGB",
+      "format": "PNG"
+    },
+    {
+      "path": "assets/images/inspiration/lines-2k.svg",
+      "bytes": 55058,
+      "sha256": "ef187d4bd36f5fe632d966c3d85fea4bd21aa5bd354fa5d93d2ed2eff615223c",
+      "width": "2569.78",
+      "height": "1654.79",
+      "viewBox": "0 0 2569.78 1654.79"
+    },
+    {
+      "path": "assets/images/inspiration/lines-desktop.svg",
+      "bytes": 55026,
+      "sha256": "4307a4c8df913d5708a7d2099a1a6e5b9788ba4fe83a4c440d9101e457b89cf4",
+      "width": "1929.78",
+      "height": "1654.79",
+      "viewBox": "0 0 1929.78 1654.79"
+    },
+    {
+      "path": "assets/images/inspiration/lines-mobile.svg",
+      "bytes": 37916,
+      "sha256": "2fc312f8b6d187734cb2c370bd99b59441a9e6740c18b7c85b05ef1b43c242af",
+      "width": "1929.78",
+      "height": "1046.8",
+      "viewBox": "0 0 1929.78 1046.8"
+    },
+    {
+      "path": "assets/images/inspiration/music-base.png",
+      "bytes": 2839882,
+      "sha256": "f2adfe37dc4e8ba77d63c2993ef38040ede6ec2ebe1caba4d1d756025b06fbdc",
+      "width": 1972,
+      "height": 2968,
+      "mode": "RGB",
+      "format": "PNG"
+    },
+    {
+      "path": "assets/images/inspiration/music-overlay.png",
+      "bytes": 23079437,
+      "sha256": "4e32375588327518c4c9e010d8636ae9bc5903060f55c47d25b91453bd5051c8",
+      "width": 3300,
+      "height": 4096,
+      "mode": "RGBA",
+      "format": "PNG",
+      "alphaExtrema": [
+        255,
+        255
+      ]
+    },
+    {
+      "path": "assets/images/inspiration/people.png",
+      "bytes": 5595200,
+      "sha256": "6394b428866d73bf0203d4b8c392d8d7a9e436e902530179c70f661af27e7046",
+      "width": 2388,
+      "height": 2392,
+      "mode": "RGB",
+      "format": "PNG"
+    }
+  ],
+  "existingComparisons": [
+    {
+      "path": "assets/images/about-lines-light-2k.svg",
+      "sha256": "384da76636ed5a7092f77687d71d5d2b21cb52e9756725dd7f6f5867015a3822",
+      "exactMatches": []
+    },
+    {
+      "path": "assets/images/about-lines-black-2k.svg",
+      "sha256": "f7749439d0b6ad7d246cfcea2af2f097e8f78f13aeea109a6b38fe556192624f",
+      "exactMatches": []
+    },
+    {
+      "path": "assets/images/scanlines.svg",
+      "sha256": "11d8ba2b4693b896c1a306a1fb310d30209cddb12fcfab2e781902e5f2d03dcd",
+      "exactMatches": []
+    },
+    {
+      "path": "assets/images/scanlines-2k.svg",
+      "sha256": "b7073bbf2607445be62b12235bee0b7972c528b8eb16bd41e110ecafeb7e8147",
+      "exactMatches": []
+    },
+    {
+      "path": "assets/icons/plus.svg",
+      "sha256": "0b0dddb71b50a2ad673c0200457a7ce0452687169d6033a5458807a206e39d02",
+      "exactMatches": [
+        "assets/icons/inspiration/plus.svg"
+      ]
+    }
+  ]
+}

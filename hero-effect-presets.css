@@ -1,0 +1,19 @@
+.effect-presets { display: grid; gap: 8px; margin-top: 18px; padding-top: 15px; border-top: 1px solid rgb(255 255 255 / 10%); }
+.effect-presets__label { display: block; font-size: 12px; line-height: 1.3; }
+.effect-presets__label:not(:first-child) { margin-top: 5px; }
+.effect-presets__select,
+.effect-presets__name { display: block; width: 100%; min-width: 0; min-height: 34px; padding: 6px 10px; border: 1px solid rgb(255 255 255 / 14%); border-radius: 8px; background: rgb(255 255 255 / 6%); color: inherit; font: inherit; font-size: 13px; }
+.effect-presets__select option { background: #222; color: #fff; }
+.effect-presets__name { cursor: text !important; }
+.effect-presets__name::placeholder { color: rgb(255 255 255 / 35%); }
+.effect-presets__actions { display: flex; gap: 8px; }
+.effect-presets__button { min-height: 30px; padding: 6px 10px; border: 1px solid rgb(255 255 255 / 12%); border-radius: 8px; background: rgb(255 255 255 / 4%); color: rgb(255 255 255 / 75%); font-size: 12px; line-height: 1.3; }
+.effect-presets__actions .effect-presets__button { flex: 1; }
+.effect-presets__button--save { background: rgb(255 255 255 / 12%); color: #fff; }
+.effect-presets__button:hover:not(:disabled) { background: rgb(255 255 255 / 18%); color: #fff; }
+.effect-presets__button:disabled { opacity: .35; cursor: not-allowed !important; }
+.effect-presets__status { min-height: 0; color: rgb(255 255 255 / 55%); font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+.effect-presets__status:empty { display: none; }
+.effect-presets button:focus-visible,
+.effect-presets input:focus-visible,
+.effect-presets select:focus-visible { outline: 1px solid #fff; outline-offset: 4px; }

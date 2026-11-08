@@ -1,0 +1,17 @@
+/* Exact flattened background exports from Figma, cached as image surfaces. */
+.hero__portrait-source, .hero__wordmark-source { display: contents; }
+.hero__scenery { mix-blend-mode: normal; }
+.hero__decoration-scale { z-index: 0; }
+.hero__wordmark-frame { z-index: 1; mix-blend-mode: screen; }
+.hero__scanlines, .about-backdrop__art, .about-backdrop__light-art,
+.inspiration__backdrop-art, .works-backdrop__art { opacity: 1; }
+.hero__scanlines .hero__tint, .about-backdrop .hero__tint,
+.inspiration__backdrop-art .hero__tint, .works-backdrop__art .hero__tint { display: none; }
+.inspiration__flip-front img { position: absolute; inset: auto; top: -10%; left: -15.085%; width: 130.0883%; height: 153.5%; max-width: none; object-fit: cover; }
+
+/* One viewport-sized background survives every chapter. Services only moves
+   its content; neither that panel nor Inspiration/Works paints another crop. */
+body > [data-site-backdrop] { position: fixed; z-index: 0; inset: 0; }
+body > [data-site-backdrop] ~ main { position: relative; z-index: 1; }
+body > [data-site-backdrop] ~ main :is(.hero, .works-journey, .services) { background: transparent; }
+body > [data-site-backdrop] ~ main :is(.inspiration__backdrop, .works-backdrop, .services__background) { display: none; }

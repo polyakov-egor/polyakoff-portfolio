@@ -1,0 +1,54 @@
+/* The single viewport mask stays still while its semantic text moves. */
+.about-copy {
+  position: fixed;
+  z-index: 4;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  pointer-events: none;
+  opacity: var(--about-text-opacity, 0);
+  color: #fff;
+}
+
+.about-copy__plane {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 var(--about-fade-start, 60.87%), transparent var(--about-fade-end, 91.77%));
+  mask-image: linear-gradient(to bottom, #000 0, #000 var(--about-fade-start, 60.87%), transparent var(--about-fade-end, 91.77%));
+}
+
+.about-copy__content {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: min(622px, calc(100% - 32px));
+  margin: 0;
+  transform: translate(-50%, var(--about-text-y, 100vh));
+  font-family: "Inter Tight", sans-serif;
+  font-size: var(--about-font-size, 40px);
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-align: center;
+  overflow-wrap: normal;
+}
+
+.about-copy__content p { margin: 0; }
+
+@media (max-width: 599px) {
+  .about-copy__plane {
+    -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 var(--about-fade-start, 64.88%), transparent var(--about-fade-end, 93.25%));
+    mask-image: linear-gradient(to bottom, #000 0, #000 var(--about-fade-start, 64.88%), transparent var(--about-fade-end, 93.25%));
+  }
+  .about-copy__content { font-size: var(--about-font-size, 32px); }
+}
+
+@media (min-width: 1650px) {
+  .about-copy__content { font-size: var(--about-font-size, 48px); }
+}
+
+@media (min-width: 2240px) {
+  .about-copy__content { font-size: var(--about-font-size, 56px); }
+}

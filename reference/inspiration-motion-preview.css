@@ -1,0 +1,8 @@
+html,body {height:100%;overflow:hidden;background:#eef0f2;}
+.hero {position:fixed;inset:0;width:100%;height:100%;background:#eef0f2;}
+.hero__scene,.inspiration__flip-front,.inspiration__backdrop,.inspiration__heading {display:none;}
+.hero::before {content:"";position:absolute;inset:0;background:url('/assets/images/backgrounds/light.webp') center/cover;}
+.motion-qa {position:fixed;z-index:100;left:16px;top:16px;right:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;font:12px 'Roboto Mono',monospace;color:#1d1d1d;}
+.motion-qa select,.motion-qa button {background:#ddd;color:#111;border:1px solid #aaa;padding:6px;border-radius:4px;}
+.inspiration__eyebrow {top:calc(50% - 245px);}
+.inspiration__counter {top:calc(50% + 230px);}
