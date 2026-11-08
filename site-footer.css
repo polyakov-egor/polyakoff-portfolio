@@ -83,7 +83,7 @@
   pointer-events: none;
 }
 
-.site-footer__wordmark img { width: 100%; height: 100%; }
+.site-footer__wordmark img { width: 100%; height: 100%; filter: url(#footer-wordmark-full-opacity); }
 
 .site-footer-is-shared .site-footer__wordmark {
   opacity: var(--site-footer-wordmark-opacity, 0);

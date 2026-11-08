@@ -108,7 +108,8 @@
       root.style.removeProperty('--services-heading-opacity');
       root.style.removeProperty('--services-deck-entry-y');
       root.style.removeProperty('--services-reveal-progress');
-      root.classList.remove('services-is-visible','services-is-intro','services-is-open');
+      root.style.removeProperty('--services-glow-progress');
+      root.classList.remove('services-is-visible','services-is-intro','services-glow-settled');
       footer?.style.removeProperty('--site-footer-scroll-y');
       footer?.style.removeProperty('--site-footer-card-shift');
       footer?.style.removeProperty('--site-footer-card-offset');
@@ -118,7 +119,8 @@
       if(footerBackground&&backdrop)footer.prepend(footerBackground);
       backdrop?.style.removeProperty('--site-footer-reveal');
       footerY=null;
-      hero.classList.remove('is-services','is-services-covered');
+      hero.classList.remove('is-services','is-services-covered','is-services-deck-overlap');
+      hero.style.removeProperty('--services-overlap-clip');
       const works=document.querySelector('[data-works-gallery]');
       if(works)works.inert=false;
       setVisible(true);
@@ -126,7 +128,8 @@
       resetFooterCard();
     }
   }
-  function measure({width=hero.clientWidth,height=hero.clientHeight,worksStart=0,worksTravel=0,worksRevealDistance,distance}={}){
+  function measure({width=hero.clientWidth,height=hero.clientHeight,worksStart=0,worksTravel=0,
+    worksHeadingDistance,worksRevealDistance,distance}={}){
     const viewportHeight=Math.max(1,height||1);
     const oldLayout=layout;
     const oldLocal=oldLayout&&Number.isFinite(distance)?distance-oldLayout.start:null;
@@ -158,10 +161,13 @@
     const revealLead=Number.isFinite(worksRevealDistance)?worksTravel-worksRevealDistance:viewportHeight*.25;
     const revealStart=introTravel-clamp(revealLead,0,introTravel);
     const revealEnd=introTravel+openingTravel;
+    const headingLead=Number.isFinite(worksHeadingDistance)?worksTravel-worksHeadingDistance:introTravel*.8;
+    const headingStart=Math.min(revealStart,introTravel-clamp(headingLead,0,introTravel));
+    const headingFade=Math.max(1,Math.min(viewportHeight*.29,revealStart-headingStart));
     const start=worksStart+worksTravel-introTravel;
     const travel=enhanced?totalHeight+centeredY-viewportHeight:0;
     layout={height:viewportHeight,sectionHeight,footerHeight,totalHeight,start,centeredY,
-      deckTop,deckHeight,deckEntryY,introTravel,openingTravel,revealStart,revealEnd,travel,
+      deckTop,deckHeight,deckEntryY,introTravel,openingTravel,revealStart,revealEnd,headingStart,headingFade,travel,
       footerCardStart,footerCardExit,footerWordmarkTop,footerWordmarkBlur};
     let rebaseDistance=null;
     if(enhanced&&oldLayout&&Number.isFinite(oldLocal)&&oldLocal>=0&&oldLocal<=oldLayout.introTravel+oldLayout.travel+.5){
@@ -186,6 +192,8 @@
     root.dataset.servicesIntroTravel=introTravel.toFixed(3);
     root.dataset.servicesOpeningTravel=openingTravel.toFixed(3);
     root.dataset.servicesRevealStart=revealStart.toFixed(3);
+    root.dataset.servicesHeadingStart=headingStart.toFixed(3);
+    root.dataset.servicesHeadingFade=headingFade.toFixed(3);
     return {...layout,rebaseDistance};
   }
   const restoreNavigation=()=>{resetFooterCard();wakeMotion();};
@@ -203,16 +211,17 @@
       setFooterVisible(true);
       return {active:false,covered:false};
     }
-    const {height,introTravel,centeredY,deckTop,deckHeight,deckEntryY,openingTravel,revealStart,revealEnd}=layout;
+    const {height,introTravel,centeredY,deckTop,deckHeight,deckEntryY,openingTravel,revealStart,revealEnd,headingStart,headingFade}=layout;
     const intro=distance<introTravel;
     const reveal=distance>=revealEnd?1:clamp((distance-revealStart)/Math.max(1,revealEnd-revealStart),0,1);
     const y=clamp(centeredY-openingTravel*reveal-Math.max(0,distance-revealEnd),height-layout.totalHeight,centeredY);
-    const active=distance>.5&&y+layout.sectionHeight>.5;
-    const headingOpacity=smooth(clamp(distance/Math.max(1,Math.min(introTravel,height*.55)),0,1));
+    const active=distance>headingStart&&y+layout.sectionHeight>.5;
+    const headingOpacity=smooth(clamp((distance-headingStart)/headingFade,0,1));
     const deckShift=deckEntryY*(1-reveal);
     const deckY=y+deckTop+deckShift;
-    const deckReady=distance>=revealEnd-.5;
-    const deckVisible=active&&!intro&&deckReady&&deckY<height&&deckY+deckHeight>0;
+    const deckVisible=active&&reveal>0&&deckY<height&&deckY+deckHeight>0;
+    const deckOverlap=intro&&deckVisible;
+    const glowProgress=smooth(clamp((height-deckY)/Math.max(1,deckHeight*.35),0,1));
     let footerActive=false,footerAnimating=false;
     if(footer){
       const top=Math.min(layout.height,y+layout.sectionHeight);
@@ -238,11 +247,14 @@
     root.style.setProperty('--services-heading-opacity',headingOpacity.toFixed(4));
     root.style.setProperty('--services-deck-entry-y',`${deckShift.toFixed(3)}px`);
     root.style.setProperty('--services-reveal-progress',smooth(clamp((reveal-.12)/.88,0,1)).toFixed(4));
+    root.style.setProperty('--services-glow-progress',glowProgress.toFixed(4));
     root.classList.toggle('services-is-intro',intro);
-    root.classList.toggle('services-is-open',deckReady);
+    root.classList.toggle('services-glow-settled',glowProgress===1);
     root.classList.toggle('services-is-visible',active);
     hero.classList.toggle('is-services',active||footerActive);
     hero.classList.toggle('is-services-covered',covered);
+    hero.classList.toggle('is-services-deck-overlap',deckOverlap);
+    if(deckOverlap)hero.style.setProperty('--services-overlap-clip',`${(height-deckY).toFixed(3)}px`);
     const works=hero.querySelector('[data-works-gallery]');
     if(works)works.inert=covered;
     setVisible(active,deckVisible);

@@ -1,7 +1,7 @@
 {
   "parentCommit": "4133f4c140170614d6b48bb44e1726b958eb2de0",
   "geometry": {
-    "description": "Approved local 200% foreground geometry with signed visible-bounds entrance alignment, captured after the parent publication; not a published source commit.",
+    "description": "Approved 200% foreground geometry with a small vertical lift during entry to expose the first project edge at the title checkpoint.",
     "foregroundMaxScale": 2,
     "desktopCenterSpreadX": 2.2,
     "desktopCenterSpreadY": 2.3,
@@ -28,32 +28,32 @@
     {
       "width": 600,
       "height": 800,
-      "sha256": "160464e38fb2e3046ad342fa3ec18f4f75b28fd01b76a53d16f835e31e91c615"
+      "sha256": "2ae776df353d2d1f1af3610189a9fe7a3f9bf7804ae3dd1b41c8ef5a0b93fa67"
     },
     {
       "width": 768,
       "height": 1024,
-      "sha256": "c50ac9680a98b5a058a28922c809511f7779adb40bb7da32d5981b3a3443bfee"
+      "sha256": "acaefd1ff83f82aa4ed92af8032f79b1a281b8c61997a5e09c2ee750fb5300fe"
     },
     {
       "width": 1099,
       "height": 800,
-      "sha256": "327ca7bbeca238d53aa738a9862d425420fb180388f185686d030c379e11035b"
+      "sha256": "3427bbbd89d938282c5b3355531a103182d66571b0f179875a678aac72507566"
     },
     {
       "width": 1267,
       "height": 713,
-      "sha256": "6b7d044ba9c890f0ce98c96392495d0e36d5f4bbde51a60f66b6f556ba4664bd"
+      "sha256": "61517aa9faf4fab3fed61a1e218a7876bd150c237b772dd886cfb8570b62dae3"
     },
     {
       "width": 1920,
       "height": 960,
-      "sha256": "1d22ac7c46bebcd35255a97356a362d2bea7d7f98f86e2cd9250008c7ae3ddde"
+      "sha256": "27b4d578171d007e6a0a3f97a8369f2f8fdd4818690a128b06b76dd90ab097d8"
     },
     {
       "width": 2560,
       "height": 1305,
-      "sha256": "f2f73a2548ff08bafbfda493a94e91a662760fd200fd2c2c5b07a16f6e12da0d"
+      "sha256": "ed82dca567876aae26c02f4e9ff238d2e4e82c7172e9d12ae23861b701c03be0"
     }
   ]
 }

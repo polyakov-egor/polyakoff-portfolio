@@ -240,15 +240,20 @@ if(require.main===module)(async()=>{
     near(Number(f.root.dataset.morphProgress),.5,'The title roll follows elapsed time even when native input overshoots Works');
     near(Number(page.hero.style.getPropertyValue('--works-black-progress')),.5,'The actual hero clock starts the dark return at the closing title');
     assert(!page.hero.classList.contains('is-works'),'Works cannot appear halfway through the new message');
+    assert(!f.viewport.classList.contains('works-is-preview'),'The title can roll into view before the first project edge enters');
     const hold=Number(f.journey.dataset.headingHoldDistance),worksStart=start+height*3.5;
     for(let frame=0;frame<7;frame++)assert(f.wheel(6,40).prevented,'Residual input cannot leave the timed title transition');
     page.frames();
     near(page.window.scrollY-120,worksStart-2,'A single gesture lands immediately before Works at the completed title');
     assert.equal(f.root.dataset.morphProgress,'1.00000');
+    assert(f.viewport.classList.contains('works-is-preview'),'The completed title lets the first project edge peek in');
+    assert(!page.hero.classList.contains('is-works'),'The peek consumes no Works scroll distance');
+    assert.equal(f.viewport.getAttribute('aria-hidden'),'true','The preview does not introduce focusable projects');
     assert(f.wheel(2,40).prevented,'The triggering gesture tail cannot enter Works after completion');
     assert.equal(f.wheel(120,230).prevented,false,'A fresh forward gesture leaves the completed title for Works');
     page.scroll(worksStart+2);page.frames();
     assert(page.hero.classList.contains('is-works'),'Actual Works enters immediately after the new-title interval');
+    assert(!f.viewport.classList.contains('works-is-preview'),'Actual Works takes over the same visible layer');
     assert.equal(f.root.dataset.morphProgress,'1.00000');
     near(Number(page.hero.style.getPropertyValue('--works-black-progress')),1,'Works enters over the already dark backdrop');
     const creationHeld=f.creation.style.transform;
@@ -262,6 +267,7 @@ if(require.main===module)(async()=>{
     assert.equal(f.creation.style.transform,creationHeld,'Works reverse restores the completed new title');
     f.wheel(-height,230);page.frames();
     assert.equal(f.root.dataset.morphProgress,'0.00000','Crossing back from Works completes the reverse animation');
+    assert(!f.viewport.classList.contains('works-is-preview'),'The first project edge clears when the previous title returns');
     assert.equal(f.root.dataset.progress,'1.00000','Reverse lands at the centered old headline');
     near(Number(page.hero.style.getPropertyValue('--works-black-progress')),0,'Reverse restores light before the title roll');
     assert.equal(f.wheel(-120,230).prevented,false,'Fresh reverse input resumes the native merge');

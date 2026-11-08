@@ -13,6 +13,13 @@
 .hero > .services.services-is-shared.services-is-visible { visibility: visible; }
 /* Services remains behind the last Works plane until the gallery clears. */
 .hero > .services.services-is-intro { z-index: 6; pointer-events: none; }
+/* Let the deck receive input below the last Works plane without raising its paint layer. */
+.hero.is-services-deck-overlap > .services.services-is-intro .services__deck { pointer-events: auto; }
+.hero.is-services-deck-overlap > .works-viewport.works-is-enhanced,
+.hero.is-services-deck-overlap > .works-viewport .works-project { pointer-events: none; }
+.hero.is-services-deck-overlap > .works-viewport .works-gallery-canvas {
+  clip-path: inset(0 0 var(--services-overlap-clip, 0px) 0);
+}
 .services-is-shared {
   --services-fit-deck-gap: 140px;
   --services-fit-counter-gap: 60px;
@@ -27,9 +34,9 @@
   transform: scale(calc(.75 + .25 * var(--services-heading-opacity, 0)));
 }
 .services-is-shared .services__word[data-active="true"]::before,
-.services-is-shared .services__word[data-active="true"]::after { opacity: var(--services-reveal-progress, 0); }
-.services-is-shared:not(.services-is-open) .services__word::before,
-.services-is-shared:not(.services-is-open) .services__word::after { transition: none; }
+.services-is-shared .services__word[data-active="true"]::after { opacity: var(--services-glow-progress, 0); }
+.services-is-shared:not(.services-glow-settled) .services__word::before,
+.services-is-shared:not(.services-glow-settled) .services__word::after { transition: none; }
 .services-is-shared .services__deck {
   width: min(calc(2 * var(--services-side-offset) + var(--services-side-width)), var(--services-fit-deck-width));
   height: min(var(--services-card-height), 43svh);

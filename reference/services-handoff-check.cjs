@@ -77,32 +77,43 @@ function send(f,type,properties={}){
   const introLayer=Number(/\.hero > \.services\.services-is-intro\s*\{[^}]*z-index:\s*(\d+)/.exec(serviceStyle)?.[1]);
   const worksLayer=Number(/\.hero > \.works-viewport\.works-is-enhanced\s*\{[^}]*z-index:\s*(\d+)/.exec(worksStyle)?.[1]);
   assert(introLayer<worksLayer,'The incoming Services title is painted below the last Works card');
+  assert.match(serviceStyle,/\.hero\.is-services-deck-overlap[^{}]+\.services__deck\s*\{\s*pointer-events: auto/,
+    'The visible deck receives input without raising its paint layer');
+  assert.match(serviceStyle,/\.hero\.is-services-deck-overlap[^{}]+\.works-gallery-canvas\s*\{\s*clip-path: inset/,
+    'The canvas no longer captures pointer input in the transparent region below the works');
   for(const [width,height,sectionHeight]of[[375,812,1230],[768,1024,1300],[1280,560,1172],[1440,800,1172],[1920,960,1390],[2560,1305,1460]]){
     const f=await pageWithServices(width,height,sectionHeight),{page,services,deck,deckTop,deckHeight,headingCenter}=f;
     const worksStart=Number(page.hero.dataset.worksStart),worksTravel=Number(f.journey.dataset.totalTravel);
     const start=Number(page.hero.dataset.servicesStart),intro=introLead(width,height),clear=start+intro;
-    const fade=height*.55;
+    const headingFrom=start+Number(services.dataset.servicesHeadingStart);
+    const fade=Number(services.dataset.servicesHeadingFade);
     const centeredY=height/2-headingCenter,readingTravel=sectionHeight+centeredY-height;
     const openingTravel=Number(services.dataset.servicesOpeningTravel);
     const revealFrom=start+Number(services.dataset.servicesRevealStart),open=clear+openingTravel;
     const opacity=()=>styleNumber(services,'--services-heading-opacity');
     const reveal=()=>styleNumber(services,'--services-reveal-progress');
+    const glow=()=>styleNumber(services,'--services-glow-progress');
     const deckY=()=>y(services)+deckTop+styleNumber(services,'--services-deck-entry-y');
     near(Number(services.dataset.servicesIntroTravel),intro,'The title has a responsive lead under the final Works cards');
     roundedNear(clear,worksStart+worksTravel,'Works keeps its original clear boundary');
-    assert(revealFrom<clear&&revealFrom>start+fade,'The full plain heading precedes the overlapping deck reveal');
+    assert(headingFrom>start&&revealFrom<clear&&revealFrom>=headingFrom+fade-.003,'The later plain heading still fully appears before the deck reveal');
     near(Number(services.dataset.servicesTravel),readingTravel,'Only the native reading distance extends the story');
     roundedNear(parseFloat(page.nodes['.hero-journey'].style.height),clear+height+readingTravel,'Overlap does not add a blank scroll interval');
     assert.equal(services.parentElement,page.hero,'Enhanced Services shares the stable mobile/desktop viewport');
 
     jump(f,start-1);assert(services.inert);assert.equal(services.getAttribute('aria-hidden'),'true');
     near(opacity(),0,'The title is hidden before its reveal begins');
+    page.scroll(headingFrom-1);page.frames();
+    near(opacity(),0,'The title stays hidden until the last work reaches the later cue');
+    const headingWork=page.window.WorksGallery.getProjectedMotionBounds(Number(f.journey.dataset.helixProgress)).at(-1);
+    assert(Math.abs(headingWork.minY-height*.42)<3,'The title starts as the final Works card approaches center');
     let previousOpacity=0;
     for(const fraction of[.2,.5,.8,.99]){
-      page.scroll(start+fade*fraction);page.frames();
+      page.scroll(headingFrom+fade*fraction);page.frames();
       near(y(services)+headingCenter,height/2,'The fading heading stays at the viewport center');
       assert(opacity()>previousOpacity,'The centered title becomes progressively visible');
       near(reveal(),0,'Pagination and glow remain hidden before the deck reveal');
+      near(glow(),0,'The plain heading has no glow before the deck reveal');
       previousOpacity=opacity();
       assert(services.classList.contains('services-is-intro'));
       assert(!services.inert);
@@ -122,8 +133,11 @@ function send(f,type,properties={}){
       'The reveal is tied to the last projected card reaching the upper band');
     const overlap=(clear+revealFrom)/2;
     page.scroll(overlap);page.frames();
-    assert(deckY()<height&&y(services)<centeredY&&deck.inert,'The deck already rises while the final Works card departs');
-    assert(services.classList.contains('services-is-intro')&&!f.viewport.inert,'Works still paints and receives input above the rising deck');
+    assert(deckY()<height&&y(services)<centeredY&&!deck.inert,'The deck can be used while the final Works card departs');
+    assert.equal(f.visible.at(-1),true,'The deck renderer wakes as soon as the cards enter view');
+    assert(services.classList.contains('services-is-intro')&&!f.viewport.inert,'Works still paints above the rising deck');
+    assert(page.hero.classList.contains('is-services-deck-overlap'));
+    roundedNear(styleNumber(page.hero,'--services-overlap-clip'),height-deckY(),'The Works canvas hit area ends where the visible deck starts');
     assert(!f.wheel(clear-overlap+18,500).prevented,'The same wheel gesture may carry through the overlap');
     page.frames();
     roundedNear(page.window.scrollY-120,clear+18,'No checkpoint alters the native position');
@@ -131,11 +145,12 @@ function send(f,type,properties={}){
 
     const middle=(revealFrom+open)/2;
     page.scroll(middle);page.frames();
-    const pose=[y(services),reveal(),deckY()];
+    const pose=[y(services),reveal(),glow(),deckY()];
     roundedNear(y(services),centeredY-openingTravel*.5,'Half the scrub distance moves the heading half way');
-    assert(reveal()>0&&reveal()<1&&deck.inert,'Pagination and glow follow scroll progress while card input waits');
+    assert(reveal()>0&&reveal()<1&&!deck.inert,'A partly open deck remains interactive before pagination is fully visible');
+    near(glow(),1,'The visible deck reaches full heading glow before the opening completes');
     advance(page,600);
-    assert.deepEqual([y(services),reveal(),deckY()],pose,'Stopping scroll pauses the deck at its intermediate pose');
+    assert.deepEqual([y(services),reveal(),glow(),deckY()],pose,'Stopping scroll pauses the deck at its intermediate pose');
 
     page.scroll(open);page.frames();
     near(reveal(),1,'Pagination and glow are visible at the complete frame');
@@ -146,14 +161,14 @@ function send(f,type,properties={}){
     const cardTarget={closest:selector=>selector.includes('button')?deck:null};
     assert(!f.wheel(middle-open,500,{target:cardTarget}).prevented,'Reverse scroll remains native over the card button');
     page.frames();
-    assert.deepEqual([y(services),reveal(),deckY()],pose,'Reverse restores the exact same intermediate pose');
+    assert.deepEqual([y(services),reveal(),glow(),deckY()],pose,'Reverse restores the exact same intermediate pose');
     assert(!f.wheel(revealFrom-1-middle,500).prevented,'The next reverse gesture returns to Works');
     page.frames();
     near(reveal(),0,'Reverse fully restores the plain centered heading');
     assert(!f.viewport.inert&&services.classList.contains('services-is-intro'));
 
     jump(f,middle);
-    assert.deepEqual([y(services),reveal(),deckY()],pose,'History restores the actual intermediate position');
+    assert.deepEqual([y(services),reveal(),glow(),deckY()],pose,'History restores the actual intermediate position');
     jump(f,open);
     assert(!f.wheel(55,500).prevented,'Scroll after the composed frame continues natively');
     page.frames();
@@ -166,7 +181,7 @@ function send(f,type,properties={}){
     }
     near(y(services)+sectionHeight,height,'The final approach text can reach the viewport bottom');
     assert.equal(f.reads,reads,'No natural-height measurement happens during scrolling');
-    jump(f,start+fade*.5);
+    jump(f,headingFrom+fade*.5);
     near(opacity(),.5,'History restoration keeps the earlier Works overlap reversible');
     jump(f,start-1);
     assert(services.inert);assert.equal(f.viewport.inert,false);

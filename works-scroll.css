@@ -34,8 +34,10 @@
   pointer-events: none;
   transform: translate3d(0, var(--works-enter-px, 100svh), 0);
 }
-.hero.is-works > .works-viewport { visibility: visible; }
+.hero.is-works > .works-viewport,
+.hero > .works-viewport.works-is-preview { visibility: visible; }
 .hero.is-works > .works-viewport.works-is-enhanced { pointer-events: auto; }
+.hero > .works-viewport.works-is-preview :is(.works-card, .works-gallery-canvas) { pointer-events: none; }
 .hero > .works-viewport > .hero__datetime,
 .hero > .works-viewport > .hero__footer,
 .hero > .works-viewport > .hero__about-logo { display: none; }

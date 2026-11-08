@@ -61,7 +61,7 @@
   button.append(arrow);pill.append(details,button);viewport.append(pill);
   const canvas=make('canvas','works-gallery-canvas');canvas.setAttribute('aria-hidden','true');viewport.append(canvas);
   let layout=null,lastProgress=0,lastReduced=false,poses=[],paintPoses=[],selected=null,pointer=null,touch=null,touchSelection=false,domTouchCard=null,lastTouchTime=-Infinity,leaveTimer=null,enterTimer=null,entrySerial=0,gpu=null,context2d=null;
-  let projectionDirty=true,rendererStarted=false,chapterVisible=true,scrollBend=0,scrollBendTime=0;
+  let projectionDirty=true,rendererStarted=false,chapterVisible=true,chapterInteractive=true,scrollBend=0,scrollBendTime=0;
   const boundsCache=new Map();
   const hoverAmounts=new Float32Array(cards.length),hoverFrom=new Float32Array(cards.length);
   let hoverStart=null,hoverAnimating=false;
@@ -84,12 +84,13 @@
     viewport.dataset.hoveredSequence='';viewport.classList.add('works-is-sleeping');
     for(const{element}of cards){element.classList.remove('is-hovered','is-dimmed');element.setAttribute('tabindex','-1');}
   }
-  function setVisible(visible){
-    const next=Boolean(visible);if(next===chapterVisible)return;
-    chapterVisible=next;projectionDirty=true;
+  function setVisible(visible,{interactive=visible}={}){
+    if(visible===chapterVisible&&interactive===chapterInteractive)return;
+    const leavingInteraction=chapterInteractive&&!interactive;
+    chapterVisible=visible;chapterInteractive=interactive;projectionDirty=true;
     // Keep textures and the retained backing surface ready for reverse scroll.
     // The owner supplies its current phase before the canvas is shown again.
-    if(!canPaint())suspendInteraction();
+    if(!canPaint()||leavingInteraction)suspendInteraction();
   }
   document.addEventListener?.('visibilitychange',()=>{
     projectionDirty=true;
@@ -176,9 +177,9 @@
     layout.lastFrontalPhase=(pitchStart*lastCardPitchFactor-worldStart)/(worldTravel+pitchTaper*lastCardPitchFactor);
     const entranceBounds=projectCardBounds(.13,0,false,1);
     const visibleEntranceBounds=entranceBounds.filter(pose=>pose.maxX>0&&pose.minX<width);
-    // A wider helix can start below the viewport naturally. Align its first
-    // visible image to the same entry edge in either direction.
-    layout.entranceOffset=height+1-Math.min(...(visibleEntranceBounds.length?visibleEntranceBounds:entranceBounds).map(pose=>pose.minY));
+    // The title roll exposes just the first edge of this same helix pose.
+    layout.entrancePeek=clamp(height*.04,24,44);
+    layout.entranceOffset=height-layout.entrancePeek-Math.min(...(visibleEntranceBounds.length?visibleEntranceBounds:entranceBounds).map(pose=>pose.minY));
     const dpr=Math.min(1.5,window.devicePixelRatio||1),pixelWidth=Math.round(width*dpr),pixelHeight=Math.round(height*dpr);
     if(canvas.width!==pixelWidth)canvas.width=pixelWidth;
     if(canvas.height!==pixelHeight)canvas.height=pixelHeight;
@@ -346,13 +347,13 @@
     if(changed)poses=projectCards(lastProgress,entranceOffset(lastProgress),null,baseMeshes);
     projectionDirty=false;
     const active=poses.reduce((best,pose)=>Math.abs(pose.worldY)<Math.abs(best.worldY)?pose:best);
-    for(const pose of poses){const{element}=pose;element.style.zIndex=`${Math.round((pose.worldZ+3)*100)+1}`;element.classList.toggle('is-in-view',pose.visible);element.classList.toggle('is-front',pose.front);element.setAttribute('tabindex',pose.visible&&pose.front?'0':'-1');}
+    for(const pose of poses){const{element}=pose;element.style.zIndex=`${Math.round((pose.worldZ+3)*100)+1}`;element.classList.toggle('is-in-view',pose.visible);element.classList.toggle('is-front',pose.front);element.setAttribute('tabindex',chapterInteractive&&pose.visible&&pose.front?'0':'-1');}
     if(selected&&(!poses[selected.index]?.front||!poses[selected.index]?.visible))hideProject();if(pointer)revealProject(hitTest(pointer.x,pointer.y));paintInteraction();
     canvas.hidden=false;viewport.classList.remove('works-is-sleeping');
     viewport.dataset.activeProject=`${active.index%projects.length+1}`;viewport.dataset.activeSequence=`${active.index+1}`;
   }
   function hitTest(x,y){
-    if(!canPaint())return null;
+    if(!canPaint()||!chapterInteractive)return null;
     let nearest=null,nearestDistance=Infinity,eligible=false;
     for(const pose of poses){
       if(!pose.visible||x<pose.minX||x>pose.maxX||y<pose.minY||y>pose.maxY)continue;
@@ -394,7 +395,7 @@
     if(wasSelected)refreshSelection();
   }
   function revealProject(card){
-    if(!canPaint())return;
+    if(!canPaint()||!chapterInteractive)return;
     if(!card){hideProject();return;}
     if(leaveTimer){clearTimeout(leaveTimer);leaveTimer=null;}
     const changed=selected?.index!==card.index,wasVisible=pill.classList.contains('is-visible');

@@ -138,13 +138,14 @@
     const works = window.WorksScrollChapter?.measure({ width:base.width, height:base.height,
       start:base.height*settings.heroScrollDuration+textTravel*settings.aboutScrollDuration+inspirationTravel });
     worksTravel = works?.travel || 0;
-    measureServices(preserveServiceAnchor, works?.servicesRevealDistance);
+    measureServices(preserveServiceAnchor, works);
     writeJourneyBudget();
   }
 
-  function measureServices(preserveServiceAnchor, worksRevealDistance) {
+  function measureServices(preserveServiceAnchor, works) {
     const worksStart=base.height*settings.heroScrollDuration+textTravel*settings.aboutScrollDuration+inspirationTravel;
-    const services=window.ServicesScrollChapter?.measure({width:base.width,height:base.height,worksStart,worksTravel,worksRevealDistance,
+    const services=window.ServicesScrollChapter?.measure({width:base.width,height:base.height,worksStart,worksTravel,
+      worksHeadingDistance:works?.servicesHeadingDistance,worksRevealDistance:works?.servicesRevealDistance,
       distance:preserveServiceAnchor?Math.max(0,window.scrollY-storyTop):undefined});
     servicesTravel=services?.travel||0;
     servicesStart=services?.start??Infinity;
@@ -416,8 +417,8 @@
     // A timed flip or a category/headline checkpoint owns this gesture. Even
     // an already exact anchor must discard a retained destination beyond it.
     if (animating || chapter?.blockSmooth || settledDistance !== null || scrollAdjustment) window.SiteSmoothScroll?.cancel?.();
-    window.WorksScrollChapter?.update(sceneDistance-worksStart,{reducedMotion:reducedMotion.matches,now});
     const worksBlack=sceneDistance>=worksStart&&!reducedMotion.matches?1:window.InspirationClosing?.getBlackProgress?.()??0;
+    window.WorksScrollChapter?.update(sceneDistance-worksStart,{reducedMotion:reducedMotion.matches,blackProgress:worksBlack,now});
     hero.style.setProperty('--works-black-progress',String(worksBlack));
     window.HeroAboutReveal?.update({ progress: lightProgress, width: base.width, height: base.height,
       mode: settings.aboutRevealMode, feather: settings.aboutFillFeather, reducedMotion: reducedMotion.matches, blackProgress:worksBlack });

@@ -61,6 +61,11 @@ function checkTitleTiming(f, measured, now){
   const last=f.window.WorksGallery.getProjectedCards(lastPhase).at(-1);
   assert(Math.abs(last.angle)<1e-8&&last.visible,'The exit cue is the last work facing the viewer');
   const hideTitleDistance=(lastPhase-.13)/measured.phasePerViewport*f.height;
+  assert(measured.servicesHeadingDistance>titleDistance&&measured.servicesHeadingDistance<hideTitleDistance,
+    'The Services heading starts behind the approaching final work');
+  const servicesHeadingPhase=.13+measured.servicesHeadingDistance/f.height*measured.phasePerViewport;
+  const lastTop=f.window.WorksGallery.getProjectedMotionBounds(servicesHeadingPhase).at(-1).minY;
+  assert(Math.abs(lastTop-f.height*.42)<.002,'The final work reaches the heading before it fades in');
   assert(measured.servicesRevealDistance>hideTitleDistance&&measured.servicesRevealDistance<measured.galleryTravel+measured.exitTravel,
     'The Services deck starts between the last frontal work and the complete exit');
   const servicesRevealPhase=.13+measured.servicesRevealDistance/f.height*measured.phasePerViewport;
@@ -101,7 +106,20 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   const before=screenBounds(f);
   assert.equal(f.closingUpdates.at(-1).distance,0,'The closing heading receives the reset boundary too');
   assert(!f.hero.classList.contains('is-works'));
-  assert(before.every(box=>box.top>=height-.01),'The real helix entrance remains below the viewport');
+  const visibleTop=boxes=>Math.min(...boxes.filter(box=>box.left+box.width>0&&box.left<width).map(box=>box.top));
+  assert(visibleTop(before)>=height-.01,'The real helix entrance remains below the viewport before the title completes');
+  f.api.update(-2,{blackProgress:.93,now:101});
+  const partialTop=visibleTop(screenBounds(f));
+  f.api.update(-2,{blackProgress:1,now:102});
+  const previewTop=visibleTop(screenBounds(f));
+  assert(partialTop<height&&partialTop>previewTop,'The late title frames progressively expose the first card');
+  assert(height-previewTop>=24-.01&&height-previewTop<=44+.01,'The finished title exposes only a small edge across screen sizes');
+  assert(f.viewport.classList.contains('works-is-preview')&&!f.hero.classList.contains('is-works'));
+  assert.equal(f.viewport.getAttribute('aria-hidden'),'true');
+  assert(f.list.children.every(card=>card.getAttribute('tabindex')==='-1'));
+  assert(!f.viewport.classList.contains('has-works-title'));
+  f.api.update(.001,{blackProgress:1,now:103});
+  assert(Math.abs(visibleTop(screenBounds(f))-previewTop)<.05,'The first Works scroll starts from the preview pose');
   for(const fraction of [.01,.05]) {
     f.api.update(height*fraction,{now:108+fraction*100});
     assert(screenBounds(f).some(box=>box.top<height&&box.top+box.height>0),`Actual project imagery appears after only ${fraction} viewport of the normal exit`);
@@ -213,14 +231,18 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
     canvas.dispatchEvent({type:'pointerup',pointerType:'touch',clientX:center.x,clientY:center.y+50});
     assert.equal(projectPill.getAttribute('aria-hidden'),'true','A scrolling swipe does not accidentally reveal project details');
   }
-  f.api.update(0,{now:now+=16});
+  f.api.update(0,{blackProgress:1,now:now+=16});
   assert.equal(f.closingUpdates.at(-1).distance,0,'Reverse returns the heading to its centered checkpoint');
-  assert.deepEqual(screenBounds(f),before,'Reverse exactly restores the full spatial gallery entrance');
+  assert.equal(visibleTop(screenBounds(f)),previewTop,'Reverse restores the same small preview at the title checkpoint');
   assert.equal(f.hero.style.getPropertyValue('--works-exit-px'),'0px');
   assert.equal(f.viewport.style.getPropertyValue('--works-enter-px'),'0px');
   assert.equal(f.inspiration.getAttribute('aria-hidden'),'false');
   assert(!f.hero.classList.contains('is-works'));
   assert.equal(f.viewport.getAttribute('aria-hidden'),'true');
+  f.api.update(0,{now:now+=16});
+  assert.deepEqual(screenBounds(f),before,'Rolling back to the previous title clears the preview');
+  assert(!f.viewport.classList.contains('works-is-preview'));
+  f.window.InspirationClosing.getCreationBounds=()=>({top:713*.46,bottom:713*.54});
   const resized=f.api.measure({width:1200,height:713,start:3100});
   assert(resized.holdDistance>0&&resized.holdDistance<resized.galleryTravel,'Resize recalculates the image-dependent heading boundary within browsing');
   const resizedEdge=f.window.InspirationClosing.getCreationBounds().bottom;
