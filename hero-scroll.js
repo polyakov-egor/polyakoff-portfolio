@@ -418,7 +418,8 @@
     // an already exact anchor must discard a retained destination beyond it.
     if (animating || chapter?.blockSmooth || settledDistance !== null || scrollAdjustment) window.SiteSmoothScroll?.cancel?.();
     const worksBlack=sceneDistance>=worksStart&&!reducedMotion.matches?1:window.InspirationClosing?.getBlackProgress?.()??0;
-    window.WorksScrollChapter?.update(sceneDistance-worksStart,{reducedMotion:reducedMotion.matches,blackProgress:worksBlack,now});
+    const titleRollProgress=window.InspirationClosing?.getRollProgress?.()??0;
+    window.WorksScrollChapter?.update(sceneDistance-worksStart,{reducedMotion:reducedMotion.matches,titleRollProgress,now});
     hero.style.setProperty('--works-black-progress',String(worksBlack));
     window.HeroAboutReveal?.update({ progress: lightProgress, width: base.width, height: base.height,
       mode: settings.aboutRevealMode, feather: settings.aboutFillFeather, reducedMotion: reducedMotion.matches, blackProgress:worksBlack });

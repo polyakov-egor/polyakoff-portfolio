@@ -330,5 +330,6 @@
   // Keep that late restore free until the first actual navigation gesture.
   window.addEventListener('pageshow',()=>{checkpoint.allowRestore=true;});
   window.addEventListener('blur',()=>{touch=null;clearInput();});
-  window.InspirationClosing=Object.freeze({measure,update,updateWorks,getCreationBounds,updateTheme,getBlackProgress:()=>smooth(morph)});
+  window.InspirationClosing=Object.freeze({measure,update,updateWorks,getCreationBounds,updateTheme,
+    getRollProgress:()=>morph,getBlackProgress:()=>smooth(morph)});
 })();

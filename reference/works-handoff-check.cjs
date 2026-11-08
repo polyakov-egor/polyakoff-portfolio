@@ -111,9 +111,9 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   const visibleSlice=({left,top,width:boxWidth,height:boxHeight})=>Math.min(
     Math.min(left+boxWidth,width)-Math.max(left,0),Math.min(top+boxHeight,height)-Math.max(top,0));
   assert(before.every(box=>visibleSlice(box)<.15),'The raw helix starts beyond the viewport edge');
-  f.api.update(-2,{blackProgress:.93,now:101});
+  f.api.update(-2,{titleRollProgress:.86,now:101});
   const [partial]=screenBounds(f),partialPhase=f.updates.at(-1)[0];
-  f.api.update(-2,{blackProgress:1,now:102});
+  f.api.update(-2,{titleRollProgress:1,now:102});
   const [peek]=screenBounds(f),peekPhase=f.updates.at(-1)[0];
   assert(partialPhase<peekPhase&&visibleSlice(partial)>0&&visibleSlice(partial)<visibleSlice(peek),'The late title frames advance the actual camera phase and expose the first card');
   assert(Math.abs(partial.left-peek.left)>3&&Math.abs(partial.width-peek.width)>.1,'The first card moves and turns on the orbit during the preview');
@@ -122,7 +122,7 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   assert.equal(f.viewport.getAttribute('aria-hidden'),'true');
   assert(f.list.children.every(card=>card.getAttribute('tabindex')==='-1'));
   assert(!f.viewport.classList.contains('has-works-title'));
-  f.api.update(.001,{blackProgress:1,now:103});
+  f.api.update(.001,{titleRollProgress:1,now:103});
   assert(Math.abs(f.updates.at(-1)[0]-peekPhase)<1e-6,'The first Works scroll starts from the preview phase');
   for(const fraction of [.01,.05]) {
     f.api.update(height*fraction,{now:108+fraction*100});
@@ -157,7 +157,7 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   const orbit=[];
   const orbitEnd=galleryTravel/height*.9;
   for(const fraction of [0,.25,.5,orbitEnd*.7,orbitEnd*.85,orbitEnd]){
-    f.api.update(height*fraction,{blackProgress:1,now:144+fraction});
+    f.api.update(height*fraction,{titleRollProgress:1,now:144+fraction});
     const box=screenBounds(f)[0];
     orbit.push({distance:height*fraction,centerX:box.left+box.width/2,top:box.top,offset:f.closingUpdates.at(-1).headingProgress,helix:Number(f.journey.dataset.helixProgress)});
   }
@@ -235,7 +235,7 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
     canvas.dispatchEvent({type:'pointerup',pointerType:'touch',clientX:center.x,clientY:center.y+50});
     assert.equal(projectPill.getAttribute('aria-hidden'),'true','A scrolling swipe does not accidentally reveal project details');
   }
-  f.api.update(0,{blackProgress:1,now:now+=16});
+  f.api.update(0,{titleRollProgress:1,now:now+=16});
   assert.equal(f.closingUpdates.at(-1).distance,0,'Reverse returns the heading to its centered checkpoint');
   assert.deepEqual(screenBounds(f)[0],peek,'Reverse restores the same small preview at the title checkpoint');
   assert.equal(f.hero.style.getPropertyValue('--works-exit-px'),'0px');
@@ -274,7 +274,7 @@ const shortPhone=fixture(414,700);
 checkTitleTiming(shortPhone,shortPhone.api.measure({width:414,height:700}),150);
 const portraitTablet=fixture(820,1180);
 portraitTablet.api.measure({width:820,height:1180});
-portraitTablet.api.update(-2,{blackProgress:1});
+portraitTablet.api.update(-2,{titleRollProgress:1});
 const [tabletPeek]=screenBounds(portraitTablet);
 assert(Math.abs(820-tabletPeek.left-44)<.15&&tabletPeek.top<1180-44,
   'On tall tablets the orbit reveals a narrow right edge without moving down artificially');

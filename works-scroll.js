@@ -18,6 +18,7 @@
   // pace matches the previous two-screen final exit, without its acceleration.
   const paceReferenceProgress = 43.2 / 56.592;
   const titleRevealPhase = window.WorksGallery.leadFrontalPhase - .01;
+  const previewStart = .62;
   let titleHidePhase = Infinity;
 
   function helixProgress(distance) {
@@ -150,14 +151,16 @@
     return { travel, galleryTravel, exitTravel, emptyHold, holdDistance, phasePerViewport, servicesHeadingDistance, servicesRevealDistance };
   }
 
-  function update(localDistance, { reducedMotion = reduced.matches, blackProgress = 0, now = 0 } = {}) {
+  function update(localDistance, { reducedMotion = reduced.matches, titleRollProgress = 0, now = 0 } = {}) {
     if (!enhanced || reducedMotion) {
       window.InspirationClosing?.updateWorks(localDistance,{holdDistance,height,headingProgress:0,reducedMotion:true});
       return {finished:false};
     }
     const active = localDistance > 0;
-    const previewProgress = clamp((blackProgress - .86) / .14);
-    const preview = !active && previewProgress > 0;
+    const previewTime = clamp((titleRollProgress - previewStart) / (1 - previewStart));
+    const preview = !active && previewTime > 0;
+    // Ease the orbit on the title clock so its speed reaches zero at the hold.
+    const previewProgress = previewTime * previewTime * (3 - 2 * previewTime);
     // The last part of the title roll advances the helix to its first visible
     // sliver. The next gesture continues from that exact orbit phase.
     const galleryVisible = preview || (active && localDistance < galleryTravel + exitTravel);
