@@ -16,6 +16,8 @@
     'services-web': ['services', 'optimized/music-overlay-1280.webp', 768, 1280, 'music-overlay'],
     'services-app': ['services', 'optimized/services-app-1280.webp', 768, 1280],
     'services-motion': ['services', 'optimized/music-base-1280.webp', 768, 1280, 'music-base'],
+    'footer-background': ['services', 'optimized/footer-background-2560.webp', 1440, 2560],
+    'footer-portrait': ['services', 'optimized/footer-portrait-392.webp', 256, 392],
   });
   const stages = new Map(['inspiration', 'works', 'services'].map(name => [name,
     { name, started: false, ready: false, failed: false, version: 0, tasks: [], prepares: new Set(), promise: null }]));
@@ -142,8 +144,7 @@
     if (ahead >= Math.min(inspirationStart + Math.max(1, height) * .4, worksStart - Math.max(1, height) * 1.5)) {
       ensure('inspiration'); ensure('works');
     }
-    // Decode the three service planes before their natural upward entrance.
-    // Both front and rear copies share each responsive URL in the browser cache.
+    // Decode the service planes and closing screen before their upward entrance.
     if (ahead >= servicesStart - Math.max(1, height) * 1.5) ensure('services');
   }
   window.ChapterAssets = Object.freeze({ source, ensure, register, update,

@@ -41,6 +41,7 @@
     <link rel="stylesheet" href="./background-raster.css" />
     <link rel="stylesheet" href="./services.css" />
     <link rel="stylesheet" href="./services-scroll.css" />
+    <link rel="stylesheet" href="./site-footer.css" />
     <script src="./published-effect-preset.js" defer></script>
     <script src="./hero-layout.js" defer></script>
     <script src="./hero-status.js" defer></script>
@@ -289,6 +290,30 @@
           <p class="services__sr-only" data-services-status role="status" aria-live="polite" aria-atomic="true"></p>
         </div>
       </section>
+
+      <footer class="site-footer" data-site-footer role="contentinfo">
+        <img class="site-footer__background" data-site-footer-background data-chapter-image="footer-background" width="2560" height="1305" decoding="async" alt="">
+        <div class="site-footer__intro mono">
+          <p class="site-footer__name">I’m Egor</p>
+          <p class="site-footer__online">Online</p>
+          <p class="site-footer__role">And I’m a designer</p>
+        </div>
+        <picture class="site-footer__wordmark" aria-hidden="true">
+          <source media="(max-width: 599px)" srcset="./assets/images/footer/wordmark-mobile.webp">
+          <source media="(max-width: 1023px)" srcset="./assets/images/footer/wordmark-tablet.webp">
+          <source media="(min-width: 2200px)" srcset="./assets/images/footer/wordmark-wide.webp">
+          <source media="(min-width: 1600px)" srcset="./assets/images/footer/wordmark-desktop.webp">
+          <img src="./assets/images/footer/wordmark-compact.webp" loading="lazy" decoding="async" alt="" draggable="false">
+        </picture>
+        <div class="site-footer__card">
+          <div class="site-footer__copy">
+            <p class="site-footer__eyebrow mono">Next project</p>
+            <h2 class="site-footer__heading">Yours?</h2>
+            <p class="site-footer__message">Big idea or small task?<br>Let’s talk</p>
+          </div>
+          <img class="site-footer__portrait" data-chapter-image="footer-portrait" width="392" height="392" decoding="async" alt="">
+        </div>
+      </footer>
 
     </main>
     <div class="about-flight-guide" aria-hidden="true" hidden>
