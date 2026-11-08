@@ -174,13 +174,38 @@ f.api.update(.62,{now:1400});
 assert.equal(f.getDrawBrightness(),settledDraw,'An unchanged settled pose does not redraw or copy the retained GPU frame');
 
 const motion=fixture();
-const maxDeviation=()=>Math.max(...motion.getDrawBends());
+const drawBend=(phase,index)=>{
+  const visible=motion.api.getProjectedCards(phase).filter(pose=>pose.visible).sort((a,b)=>a.worldZ-b.worldZ);
+  return motion.getDrawBends()[visible.findIndex(pose=>pose.index===index)];
+};
+function meshBend(vertices){
+  const point=index=>[vertices[index].x*2/1267,vertices[index].y*2/713];
+  const edge=(start,middle,end)=>{
+    const [a,b,c]=[start,middle,end].map(point);
+    return Math.abs((c[0]-a[0])*(b[1]-a[1])-(c[1]-a[1])*(b[0]-a[0]))/Math.hypot(c[0]-a[0],c[1]-a[1]);
+  };
+  return Math.max(edge(0,12,24),edge(0,100,200));
+}
 motion.api.update(centralPhase,{now:1000});
-const idleBend=maxDeviation();
-assert(idleBend>.001&&!motion.api.isAnimating(),'Restored curvature is visible without keeping the clock awake');
-motion.api.update(centralPhase+.02,{now:1020});
-motion.api.update(centralPhase,{now:1040});
-assert(Math.abs(maxDeviation()-idleBend)<1e-6,'Forward and reverse give the same curved mesh at the same scroll position');
+const idleBend=drawBend(centralPhase,0);
+const half=motion.api.getProjectedCards(centralPhase,.5)[0];
+const full=motion.api.getProjectedCards(centralPhase,1)[0];
+assert(Math.abs(idleBend-meshBend(half.vertices))<1e-6&&!motion.api.isAnimating(),'A head-on idle card renders half its original deformation');
+const side=motion.api.getProjectedCards(centralPhase).find(pose=>pose.visible&&pose.facing<=.45);
+assert(side&&Math.abs(drawBend(centralPhase,side.index)-meshBend(side.vertices))<1e-6,'Side-facing cards retain their original curve');
+const moving=[];
+for(const direction of [1,-1]){
+  const start=direction===1?1000:2000;
+  motion.api.update(centralPhase,{now:start});
+  for(let frame=1;frame<=6;frame++)motion.api.update(centralPhase+direction*.006*frame,{now:start+frame*16});
+  motion.api.update(centralPhase,{now:start+112});
+  moving.push(drawBend(centralPhase,0));
+  assert(moving.at(-1)>idleBend&&Math.abs(moving.at(-1)-meshBend(full.vertices))<.005,'The actual WebGL card approaches the original full bend in motion');
+  assert(motion.api.isAnimating(),'A bent card keeps the shared clock awake while it settles');
+  for(let now=start+128;now<=start+720;now+=16)motion.api.update(centralPhase,{now});
+  assert(Math.abs(drawBend(centralPhase,0)-idleBend)<1e-6&&!motion.api.isAnimating(),'Stopping gently restores the flatter card and lets the clock sleep');
+}
+assert(Math.abs(moving[0]-moving[1])<1e-6,'Both scroll directions drive the same bend');
 for(const phase of [.13,.36,.62,.9,1.14]){
   const bounds=motion.api.getProjectedMotionBounds(phase);
   for(const amount of [0,.25,.7,1])for(const pose of motion.api.getProjectedCards(phase,amount)){
@@ -192,7 +217,7 @@ motion.api.setVisible(false);
 assert(!motion.api.isAnimating(),'A hidden gallery sleeps');
 motion.api.setVisible(true);
 motion.api.update(centralPhase,{now:3100});
-assert(Math.abs(maxDeviation()-idleBend)<1e-6,'Returning restores the same curved surface');
+assert(Math.abs(drawBend(centralPhase,0)-idleBend)<1e-6,'Returning restores the settled surface');
 
 // Convex hull separation checks the real projected planes, rather than
 // bounding boxes whose corners can overlap even when the images are apart.
@@ -235,5 +260,5 @@ for(const[width,height]of[[375,812],[390,844],[414,896],[768,1024],[1267,713],[1
   }else assert.equal(layout.foregroundMaxScale,2,'Desktop and tablet retain the requested200% scale of the original');
   gapMetrics.push(`${width}x${height}: ${minimum.toFixed(1)}px (${pairs} pairs)`);
 }
-console.log('Works hover checks passed: stable curved surfaces, conservative exit bounds, open front-plane gaps, enlarged hit mesh, relative90%hover and selected-only40% dimming.');
+console.log('Works hover checks passed: softer frontal idle curve, speed-based bend and decay, conservative exit bounds, open front-plane gaps, enlarged hit mesh, relative90%hover and selected-only40% dimming.');
 console.log('Minimum projected front/front gaps: '+gapMetrics.join('; '));

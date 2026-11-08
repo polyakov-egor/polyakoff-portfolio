@@ -25,7 +25,9 @@
   const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
   const smooth=value=>value*value*(3-2*value);
   const motionDuration=500, wheelThreshold=24;
+  const footerCardDuration=550, footerCardHysteresis=4;
   let layout=null,enhanced=false,visibility=null,deckVisibility=null,footerVisibility=null,footerY=null;
+  let footerCardTarget=null,footerCardMotion=null,footerCardPhase=null;
   let stage=null,motion=null,lastDistance=null,allowRestore=true;
   let wheelId=0,wheelUsed=true,wheelAmount=0,touch=null,keyRelease='';
 
@@ -39,8 +41,10 @@
 
   function wake(){window.dispatchEvent(new CustomEvent('services:ready'));}
   function wakeMotion(){window.dispatchEvent(new CustomEvent('services:motion'));}
+  function resetFooterCard(){footerCardTarget=null;footerCardMotion=null;footerCardPhase=null;}
   function restore(){
     allowRestore=true;stage=null;motion=null;lastDistance=null;
+    resetFooterCard();
     wheelUsed=true;wheelAmount=0;touch=null;keyRelease='';
   }
   function measureHeight(element,height){return element?Math.max(height,element.offsetHeight||height):0;}
@@ -55,13 +59,36 @@
       window.ServicesScreens?.get(root)?.setVisible(deckVisible);
     }
   }
-  function setFooterVisible(visible){
+  function setFooterVisible(visible,cardAnimating=false){
     if(!footer)return;
-    footer.classList.toggle('site-footer-is-visible',enhanced&&visible);
+    footer.classList.toggle('site-footer-is-visible',enhanced&&(visible||cardAnimating));
     if(footerVisibility===visible)return;
     footerVisibility=visible;
     footer.inert=!visible;
     footer.setAttribute('aria-hidden',String(!visible));
+  }
+  function updateFooterCard(entered,visible,now){
+    const threshold=layout.footerCardStart-(footerCardTarget?footerCardHysteresis:0);
+    const target=visible&&entered>=threshold;
+    let phase=Number(footerCardTarget);
+    if(footerCardMotion){
+      const progress=clamp((now-footerCardMotion.started)/footerCardDuration,0,1);
+      phase=footerCardMotion.from+(phase-footerCardMotion.from)*progress;
+      if(progress===1)footerCardMotion=null;
+    }
+    if(footerCardTarget===null){
+      phase=Number(target);
+    }else if(target!==footerCardTarget){
+      footerCardMotion=phase===Number(target)?null:{from:phase,started:now};
+    }
+    footerCardTarget=target;
+    if(phase!==footerCardPhase){
+      // The form entrance uses quintic ease-out and completes the fade before the motion.
+      footer.style.setProperty('--site-footer-card-offset',((1-phase)**5).toFixed(4));
+      footer.style.setProperty('--site-footer-card-opacity',(1-(1-clamp(phase/.45,0,1))**5).toFixed(4));
+      footerCardPhase=phase;
+    }
+    return Boolean(footerCardMotion);
   }
   function setEnhanced(enabled){
     if(enhanced===enabled)return;
@@ -112,6 +139,8 @@
     const footerIntroBottom=(footerIntro?.offsetTop||0)+(footerIntro?.offsetHeight||0);
     const footerCardStart=Math.min(footerHeight-1,Math.max(footerIntroBottom,footerCardInset,
       footerWordmarkTop+.33*(footerHeight-footerWordmarkTop)));
+    if(oldLayout&&(oldLayout.height!==viewportHeight||oldLayout.footerHeight!==footerHeight||
+      oldLayout.footerCardStart!==footerCardStart))resetFooterCard();
     const footerWordmarkBlur=clamp(width*.03,24,42);
     const totalHeight=sectionHeight+footerHeight;
     const headingCenter=(heading?.offsetTop||0)+(heading?.offsetHeight||0)/2;
@@ -284,30 +313,25 @@
     const deckShift=deckEntryY*(1-reveal);
     const deckY=y+deckTop+deckShift;
     const deckVisible=active&&!intro&&!motion&&reveal>=1&&deckY<height&&deckY+deckHeight>0;
-    let footerActive=false;
+    let footerActive=false,footerAnimating=false;
     if(footer){
       const top=Math.min(layout.height,y+layout.sectionHeight);
+      const entered=layout.height-top;
       footerActive=top<layout.height-.5;
       if(top!==footerY){
         footerY=top;
         footer.style.setProperty('--site-footer-scroll-y',`${top.toFixed(3)}px`);
         backdrop?.style.setProperty('--site-footer-reveal',clamp(1-top/layout.height,0,1).toFixed(4));
-        const entered=layout.height-top;
-        const cardPhase=clamp((entered-layout.footerCardStart)/(layout.footerHeight-layout.footerCardStart),0,1);
-        // The form entrance uses quintic ease-out and completes the fade before the motion.
-        const cardOffset=(1-cardPhase)**5;
-        const cardOpacity=1-(1-clamp(cardPhase/.45,0,1))**5;
         // Counter the footer's translation so the card reveals at its settled viewport position.
         const cardShift=entered-layout.footerHeight;
         const wordmarkProgress=smooth(clamp((entered-layout.footerWordmarkTop)/Math.max(1,layout.footerHeight-layout.footerWordmarkTop),0,1));
         const wordmarkBlur=layout.footerWordmarkBlur*(1-wordmarkProgress);
         footer.style.setProperty('--site-footer-card-shift',`${cardShift.toFixed(3)}px`);
-        footer.style.setProperty('--site-footer-card-offset',cardOffset.toFixed(4));
-        footer.style.setProperty('--site-footer-card-opacity',cardOpacity.toFixed(4));
         footer.style.setProperty('--site-footer-wordmark-opacity',wordmarkProgress.toFixed(4));
         footer.style.setProperty('--site-footer-wordmark-filter',wordmarkProgress>0&&wordmarkBlur>=.01?`blur(${wordmarkBlur.toFixed(2)}px)`:'none');
       }
-      setFooterVisible(footerActive);
+      if(footerCard)footerAnimating=updateFooterCard(entered,footerActive,now);
+      setFooterVisible(footerActive,footerAnimating);
     }
     const covered=!intro;
     root.style.setProperty('--services-scroll-y',`${y.toFixed(3)}px`);
@@ -324,7 +348,7 @@
     root.dataset.servicesScroll=Math.max(0,distance).toFixed(3);
     root.dataset.servicesVisible=String(active);
     root.dataset.servicesStage=motion?(motion.to==='open'?'opening':'closing'):stage||restored||'native';
-    return {active,covered,animating:Boolean(motion),blockSmooth:Boolean(stage||motion),settleLocalDistance,scrollAdjustment};
+    return {active,covered,animating:Boolean(motion),footerAnimating,blockSmooth:Boolean(stage||motion),settleLocalDistance,scrollAdjustment};
   }
   // Font wrapping and responsive layout can change a section's natural height.
   // Notify the existing owner instead of creating a second animation loop.

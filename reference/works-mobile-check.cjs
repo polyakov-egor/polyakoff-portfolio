@@ -68,7 +68,7 @@ for(const[width,height]of[[414,700],[414,896]]){
 // These hashes capture the approved local200% geometry derived from parentCommit.
 // They are not a claim that the new geometry already has a published source SHA.
 // Hash every vertex, UV, perspective distance, facing and projected bound
-// at the maximum scroll bend. Idle frames are now intentionally flat.
+// at the maximum scroll bend. A frontal card can relax toward half that curve.
 const baseline=require('./works-mobile-baseline.json');
 for(const entry of baseline.frames){
   f.api.measure({width:entry.width,height:entry.height});

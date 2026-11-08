@@ -234,6 +234,8 @@ function send(f,type,properties={}){
   }
   for(const [width,height,sectionHeight,footerHeight]of[[375,812,1230,812],[768,1024,1300,1100],[1920,960,1390,960]]){
     const f=await pageWithServices(width,height,sectionHeight,footerHeight),{page,services,footer,backdrop,background}=f;
+    let smoothCancels=0;
+    page.window.SiteSmoothScroll={usesSmoothedScroll:()=>true,cancel:()=>smoothCancels++};
     const reveal=()=>Number(backdrop.style.getPropertyValue('--site-footer-reveal'));
     const cardShift=()=>styleNumber(footer,'--site-footer-card-shift');
     const cardOffset=()=>styleNumber(footer,'--site-footer-card-offset');
@@ -246,8 +248,7 @@ function send(f,type,properties={}){
     const readingTravel=sectionHeight+height/2-f.headingCenter-height;
     const footerStart=start+intro+readingTravel;
     const finish=footerStart+footerHeight;
-    const cardStart=footerHeight*(width===768?.76:.732);
-    const cardEntry=footerStart+cardStart+(footerHeight-cardStart)*.12;
+    const cardStart=footerStart+footerHeight*(width===768?.76:.732);
     roundedNear(parseFloat(page.nodes['.hero-journey'].style.height)-height,finish,'The footer extends the native budget by its natural height exactly once');
     assert.equal(footer.parentElement,page.hero,'The footer shares the pinned mobile and desktop viewport');
     assert.equal(background.parentElement,backdrop,'The footer art joins the fixed global background');
@@ -267,23 +268,33 @@ function send(f,type,properties={}){
     assert(!services.inert);assert(!footer.inert);
     assert(footer.classList.contains('site-footer-is-visible'));
     near(cardOpacity(),0,'The card stays hidden when the footer first enters');
-    page.scroll(footerStart+cardStart-.01*footerHeight);page.frames();
+    page.scroll(cardStart-.01*footerHeight);page.frames();
     assert(wordmarkOpacity()>.2,'The wordmark is already visible before the card enters');
     near(cardOpacity(),0,'The card waits for the intro and wordmark');
     roundedNear(cardY(),cardRestY,'The card waits at its settled height during the lead-in');
-    page.scroll(cardEntry);page.frames();
-    const entryPose=[cardShift(),cardOffset(),cardOpacity()];
+    const cancelsBeforeEntry=smoothCancels;
+    page.scroll(cardStart+1);page.frame(0);
+    near(cardOpacity(),0,'The entry threshold starts the card at the first pose');
+    assert(page.raf.size>0,'The card keeps the shared clock awake while scroll stands still');
+    advance(page,66);
+    const entryPose=[cardOffset(),cardOpacity()];
     roundedNear(cardY(),cardRestY,'The card reveals from inside the viewport at its final height');
     assert(cardOpacity()>0&&cardOffset()>.5,'The card is visible while it still has more than half of the starting tilt');
     roundedNear(cardOffset(),.88**5,'Card tilt and scale follow the form entrance easing');
     roundedNear(cardOpacity(),1-(1-.12/.45)**5,'Card opacity finishes faster than the tilt');
+    advance(page,483);
+    assert(page.raf.size>0,'The opening timeline runs for 550 ms');
+    advance(page,2);
+    near(cardOffset(),0,'The card opens fully without further scrolling');
+    near(cardOpacity(),1,'The card is fully opaque at the opening endpoint');
+    near(page.window.scrollY-120,cardStart+1,'The card does not move or pin the scroll position');
+    assert.equal(smoothCancels,cancelsBeforeEntry,'The footer motion never cancels smooth scrolling');
+    assert.equal(page.raf.size,0,'The shared clock sleeps once the footer stops animating');
     page.scroll(footerStart+footerHeight*.8);page.frames();
     const wordmarkPose=[wordmarkOpacity(),wordmarkFilter()];
     roundedNear(cardY(),cardRestY,'The card stays at its final height as the footer moves');
     near(wordmarkOpacity(),.5,'The wordmark fades in as it comes into view');
     assert.match(wordmarkFilter(),/^blur\([\d.]+px\)$/,'The incoming wordmark is blurred');
-    page.scroll(footerStart+footerHeight*.93);page.frames();
-    near(cardOpacity(),1,'The card is fully opaque before it settles');
 
     for(const distance of[finish,finish+125]){
       page.scroll(distance);page.frames();
@@ -301,10 +312,25 @@ function send(f,type,properties={}){
     }
     page.scroll(footerStart+footerHeight*.8);page.frames();
     assert.deepEqual([wordmarkOpacity(),wordmarkFilter()],wordmarkPose,'Reverse scrolling restores the same wordmark pose');
-    page.scroll(cardEntry);page.frames();
-    assert.deepEqual([cardShift(),cardOffset(),cardOpacity()],entryPose,'Reverse scrolling restores the same card pose');
-    page.scroll(footerStart-1);page.frames();
+    page.scroll(cardStart-2);page.frames();
+    near(cardOpacity(),1,'Minor boundary movement does not retrigger the card');
+    page.scroll(cardStart-8);page.frame(0);
+    advance(page,484);
+    assert.deepEqual([cardOffset(),cardOpacity()],entryPose,'The exit follows the same animation backward');
+    roundedNear(cardY(),cardRestY,'The reverse card stays at its settled height');
+    advance(page,67);
+    near(cardOpacity(),0,'The card finishes closing without further scrolling');
+    assert.equal(page.raf.size,0);
+
+    page.scroll(cardStart+1);page.frame(0);advance(page,66);
+    page.scroll(footerStart-1);page.frame(0);
+    assert.deepEqual([cardOffset(),cardOpacity()],entryPose,'A rapid reversal begins at the current pose');
+    assert(footer.classList.contains('site-footer-is-visible'),'A fast exit still paints the card after the footer leaves');
     assert(footer.inert);assert(!services.inert);
+    advance(page,551);
+    near(cardOpacity(),0,'The interrupted entry still completes its reverse');
+    assert(!footer.classList.contains('site-footer-is-visible'),'The exit releases the footer overlay');
+    assert.equal(page.raf.size,0);
     near(reveal(),0,'Reverse scroll restores the previous dark art');
     assert.equal(f.reads,reads,'Scrolling across the footer seam never reads layout geometry');
 

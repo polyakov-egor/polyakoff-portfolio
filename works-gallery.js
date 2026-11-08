@@ -14,6 +14,10 @@
   const clamp=(value,min=0,max=1)=>Math.max(min,Math.min(max,value));
   const frontThreshold=.2,foregroundBoost=1,maxBow=.118;
   const cardAspect=960/500,cornerRadius=.05;
+  function liveDeformation(facing){
+    const direct=clamp((facing-.45)/.5);
+    return 1-.5*direct*direct*(3-2*direct)*(1-scrollBend);
+  }
   function foregroundScale(facing){
     const t=clamp((facing-frontThreshold)/(.85-frontThreshold));
     const boost=Math.min(foregroundBoost,(layout?.foregroundMaxScale??1+foregroundBoost)-1);
@@ -56,7 +60,7 @@
   button.append(arrow);pill.append(details,button);viewport.append(pill);
   const canvas=make('canvas','works-gallery-canvas');canvas.setAttribute('aria-hidden','true');viewport.append(canvas);
   let layout=null,lastProgress=0,lastReduced=false,poses=[],paintPoses=[],selected=null,pointer=null,touch=null,touchSelection=false,domTouchCard=null,lastTouchTime=-Infinity,leaveTimer=null,enterTimer=null,entrySerial=0,gpu=null,context2d=null;
-  let projectionDirty=true,rendererStarted=false,chapterVisible=true;
+  let projectionDirty=true,rendererStarted=false,chapterVisible=true,scrollBend=0,scrollBendTime=0;
   const boundsCache=new Map();
   const hoverAmounts=new Float32Array(cards.length),hoverFrom=new Float32Array(cards.length);
   let hoverStart=null,hoverAnimating=false;
@@ -73,6 +77,7 @@
     if(leaveTimer)clearTimeout(leaveTimer);if(enterTimer)clearTimeout(enterTimer);
     leaveTimer=null;enterTimer=null;pointer=null;touch=null;domTouchCard=null;selected=null;touchSelection=false;
     hoverStart=null;hoverAnimating=false;hoverAmounts.fill(0);hoverFrom.fill(0);
+    scrollBend=0;scrollBendTime=0;
     pill.classList.remove('is-visible','is-leaving','is-entering','is-entering-alt');pill.dataset.sequence='';
     pill.setAttribute('aria-hidden','true');button.setAttribute('tabindex','-1');canvas.classList.remove('is-project-hovered');canvas.hidden=true;
     viewport.dataset.hoveredSequence='';viewport.classList.add('works-is-sleeping');
@@ -180,7 +185,7 @@
     viewport.dataset.worksViewport=phone?'phone':tablet?'tablet':'desktop';update(lastProgress,{reducedMotion:lastReduced});
     return{...layout,foregroundWidth:planeWidth*focal/6};
   }
-  function projectCard(card,progress,offset=0,deformation=0,mesh=createMesh(card),interaction=false){
+  function projectCard(card,progress,offset=0,deformation=null,mesh=createMesh(card),interaction=false){
     const{width,height,focal,radius,planeWidth,planeHeight,verticalSpread,camera,pitchFactor,centerSpreadX,centerSpreadY}=layout;
       // A little more pitch opens the narrow gaps without changing the
       // approved mesh sizes, cylinder radius or camera magnification.
@@ -188,26 +193,27 @@
       const worldY=-16.8+54.744*p-card.index*pitch;
       const lane=worldY/2.4,angle=lane*.85,sin=Math.sin(angle),cos=Math.cos(angle),centerX=radius*sin,centerZ=radius*cos,centerY=lane*.5*verticalSpread;
       const facing=(camera*cos-radius)/Math.hypot(centerX,centerY,camera-centerZ),depthScale=foregroundScale(facing);
+      const bend=deformation??liveDeformation(facing);
       // Open the gaps by separating projected centers, never by resizing the
       // rear planes or changing the orbit's angular phase and perspective.
       const centerArc=centerY*centerY*.1;
       const spreadX=(centerSpreadX-1)*focal*(centerX+centerArc)/(camera-centerZ),spreadY=-(centerSpreadY-1)*focal*centerY/(camera-centerZ);
       const hover=interaction?hoverAmounts[card.index]:0,scale=1-.1*hover;
       const renderedScale=depthScale*scale;
-      const restArc=(1-deformation)*centerArc;
+      const restArc=(1-bend)*centerArc;
       const{vertices,clip}=mesh;let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
       for(let i=0;i<uvs.length;i+=2){
         const u=uvs[i],v=uvs[i+1],localX=(u-.5)*planeWidth*renderedScale;
-        const bow=deformation?Math.sin(u*Math.PI)*planeWidth*maxBow*renderedScale*deformation:0;
+        const bow=bend?Math.sin(u*Math.PI)*planeWidth*maxBow*renderedScale*bend:0;
         const wx=centerX+cos*localX+sin*bow,wy=centerY+(.5-v)*planeHeight*renderedScale,wz=centerZ-sin*localX+cos*bow,distance=camera-wz;
-        const x=width/2+focal*(wx+(restArc+deformation*wy*wy*.1))/distance+spreadX,y=height/2-focal*wy/distance+spreadY+offset;
+        const x=width/2+focal*(wx+(restArc+bend*wy*wy*.1))/distance+spreadX,y=height/2-focal*wy/distance+spreadY+offset;
         const vertex=vertices[i/2];vertex.x=x;vertex.y=y;vertex.distance=distance;
         minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
         const c=i*2;clip[c]=(x/width*2-1)*distance;clip[c+1]=(1-y/height*2)*distance;clip[c+2]=100.1/99.9*distance-20/99.9;clip[c+3]=distance;
       }
       return Object.assign(mesh,{minX,maxX,minY,maxY,x:minX,y:minY,cardWidth:maxX-minX,cardHeight:maxY-minY,worldY,worldZ:centerZ,angle,facing,hover,scale,foregroundScale:depthScale,front:facing>frontThreshold,visible:maxX>0&&minX<width&&maxY>0&&minY<height});
   }
-  function projectCards(progress,offset=0,deformation=0,meshes=null){
+  function projectCards(progress,offset=0,deformation=null,meshes=null){
     if(!meshes)return cards.map(card=>projectCard(card,progress,offset,deformation));
     for(let i=0;i<cards.length;i++)projectCard(cards[i],progress,offset,deformation,meshes[i]);
     return meshes;
@@ -297,10 +303,24 @@
     for(let i=0;i<cards.length;i++)hoverAmounts[i]=hoverFrom[i]+((selected?.index===i?1:0)-hoverFrom[i])*eased;
     if(t===1){hoverAnimating=false;hoverStart=null;}
   }
+  function advanceScrollBend(progress,now){
+    const before=scrollBend,elapsed=now-scrollBendTime;
+    const difference=Math.abs(progress-lastProgress);
+    scrollBendTime=now;
+    if(!now||projectionDirty){scrollBend=0;return scrollBend!==before;}
+    const step=elapsed>0&&elapsed<=64?Math.max(1,elapsed):1000/60;
+    // Large history jumps skip the bend. Continuous scroll uses its actual
+    // projected travel in either direction, including after a long idle.
+    const speed=difference<.12?difference*1000/step:0;
+    const target=clamp((speed-.015)/.17);
+    scrollBend+=(target-scrollBend)*(1-Math.exp(-step/(target>scrollBend?36:90)));
+    if(Math.abs(target-scrollBend)<.005)scrollBend=target;
+    return scrollBend!==before;
+  }
   function paintInteraction(){
     if(!canPaint()||!layout||lastReduced)return;
     const offset=entranceOffset(lastProgress);
-    paintPoses=poses.map(pose=>hoverAmounts[pose.index]===0?pose:projectCard(cards[pose.index],lastProgress,offset,1,interactionMeshes[pose.index],true));
+    paintPoses=poses.map(pose=>hoverAmounts[pose.index]===0?pose:projectCard(cards[pose.index],lastProgress,offset,null,interactionMeshes[pose.index],true));
     for(const pose of paintPoses){
       pose.element.style.transform=quadTransform(pose);
       pose.element.dataset.hoverScale=pose.scale.toFixed(5);
@@ -312,13 +332,14 @@
   function update(progress,{reducedMotion=false,now=0}={}){
     const nextProgress=Number.isFinite(progress)?progress:0;
     if(!canPaint()){lastProgress=nextProgress;lastReduced=reducedMotion;projectionDirty=true;return;}
-    const changed=projectionDirty||nextProgress!==lastProgress||reducedMotion!==lastReduced;
+    const bendChanged=advanceScrollBend(nextProgress,reducedMotion?0:now);
+    const changed=projectionDirty||nextProgress!==lastProgress||reducedMotion!==lastReduced||bendChanged;
     if(!changed&&!hoverAnimating)return;
     lastProgress=nextProgress;lastReduced=reducedMotion;if(!layout)return;
     viewport.classList.toggle('works-is-static',reducedMotion);
     if(reducedMotion){projectionDirty=false;hoverAnimating=false;hoverAmounts.fill(0);for(const{element}of cards){element.removeAttribute('style');element.classList.remove('is-in-view');element.setAttribute('tabindex','0');}canvas.hidden=true;poses=[];paintPoses=[];hideProject();viewport.classList.remove('works-is-sleeping');return;}
     advanceHover(now);
-    if(changed)poses=projectCards(lastProgress,entranceOffset(lastProgress),1,baseMeshes);
+    if(changed)poses=projectCards(lastProgress,entranceOffset(lastProgress),null,baseMeshes);
     projectionDirty=false;
     const active=poses.reduce((best,pose)=>Math.abs(pose.worldY)<Math.abs(best.worldY)?pose:best);
     for(const pose of poses){const{element}=pose;element.style.zIndex=`${Math.round((pose.worldZ+3)*100)+1}`;element.classList.toggle('is-in-view',pose.visible);element.classList.toggle('is-front',pose.front);element.setAttribute('tabindex',pose.visible&&pose.front?'0':'-1');}
@@ -459,7 +480,7 @@
   window.WorksGallery=Object.freeze({measure,update,setVisible,getProjectedBounds,getProjectedMotionBounds,
     getProjectedCardBounds:progress=>layout?projectCardBounds(progress,entranceOffset(progress),false,1):[],
     getPaceReferenceBounds:progress=>layout?projectCardBounds(progress,0,true):[],
-    isAnimating:()=>canPaint()&&hoverAnimating,
+    isAnimating:()=>canPaint()&&(hoverAnimating||scrollBend>0),
     getProjectedCards:(progress,deformation=1)=>layout?projectCards(progress,entranceOffset(progress),clamp(deformation)).map(({index,minX,maxX,minY,maxY,angle,worldY,worldZ,facing,front,visible,vertices,foregroundScale})=>({index,minX,maxX,minY,maxY,angle,worldY,worldZ,facing,front,visible,vertices,foregroundScale})):[],
     getProjects:()=>projects.map(project=>({...project,tags:[...project.tags]})),getLayout:()=>layout?{...layout}:null});
 })();

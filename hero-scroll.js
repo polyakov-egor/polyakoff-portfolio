@@ -440,7 +440,7 @@
     // Chapter anchor corrections happen after the outer hero/theme was painted.
     // Paint that corrected pose once before sleeping, even if native scroll
     // already equals the newly settled visual distance.
-    if (releasedScene || displayedDistance !== requestedDistance || Math.abs(distance - displayedDistance) > .25 || animating || lightTransitionStart !== null || (scrollAdjustment && !nativeCorrectionAccepted) || window.WorksGallery?.isAnimating?.() || window.SiteSmoothScroll?.isAnimating?.()) schedule();
+    if (releasedScene || displayedDistance !== requestedDistance || Math.abs(distance - displayedDistance) > .25 || animating || services?.footerAnimating || lightTransitionStart !== null || (scrollAdjustment && !nativeCorrectionAccepted) || window.WorksGallery?.isAnimating?.() || window.SiteSmoothScroll?.isAnimating?.()) schedule();
     else lastTime = 0;
   }
 
