@@ -42,10 +42,14 @@ async function pageWithServices(width,height,naturalHeight,naturalFooterHeight=0
   const backdrop=footer?page.document.createElement('div'):null;
   const background=footer?page.document.createElement('img'):null;
   if(footer){
+    const card=page.document.createElement('div'),wordmark=page.document.createElement('picture');
+    card.className='site-footer__card';wordmark.className='site-footer__wordmark';
     footer.className='site-footer';footer.setAttribute('data-site-footer','');main.append(footer);
     footer.prepend=node=>footer.insertBefore(node,footer.children[0]);
-    background.setAttribute('data-site-footer-background','');footer.append(background);
-    Object.defineProperty(footer,'offsetHeight',{get(){assert(f.read.allowed,'Only layout may read footer geometry');reads++;return footerHeight;}});
+    background.setAttribute('data-site-footer-background','');footer.append(background,wordmark,card);
+    geometry(footer,'offsetHeight',()=>footerHeight);
+    geometry(card,'offsetTop',()=>footerHeight*.7);
+    geometry(wordmark,'offsetTop',()=>footerHeight*.6);
     page.nodes['[data-site-footer]']=footer;
     page.nodes['[data-site-backdrop]']=backdrop;
   }
@@ -147,9 +151,14 @@ function send(f,type,properties={}){
 
     const cardTarget={closest:selector=>selector.includes('button')?deck:null};
     assert(f.wheel(-120,500,{target:cardTarget}).prevented,'Reverse can begin over the card button');
-    page.frame(0);advance(page,500);
-    assert.equal(services.dataset.servicesStage,'closing','The reverse retains its original 700 ms timing');
-    advance(page,200);page.frames();
+    page.frame(0);advance(page,250);
+    assert.equal(services.dataset.servicesStage,'closing');
+    roundedNear(y(services),centeredY-openingTravel*.125,'Cubic ease-out covers 87.5% of the return in 250 ms');
+    advance(page,249);
+    assert.equal(services.dataset.servicesStage,'closing','The return remains active until 500 ms');
+    advance(page,2);
+    assert.equal(services.dataset.servicesStage,'center','The return settles at 500 ms');
+    page.frames();
     assert.equal(services.dataset.servicesStage,'center');
     near(reveal(),0,'Reverse fully restores the plain heading');
     assert(!f.wheel(-80,500).prevented,'The next reverse gesture returns to Works');
@@ -222,6 +231,10 @@ function send(f,type,properties={}){
   for(const [width,height,sectionHeight,footerHeight]of[[375,812,1230,812],[768,1024,1300,1100],[1920,960,1390,960]]){
     const f=await pageWithServices(width,height,sectionHeight,footerHeight),{page,services,footer,backdrop,background}=f;
     const reveal=()=>Number(backdrop.style.getPropertyValue('--site-footer-reveal'));
+    const cardShift=()=>styleNumber(footer,'--site-footer-card-shift');
+    const cardY=()=>footerY(footer)+footerHeight*.7+cardShift();
+    const wordmarkOpacity=()=>styleNumber(footer,'--site-footer-wordmark-opacity');
+    const wordmarkFilter=()=>footer.style.getPropertyValue('--site-footer-wordmark-filter');
     const start=Number(page.hero.dataset.servicesStart),intro=introLead(width,height);
     const readingTravel=sectionHeight+height/2-f.headingCenter-height;
     const footerStart=start+intro+readingTravel;
@@ -233,6 +246,7 @@ function send(f,type,properties={}){
 
     jump(f,footerStart-1);
     near(footerY(footer),height,'The footer waits just below Services');
+    near(cardY(),height,'The card starts at the viewport bottom');
     near(reveal(),0,'The fixed footer art is hidden during Services');
     assert(footer.inert);assert.equal(footer.getAttribute('aria-hidden'),'true');
     const reads=f.reads;
@@ -241,16 +255,28 @@ function send(f,type,properties={}){
     near(reveal(),.4,'The fixed footer art reveals with the visible fraction');
     assert(!services.inert);assert(!footer.inert);
     assert(footer.classList.contains('site-footer-is-visible'));
+    const earlyCardY=cardY();
+    assert(earlyCardY<height&&wordmarkOpacity()===0,'The card enters with the footer while the wordmark waits out of sight');
+    page.scroll(footerStart+footerHeight*.8);page.frames();
+    const entryPose=[cardShift(),wordmarkOpacity(),wordmarkFilter()];
+    assert(cardY()<earlyCardY&&cardY()>height-footerHeight*.3,'The card slides toward its final position');
+    near(wordmarkOpacity(),.5,'The wordmark fades in as it comes into view');
+    assert.match(wordmarkFilter(),/^blur\([\d.]+px\)$/,'The incoming wordmark is blurred');
 
     for(const distance of[finish,finish+125]){
       page.scroll(distance);page.frames();
       near(footerY(footer)+footerHeight,height,'The final footer frame stays aligned through end-of-page overscroll');
       near(reveal(),1,'The final footer variant is fully shown');
+      near(cardShift(),0,'The card settles into its layout position');
+      near(wordmarkOpacity(),1,'The wordmark ends at full opacity');
+      assert.equal(wordmarkFilter(),'none','No blur remains on the settled wordmark');
       assert(services.inert);assert(!footer.inert);
       assert(page.hero.classList.contains('is-services'),'Shared date and navigation remain above the footer');
       assert(f.viewport.inert,'Works stays excluded from input throughout the footer');
       assert.equal(f.visible.at(-1),false,'Services carousel is paused behind the footer');
     }
+    page.scroll(footerStart+footerHeight*.8);page.frames();
+    assert.deepEqual([cardShift(),wordmarkOpacity(),wordmarkFilter()],entryPose,'Reverse scrolling restores the same card and wordmark pose');
     page.scroll(footerStart-1);page.frames();
     assert(footer.inert);assert(!services.inert);
     near(reveal(),0,'Reverse scroll restores the previous dark art');
@@ -267,6 +293,9 @@ function send(f,type,properties={}){
     assert.deepEqual(f.main.children,[services,footer],'Reduced motion restores Services and footer in natural order');
     assert.equal(footer.children[0],background,'The same art returns to the static footer');
     assert.equal(backdrop.style.getPropertyValue('--site-footer-reveal'),'','Reduced motion clears the fixed footer art reveal');
+    assert.equal(footer.style.getPropertyValue('--site-footer-card-shift'),'');
+    assert.equal(footer.style.getPropertyValue('--site-footer-wordmark-opacity'),'');
+    assert.equal(wordmarkFilter(),'');
     assert(!footer.inert);assert.equal(footer.getAttribute('aria-hidden'),'false');
     assert(!footer.classList.contains('site-footer-is-shared'));
     near(Number(services.dataset.servicesTravel),0,'The normal-flow footer is not included in the reduced-motion pinned budget');

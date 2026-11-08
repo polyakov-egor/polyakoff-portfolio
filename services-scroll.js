@@ -8,6 +8,9 @@
   const footer=document.querySelector('[data-site-footer]');
   const backdrop=document.querySelector('[data-site-backdrop]');
   const footerBackground=footer?.querySelector('[data-site-footer-background]');
+  const footerCard=footer?.querySelector('.site-footer__card');
+  const footerWordmark=footer?.querySelector('.site-footer__wordmark');
+  const footerWordmarkImage=footerWordmark?.querySelector('img');
   const hero=document.querySelector('.hero');
   if(!root||!hero)return;
   const originalParent=root.parentElement;
@@ -15,10 +18,18 @@
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
   const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
   const smooth=value=>value*value*(3-2*value);
-  const openingDuration=500, closingDuration=700, wheelThreshold=24;
+  const motionDuration=500, wheelThreshold=24;
   let layout=null,enhanced=false,visibility=null,deckVisibility=null,footerVisibility=null,footerY=null;
   let stage=null,motion=null,lastDistance=null,allowRestore=true;
   let wheelId=0,wheelUsed=true,wheelAmount=0,touch=null,keyRelease='';
+
+  if(footerWordmarkImage){
+    window.ChapterAssets?.register('services',()=>{
+      footerWordmarkImage.fetchPriority='low';
+      footerWordmarkImage.loading='eager';
+      return footerWordmarkImage.decode?.().catch(()=>{});
+    });
+  }
 
   function wake(){window.dispatchEvent(new CustomEvent('services:ready'));}
   function wakeMotion(){window.dispatchEvent(new CustomEvent('services:motion'));}
@@ -65,6 +76,9 @@
       root.style.removeProperty('--services-reveal-progress');
       root.classList.remove('services-is-visible','services-is-intro');
       footer?.style.removeProperty('--site-footer-scroll-y');
+      footer?.style.removeProperty('--site-footer-card-shift');
+      footer?.style.removeProperty('--site-footer-wordmark-opacity');
+      footer?.style.removeProperty('--site-footer-wordmark-filter');
       if(footerBackground&&backdrop)footer.prepend(footerBackground);
       backdrop?.style.removeProperty('--site-footer-reveal');
       footerY=null;
@@ -81,10 +95,13 @@
     const oldLayout=layout;
     const oldLocal=oldLayout&&Number.isFinite(distance)?distance-oldLayout.start:null;
     setEnhanced(!reduced.matches);
-    if(oldLayout?.height!==viewportHeight)footerY=null;
+    footerY=null;
     // Read only during layout, never during the shared scroll clock.
     const sectionHeight=measureHeight(root,viewportHeight);
     const footerHeight=measureHeight(footer,viewportHeight);
+    const footerCardTop=footerCard?.offsetTop||0;
+    const footerWordmarkTop=footerWordmark?.offsetTop||0;
+    const footerWordmarkBlur=clamp(width*.03,24,42);
     const totalHeight=sectionHeight+footerHeight;
     const headingCenter=(heading?.offsetTop||0)+(heading?.offsetHeight||0)/2;
     const centeredY=Math.max(viewportHeight-totalHeight,viewportHeight/2-headingCenter);
@@ -100,7 +117,8 @@
     const start=worksStart+worksTravel-introTravel;
     const travel=enhanced?totalHeight+centeredY-viewportHeight:0;
     layout={height:viewportHeight,sectionHeight,footerHeight,totalHeight,start,centeredY,
-      deckTop,deckHeight,deckEntryY,introTravel,openingTravel,travel};
+      deckTop,deckHeight,deckEntryY,introTravel,openingTravel,travel,
+      footerCardTop,footerWordmarkTop,footerWordmarkBlur};
     if(!stage&&!motion&&oldLayout?.height!==viewportHeight)lastDistance=null;
     let rebaseDistance=null;
     if(enhanced&&oldLayout&&Number.isFinite(oldLocal)&&oldLocal>=0&&oldLocal<=oldLayout.introTravel+oldLayout.travel+.5){
@@ -232,9 +250,9 @@
     let reveal,settleLocalDistance,scrollAdjustment=0;
     if(motion){
       const opening=motion.to==='open';
-      const duration=opening?openingDuration:closingDuration;
-      const phase=clamp((now-motion.started)/duration,0,1);
-      reveal=opening?1-(1-phase)**3:1-smooth(phase);
+      const phase=clamp((now-motion.started)/motionDuration,0,1);
+      const eased=1-(1-phase)**3;
+      reveal=opening?eased:1-eased;
       settleLocalDistance=motion.from==='open'?openAt:introTravel;
       if(phase===1){stage=motion.to;motion=null;}
     }
@@ -263,6 +281,16 @@
         footerY=top;
         footer.style.setProperty('--site-footer-scroll-y',`${top.toFixed(3)}px`);
         backdrop?.style.setProperty('--site-footer-reveal',clamp(1-top/layout.height,0,1).toFixed(4));
+        const entered=layout.height-top;
+        const cardProgress=smooth(clamp(entered/layout.footerHeight,0,1));
+        const cardRestInset=layout.footerHeight-layout.footerCardTop;
+        const cardTop=Math.max(top,layout.height-cardRestInset*cardProgress);
+        const cardShift=cardTop-top-layout.footerCardTop;
+        const wordmarkProgress=smooth(clamp((entered-layout.footerWordmarkTop)/Math.max(1,layout.footerHeight-layout.footerWordmarkTop),0,1));
+        const wordmarkBlur=layout.footerWordmarkBlur*(1-wordmarkProgress);
+        footer.style.setProperty('--site-footer-card-shift',`${cardShift.toFixed(3)}px`);
+        footer.style.setProperty('--site-footer-wordmark-opacity',wordmarkProgress.toFixed(4));
+        footer.style.setProperty('--site-footer-wordmark-filter',wordmarkProgress>0&&wordmarkBlur>=.01?`blur(${wordmarkBlur.toFixed(2)}px)`:'none');
       }
       setFooterVisible(footerActive);
     }
