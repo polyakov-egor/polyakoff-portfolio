@@ -3,6 +3,8 @@
 (() => {
   'use strict';
   const root=document.querySelector('[data-services]');
+  const heading=root?.querySelector('.services__heading');
+  const deck=root?.querySelector('[data-services-deck]');
   const footer=document.querySelector('[data-site-footer]');
   const backdrop=document.querySelector('[data-site-backdrop]');
   const footerBackground=footer?.querySelector('[data-site-footer-background]');
@@ -12,16 +14,21 @@
   const footerParent=footer?.parentElement;
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
   const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
-  let layout=null,enhanced=false,visibility=null,footerVisibility=null,footerY=null;
+  const smooth=value=>value*value*(3-2*value);
+  let layout=null,enhanced=false,visibility=null,deckVisibility=null,footerVisibility=null,footerY=null;
 
   function wake(){window.dispatchEvent(new CustomEvent('services:ready'));}
   function measureHeight(element,height){return element?Math.max(height,element.offsetHeight||height):0;}
-  function setVisible(visible){
+  function setVisible(visible,deckVisible=visible){
     if(visibility!==visible){
       visibility=visible;root.inert=!visible;
       root.setAttribute('aria-hidden',String(!visible));
     }
-    window.ServicesScreens?.get(root)?.setVisible(visible);
+    if(deckVisibility!==deckVisible){
+      deckVisibility=deckVisible;
+      if(deck)deck.inert=!deckVisible;
+      window.ServicesScreens?.get(root)?.setVisible(deckVisible);
+    }
   }
   function setFooterVisible(visible){
     if(!footer)return;
@@ -45,7 +52,9 @@
       originalParent?.append(root);
       if(footer)footerParent?.append(footer);
       root.style.removeProperty('--services-scroll-y');
-      root.classList.remove('services-is-visible');
+      root.style.removeProperty('--services-heading-opacity');
+      root.style.removeProperty('--services-deck-entry-y');
+      root.classList.remove('services-is-visible','services-is-intro');
       footer?.style.removeProperty('--site-footer-scroll-y');
       if(footerBackground&&backdrop)footer.prepend(footerBackground);
       backdrop?.style.removeProperty('--site-footer-reveal');
@@ -67,23 +76,35 @@
     const sectionHeight=measureHeight(root,viewportHeight);
     const footerHeight=measureHeight(footer,viewportHeight);
     const totalHeight=sectionHeight+footerHeight;
-    // Give the last work a little more breathing room before Services enters,
-    // while preserving the panel's natural internal spacing and native pace.
-    const entryGap=enhanced?(width<600?48:80):0;
-    const start=worksStart+Math.max(0,worksTravel-viewportHeight)+entryGap;
-    layout={width,height:viewportHeight,sectionHeight,footerHeight,totalHeight,start,
-      entryGap,travel:enhanced?totalHeight-viewportHeight+entryGap:0};
-    // Preserve the same reading position when fonts or orientation change the
-    // story's earlier budgets. Explicit history/scroll jumps remain native.
+    const headingCenter=(heading?.offsetTop||0)+(heading?.offsetHeight||0)/2;
+    const centeredY=Math.max(viewportHeight-totalHeight,viewportHeight/2-headingCenter);
+    const deckTop=deck?.offsetTop||0,deckHeight=deck?.offsetHeight||0;
+    const deckEntryY=Math.max(0,viewportHeight+12-centeredY-deckTop);
+    // The title borrows the tail of Works. Only the subsequent native
+    // movement of Services and the footer extends the document.
+    const introTravel=enhanced?Math.min(worksTravel,viewportHeight*(width<600?1.55:1.3)):0;
+    const start=worksStart+worksTravel-introTravel;
+    const travel=enhanced?totalHeight+centeredY-viewportHeight:0;
+    layout={height:viewportHeight,sectionHeight,footerHeight,totalHeight,start,centeredY,
+      deckTop,deckHeight,deckEntryY,introTravel,travel};
     let rebaseDistance=null;
-    if(enhanced&&oldLayout&&Number.isFinite(oldLocal)&&oldLocal>=0&&oldLocal<=oldLayout.totalHeight){
-      if(oldLocal<=oldLayout.sectionHeight)rebaseDistance=start+oldLocal/oldLayout.sectionHeight*sectionHeight;
-      else rebaseDistance=start+sectionHeight+(oldLocal-oldLayout.sectionHeight)/oldLayout.footerHeight*footerHeight;
+    if(enhanced&&oldLayout&&Number.isFinite(oldLocal)&&oldLocal>=0&&oldLocal<=oldLayout.introTravel+oldLayout.travel+.5){
+      if(oldLocal<oldLayout.introTravel){
+        rebaseDistance=start+oldLocal/oldLayout.introTravel*introTravel;
+      }else{
+        const oldReadingTravel=oldLayout.travel-oldLayout.footerHeight;
+        const readingTravel=travel-footerHeight;
+        const oldAfter=oldLocal-oldLayout.introTravel;
+        const after=oldAfter<=oldReadingTravel&&oldReadingTravel>0
+          ?oldAfter/oldReadingTravel*readingTravel
+          :readingTravel+clamp((oldAfter-oldReadingTravel)/Math.max(1,oldLayout.footerHeight),0,1)*footerHeight;
+        rebaseDistance=start+introTravel+after;
+      }
     }
     root.dataset.servicesStart=start.toFixed(3);
     root.dataset.servicesHeight=sectionHeight.toFixed(3);
     root.dataset.servicesTravel=layout.travel.toFixed(3);
-    root.dataset.servicesEntryGap=entryGap.toFixed(3);
+    root.dataset.servicesIntroTravel=introTravel.toFixed(3);
     return {...layout,rebaseDistance};
   }
   function update(distance,{reducedMotion=reduced.matches}={}){
@@ -93,10 +114,15 @@
       setFooterVisible(true);
       return {active:false,covered:false};
     }
-    // Keep the last frame in place during mobile overscroll at the document end.
-    const bottom=footer?layout.height-layout.totalHeight:-layout.sectionHeight;
-    const y=clamp(layout.height-distance,bottom,layout.height);
+    const {height,introTravel,centeredY,deckTop,deckHeight,deckEntryY}=layout;
+    const intro=distance<introTravel;
+    const after=Math.max(0,distance-introTravel);
+    const y=clamp(centeredY-after,height-layout.totalHeight,centeredY);
     const active=distance>.5&&y+layout.sectionHeight>.5;
+    const headingOpacity=smooth(clamp(distance/Math.max(1,Math.min(introTravel,height*.55)),0,1));
+    const deckShift=deckEntryY*(1-smooth(clamp(after/(height*.55),0,1)));
+    const deckY=y+deckTop+deckShift;
+    const deckVisible=active&&!intro&&deckY<height&&deckY+deckHeight>0;
     let footerActive=false;
     if(footer){
       const top=Math.min(layout.height,y+layout.sectionHeight);
@@ -108,14 +134,17 @@
       }
       setFooterVisible(footerActive);
     }
-    const covered=distance>=layout.height-.5;
+    const covered=!intro;
     root.style.setProperty('--services-scroll-y',`${y.toFixed(3)}px`);
+    root.style.setProperty('--services-heading-opacity',headingOpacity.toFixed(4));
+    root.style.setProperty('--services-deck-entry-y',`${deckShift.toFixed(3)}px`);
+    root.classList.toggle('services-is-intro',intro);
     root.classList.toggle('services-is-visible',active);
     hero.classList.toggle('is-services',active||footerActive);
     hero.classList.toggle('is-services-covered',covered);
     const works=hero.querySelector('[data-works-gallery]');
     if(works)works.inert=covered;
-    setVisible(active);
+    setVisible(active,deckVisible);
     root.dataset.servicesScroll=Math.max(0,distance).toFixed(3);
     root.dataset.servicesVisible=String(active);
     return {active,covered};

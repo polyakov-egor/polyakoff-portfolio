@@ -1,12 +1,12 @@
 .works-journey,
 .works-viewport {
-  color: #1d1d1d;
-  --about-light-progress: 1;
-  --color-base: #1d1d1d;
-  --color-muted: rgb(29 29 29 / 40%);
-  --glass-background: rgb(255 255 255 / 20%);
+  color: #fff;
+  --about-light-progress: 0;
+  --color-base: #fff;
+  --color-muted: rgb(255 255 255 / 40%);
+  --glass-background: rgb(255 255 255 / 10%);
 }
-.works-journey { position: relative; background: #eee; }
+.works-journey { position: relative; background: #000; }
 .works-viewport { position: relative; isolation: isolate; min-height: 100svh; }
 .works-journey.works-is-shared { height: 0; min-height: 0; }
 .hero > .works-viewport.works-is-enhanced {
@@ -33,12 +33,13 @@
    Works backdrop would conceal the centered heading underneath the cards. */
 .hero > .works-viewport.works-is-enhanced .works-backdrop { display: none; }
 .hero.is-works .inspiration__backdrop { display: none; }
-.works-backdrop { position: absolute; inset: 0; overflow: hidden; z-index: -1; background: #eee; pointer-events: none; }
-.works-backdrop__art { position: absolute; inset: 0; background: #eee; opacity: .3; isolation: isolate; }
+.works-backdrop { position: absolute; inset: 0; overflow: hidden; z-index: -1; background: #000; pointer-events: none; }
+.works-backdrop__art { position: absolute; inset: 0; background: #000; opacity: .3; isolation: isolate; }
 .works-backdrop__lines { position: absolute; top: 0; left: 0; max-width: none; transform-origin: 0 0; }
 .works-viewport .hero__about-logo { opacity: 1; }
+.works-viewport .theme-icon > .theme-icon__light { opacity: 1; filter: brightness(0) invert(1); }
 .works-viewport .language-control__switch span { background: var(--color-base); }
-.works-viewport button:focus-visible { outline-color: currentColor; }
+.works-viewport button:focus-visible { outline-color: #fff; }
 .works-viewport .hero__datetime, .works-viewport .hero__footer, .works-viewport .hero__about-logo { z-index: 1000; }
 @media (prefers-reduced-motion: reduce) {
   .works-journey { height: auto !important; }

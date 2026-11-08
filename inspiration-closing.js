@@ -61,6 +61,9 @@
     view.eyebrow.style.transform='';view.counter.style.transform='';
     root.dataset.progress='0.00000';root.dataset.locked='false';
   }
+  function rollRadius(){
+    return Math.max(layout.font+layout.rowStep,layout.creationHeight)*1.1;
+  }
   function render(){
     if(!layout||!active)return;
     const signature=[pose.leftX,pose.leftY,pose.rightX,pose.rightY,pose.gap,pose.wordX,pose.ghostOpacity,pose.ghostY,morph,worksProgress,worksReduced].join('|');
@@ -82,7 +85,7 @@
     // turns toward the reader. Sliding two equally tilted planes apart instead
     // creates the widely separated/skewed pair reported in the screenshot.
     const eased=smooth(morph),diagonal=-8*Math.sin(Math.PI*eased);
-    const radius=Math.max(layout.font+layout.rowStep,layout.creationHeight)*1.1;
+    const radius=rollRadius();
     const rollPose=angle=>{
       const radians=angle*Math.PI/180;
       return `translate3d(0, ${px(-radius*Math.sin(radians))}, ${px(radius*(Math.cos(radians)-1))}) rotateZ(${diagonal.toFixed(4)}deg) rotateX(${angle.toFixed(4)}deg)`;
@@ -212,6 +215,15 @@
     return {left,top,right:left+layout.creationWidth,bottom:top+layout.creationHeight,width:layout.creationWidth,height:layout.creationHeight};
   }
 
+  function updateTheme(sample){
+    if(!active||!layout)return;
+    const angle=smooth(morph)*Math.PI/2;
+    const {width,height}=layout;
+    const ink=angle=>sample(width/2,height/2-rollRadius()*Math.sin(angle))>.5?'#1d1d1d':'#fff';
+    oldLayer.style.color=ink(angle);
+    newLayer.style.color=ink(angle-Math.PI/2);
+  }
+
   window.addEventListener('wheel',event=>{
     if(ignored(event.target))return;
     const intent=window.SiteWheelIntent?.sample(event,performance.now(),context.height);
@@ -263,5 +275,5 @@
   // Keep that late restore free until the first actual navigation gesture.
   window.addEventListener('pageshow',()=>{checkpoint.allowRestore=true;});
   window.addEventListener('blur',()=>{touch=null;keyRelease='';wheelAmount=0;wheelDirection=0;wheelArmed=false;});
-  window.InspirationClosing=Object.freeze({measure,update,updateWorks,getCreationBounds});
+  window.InspirationClosing=Object.freeze({measure,update,updateWorks,getCreationBounds,updateTheme,getBlackProgress:()=>smooth(morph)});
 })();

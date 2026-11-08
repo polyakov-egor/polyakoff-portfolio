@@ -67,12 +67,13 @@ for(const[width,height]of[[414,700],[414,896]]){
 
 // These hashes capture the approved local200% geometry derived from parentCommit.
 // They are not a claim that the new geometry already has a published source SHA.
-// Hash every vertex, UV, perspective distance, facing and projected bound.
+// Hash every vertex, UV, perspective distance, facing and projected bound
+// at the maximum scroll bend. Idle frames are now intentionally flat.
 const baseline=require('./works-mobile-baseline.json');
 for(const entry of baseline.frames){
   f.api.measure({width:entry.width,height:entry.height});
-  const digest=crypto.createHash('sha256').update(JSON.stringify(baseline.phases.map(p=>f.api.getProjectedCards(p)))).digest('hex');
-  assert.equal(digest,entry.sha256,`Approved200% desktop/tablet geometry stays byte-for-byte exact at ${entry.width}×${entry.height}`);
+  const digest=crypto.createHash('sha256').update(JSON.stringify(baseline.phases.map(p=>f.api.getProjectedCards(p,1)))).digest('hex');
+  assert.equal(digest,entry.sha256,`Maximum scroll bend retains the approved200% desktop/tablet geometry at ${entry.width}×${entry.height}`);
 }
 
 const t=fixture(),phase=16.8/54.744;
@@ -145,5 +146,5 @@ blurred.api.update(phase,{now:600});blurred.api.update(phase,{now:1000});
 assert.equal(blurred.pill.getAttribute('aria-hidden'),'true','A shared frame after blur cannot reselect the stale mouse coordinate');
 assert.equal(blurred.viewport.dataset.hoveredSequence,'');
 
-console.log('Mobile Works checks passed: viewport-clipped front-involved gaps across Safari heights, retained helix trace; exact desktop/tablet meshes; touch capture/compatibility events, swipes, cancellation, dismissal, CSS-scaled hit testing and hybrid mouse recovery.');
+console.log('Mobile Works checks passed: viewport-clipped front-involved gaps across Safari heights, retained helix trace and approved maximum-bend geometry; touch capture/compatibility events, swipes, cancellation, dismissal, CSS-scaled hit testing and hybrid mouse recovery.');
 console.log(metrics.join('; '));

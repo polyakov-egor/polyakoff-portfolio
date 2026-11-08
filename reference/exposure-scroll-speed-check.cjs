@@ -30,10 +30,10 @@ const {makePage,turn,near,scrollStorageKey}=require('./scroll-check.cjs');
   }
   const calls=[];
   const ending=makePage(1920,960,0,new Map(),false,{beforeScroll({window}){
-    window.WorksScrollChapter={measure:()=>({travel:100}),update:()=>({blackProgress:.75,finished:true})};
+    window.InspirationClosing={getBlackProgress:()=>.75};
     window.HeroAboutReveal={update:values=>calls.push(values)};
   }});await turn();ending.frames();
-  near(Number(ending.hero.style.values.get('--works-black-progress')),.75,'The empty-ending overlay receives Works state');
-  near(calls.at(-1).blackProgress,.75,'The same frame updates navigation theme after Works');
-  console.log('Exposure scroll speed: 1–3× budgets/midpoints/reverse, default1.8×, persistence, cached layout and final black-screen theme.');
+  near(Number(ending.hero.style.values.get('--works-black-progress')),.75,'The fixed overlay receives the closing title state');
+  near(calls.at(-1).blackProgress,.75,'The same frame passes the title roll to the navigation theme');
+  console.log('Exposure scroll speed: 1–3× budgets/midpoints/reverse, default1.8×, persistence, cached layout and closing title theme.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

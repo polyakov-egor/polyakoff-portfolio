@@ -5,16 +5,21 @@ const vm=require('node:vm');
 const root=path.join(__dirname,'..');
 
 function fixture(pitchFactor=1.025,foregroundBoost=1){
-  const timers=new Map();let timerId=0,drawBrightness=[],brightness=1;
+  const timers=new Map();let timerId=0,drawBrightness=[],drawBends=[],brightness=1,clip;
   const shaders=[];
+  function edgeDeviation(start,middle,end){
+    const point=index=>[clip[index*4]/clip[index*4+3],clip[index*4+1]/clip[index*4+3]];
+    const [a,b,c]=[start,middle,end].map(point);
+    return Math.abs((c[0]-a[0])*(b[1]-a[1])-(c[1]-a[1])*(b[0]-a[0]))/Math.hypot(c[0]-a[0],c[1]-a[1]);
+  }
   const gl={
     createShader:()=>({}),shaderSource:(_,source)=>shaders.push(source),compileShader(){},getShaderParameter:()=>true,
     createProgram:()=>({}),attachShader(){},linkProgram(){},getProgramParameter:()=>true,useProgram(){},
-    createBuffer:()=>({}),bindBuffer(){},getAttribLocation:()=>0,enableVertexAttribArray(){},vertexAttribPointer(){},bufferData(){},
+    createBuffer:()=>({}),bindBuffer(){},getAttribLocation:()=>0,enableVertexAttribArray(){},vertexAttribPointer(){},bufferData(_,data){if(data.length===900)clip=data;},
     getUniformLocation:(_,name)=>name,uniform1i(){},enable(){},depthFunc(){},blendFunc(){},clearColor(){},
     createTexture:()=>({}),bindTexture(){},texParameteri(){},getParameter:()=>4096,texImage2D(){},viewport(){},
-    clear(){drawBrightness=[];},uniform4fv(){},uniform1f(name,value){if(name==='uBrightness')brightness=value;},
-    drawElements(){drawBrightness.push(brightness);}
+    clear(){drawBrightness=[];drawBends=[];},uniform4fv(){},uniform1f(name,value){if(name==='uBrightness')brightness=value;},
+    drawElements(){drawBrightness.push(brightness);drawBends.push(Math.max(edgeDeviation(0,12,24),edgeDeviation(0,100,200)));}
   };
   const context2d={clearRect(){},drawImage(){}};
   function element(tag='div'){
@@ -46,7 +51,7 @@ function fixture(pitchFactor=1.025,foregroundBoost=1){
   });
   const api=window.WorksGallery;api.measure({width:1267,height:713});api.update(.62);
   const pill=viewport.querySelector('.works-project'),canvas=viewport.querySelector('.works-gallery-canvas');
-  return{api,viewport,list,pill,canvas,window,timers,shaders,getDrawBrightness:()=>drawBrightness};
+  return{api,viewport,list,pill,canvas,window,timers,shaders,getDrawBrightness:()=>drawBrightness,getDrawBends:()=>drawBends};
 }
 
 const f=fixture();
@@ -167,7 +172,43 @@ f.api.update(.62,{now:1300});
 const settledDraw=f.getDrawBrightness();
 f.api.update(.62,{now:1400});
 assert.equal(f.getDrawBrightness(),settledDraw,'An unchanged settled pose does not redraw or copy the retained GPU frame');
-// Convex hull separation checks the real projected curved planes, rather than
+
+const motion=fixture();
+const maxDeviation=()=>Math.max(...motion.getDrawBends());
+motion.api.update(centralPhase,{now:1000});
+assert(maxDeviation()<1e-6,'Idle WebGL cards have straight projected edges');
+const reverse=[];
+for(const direction of [1,-1]){
+  const start=direction===1?1000:2000;
+  motion.api.update(centralPhase,{now:start});
+  motion.api.update(centralPhase,{now:start+16,scrollVelocity:direction*.4});
+  const first=maxDeviation();
+  assert(first>.001&&motion.api.isAnimating(),'Moving the scroll timeline bends the actual WebGL mesh on the shared clock');
+  motion.api.update(centralPhase,{now:start+32,scrollVelocity:direction*.4});
+  const peak=maxDeviation();
+  assert(peak>first,'The mesh eases into the motion');
+  motion.api.update(centralPhase,{now:start+48,scrollVelocity:0});
+  assert(maxDeviation()<peak&&maxDeviation()>.001,'The mesh starts flattening without a jump when scroll stops');
+  for(let now=start+64;now<=start+640;now+=16)motion.api.update(centralPhase,{now,scrollVelocity:0});
+  assert(maxDeviation()<1e-6&&!motion.api.isAnimating(),'Settling returns the same flat edges and sleeps the shared clock');
+  reverse.push(first);
+}
+assert(Math.abs(reverse[0]-reverse[1])<1e-6,'Both scroll directions use the same deformation strength');
+for(const phase of [.13,.36,.62,.9,1.14]){
+  const bounds=motion.api.getProjectedMotionBounds(phase);
+  for(const amount of [0,.25,.7,1])for(const pose of motion.api.getProjectedCards(phase,amount)){
+    const extent=bounds[pose.index];
+    assert(pose.minX>=extent.minX-1e-7&&pose.minY>=extent.minY-1e-7&&pose.maxX<=extent.maxX+1e-7&&pose.maxY<=extent.maxY+1e-7,'Motion bounds keep all intermediate edges until the actual exit');
+  }
+}
+motion.api.update(centralPhase,{now:3000,scrollVelocity:.4});
+motion.api.setVisible(false);
+assert(!motion.api.isAnimating(),'A hidden gallery cancels its bending state');
+motion.api.setVisible(true);
+motion.api.update(centralPhase,{now:3100});
+assert(maxDeviation()<1e-6,'Returning without a new scroll does not restore stale curvature');
+
+// Convex hull separation checks the real projected planes, rather than
 // bounding boxes whose corners can overlap even when the images are apart.
 function convexHull(vertices){
   const points=vertices.map(({x,y})=>({x,y})).sort((a,b)=>a.x-b.x||a.y-b.y);
@@ -208,5 +249,5 @@ for(const[width,height]of[[375,812],[390,844],[414,896],[768,1024],[1267,713],[1
   }else assert.equal(layout.foregroundMaxScale,2,'Desktop and tablet retain the requested200% scale of the original');
   gapMetrics.push(`${width}x${height}: ${minimum.toFixed(1)}px (${pairs} pairs)`);
 }
-console.log('Works hover checks passed: smooth200% foreground scale with open front-plane gaps, unchanged rear dimensions/orbit, enlarged hit mesh, relative90%hover and selected-only40% dimming, exact lightweight bounds and retained settled frame.');
+console.log('Works hover checks passed: planar idle edges, velocity-only bend and settlement, conservative motion bounds, open front-plane gaps, enlarged hit mesh, relative90%hover and selected-only40% dimming.');
 console.log('Minimum projected front/front gaps: '+gapMetrics.join('; '));

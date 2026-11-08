@@ -55,7 +55,7 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   const f=fixture(width,height);
   assert.equal(f.ready.length,1,'Works announces readiness once to the story owner');
   const measured=f.api.measure({width,height,start:2700});
-  const galleryTravel=measured.galleryTravel,travel=Math.max(galleryTravel+measured.exitTravel,measured.blackEnd)+height;
+  const galleryTravel=measured.galleryTravel,travel=galleryTravel+measured.exitTravel+height;
   assert.equal(measured.travel,travel);
   assert(measured.galleryTravel<height*(width<600?6:8),'Browsing now uses the faster final-exit pace');
   const priorPace=width<600?.13852626085281367:width<1100?.2743629407882692:.13409726858139054;
@@ -136,41 +136,36 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
     assert(orbit[i].offset>=orbit[i-1].offset,'Header ascent is monotonic across the early orbit');
     assert.equal(f.journey.dataset.headingOffset,'0.000','The title no longer scrolls upward');
   }
-  f.api.update(height*3,{now:150});
+  let now=150;
+  function settleAt(distance){
+    f.api.update(distance,{now:now+=16});
+    for(let frame=0;frame<45&&f.window.WorksGallery.isAnimating();frame++)f.api.update(distance,{now:now+=16});
+    assert(!f.window.WorksGallery.isAnimating(),'A stationary scroll pose finishes flattening on the shared clock');
+  }
+  settleAt(height*3);
   const imageBefore=f.list.children.map(node=>node.style.transform),heldBefore=f.closingUpdates.at(-1).headingProgress;
-  f.api.update(height*.7,{now:150});f.api.update(height*3,{now:151});
-  assert.deepEqual(f.list.children.map(node=>node.style.transform),imageBefore,'Reverse restores exactly the same early camera pose');
+  f.api.update(height*.7,{now:now+=16});settleAt(height*3);
+  assert.deepEqual(f.list.children.map(node=>node.style.transform),imageBefore,'Reverse restores exactly the same early camera pose after the bend settles');
   assert.equal(f.closingUpdates.at(-1).headingProgress,heldBefore,'Reverse restores exactly the same cached header ascent');
-  f.api.update(galleryTravel,{now:148});
+  f.api.update(galleryTravel,{now:now+=16});
   assert(Math.abs(Number(f.journey.dataset.helixProgress)-43.2/56.592)<.00001,'The twelfth work retains its pose at the former endpoint');
   const phaseBefore=Number(f.journey.dataset.helixProgress);
-  f.api.update(galleryTravel+height*.5,{now:149});
+  f.api.update(galleryTravel+height*.5,{now:now+=16});
   assert(Math.abs((Number(f.journey.dataset.helixProgress)-phaseBefore)/.5-measured.phasePerViewport)<.00005,'Departure uses the exact same camera speed as arrival');
-  f.api.update(measured.blackStart,{now:149});
-  assert.equal(Number(f.journey.dataset.blackProgress),0,'Black transition starts near the final group of works');
-  assert(screenBounds(f).some(box=>box.top<height&&box.top+box.height>0),'Several works are still onscreen when the background starts darkening');
-  const midBlack=f.api.update((measured.blackStart+measured.blackEnd)/2,{now:149});
-  assert(Math.abs(midBlack.blackProgress-.5)<.000001,'The early background transition is smooth and scroll-driven');
-  const fullBlack=f.api.update(measured.blackEnd,{now:149});
-  assert.equal(fullBlack.blackProgress,1,'Background finishes black before the remaining works leave');
-  assert(screenBounds(f).some(box=>box.top<height&&box.top+box.height>0),'The last cards remain visible over the black background');
-  const reverseBlack=f.api.update((measured.blackStart+measured.blackEnd)/2,{now:149});
-  assert.equal(reverseBlack.blackProgress,midBlack.blackProgress,'Reverse restores the same background midpoint');
-  const clear=f.api.update(galleryTravel+measured.exitTravel,{now:149});
-  assert.equal(clear.blackProgress,1,'The background is already black when every work has gone');
+  assert.equal(measured.travel,travel,'Works uses the camera trajectory and its standalone hold, with no background travel');
+  const clear=f.api.update(galleryTravel+measured.exitTravel,{now:now+=16});
   assert.equal(clear.finished,true);
   const sleepingUpdates=f.updates.length;
-  for(let i=0;i<100;i++)f.api.update(travel+height*i/100,{now:150+i});
+  for(let i=0;i<100;i++)f.api.update(travel+height*i/100,{now:now+=16});
   assert.equal(f.updates.length,sleepingUpdates,'Scrolling later chapters never updates the sleeping gallery');
   assert.equal(f.viewport.getAttribute('aria-hidden'),'true','The fully departed gallery is inaccessible');
   assert(screenBounds(f).every(box=>box.top+box.height<0),'Every image, including the last, fully clears above the screen');
-  const completed=f.api.update(travel,{now:150});
-  assert.equal(completed.blackProgress,1,'The final hold is a completely black screen');
+  f.api.update(travel,{now:now+=16});
   assert.equal(f.journey.dataset.scrollProgress,'1.00000');
   const completedBounds=screenBounds(f);
-  f.api.update(galleryTravel+height,{now:151});f.api.update(travel,{now:152});
+  f.api.update(galleryTravel+height,{now:now+=16});f.api.update(travel,{now:now+=16});
   assert.deepEqual(screenBounds(f),completedBounds,'Reverse/forward exactly restores the completed exit');
-  f.api.update(galleryTravel*.5,{now:164});
+  f.api.update(galleryTravel*.5,{now:now+=16});
   assert.equal(f.viewport.getAttribute('aria-hidden'),'false','Rewinding wakes the gallery in the same owner frame');
   assert(f.updates.at(-1)[1].scrollVelocity<0,'Reverse scrolling preserves velocity direction');
   const geometry=f.window.WorksGallery.getProjectedCards(Number(f.journey.dataset.helixProgress));
@@ -196,7 +191,7 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
     canvas.dispatchEvent({type:'pointerup',pointerType:'touch',clientX:center.x,clientY:center.y+50});
     assert.equal(projectPill.getAttribute('aria-hidden'),'true','A scrolling swipe does not accidentally reveal project details');
   }
-  f.api.update(0,{now:180});
+  f.api.update(0,{now:now+=16});
   assert.equal(f.closingUpdates.at(-1).distance,0,'Reverse returns the heading to its centered checkpoint');
   assert.deepEqual(screenBounds(f),before,'Reverse exactly restores the full spatial gallery entrance');
   assert.equal(f.hero.style.getPropertyValue('--works-exit-px'),'0px');
@@ -208,12 +203,12 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   assert(resized.holdDistance>0&&resized.holdDistance<resized.galleryTravel,'Resize recalculates the image-dependent heading boundary within browsing');
   const resizedEdge=f.window.InspirationClosing.getCreationBounds().bottom;
   const resizedTop=()=>Math.min(...screenBounds(f).filter(box=>box.left+box.width>0&&box.left<1200).map(box=>box.top));
-  f.api.update(resized.holdDistance-.5,{now:185});
+  f.api.update(resized.holdDistance-.5,{now:now+=16});
   assert(resizedTop()>resizedEdge,'Resized heading still waits for the actual leading image');
-  f.api.update(resized.holdDistance+.5,{now:186});
+  f.api.update(resized.holdDistance+.5,{now:now+=16});
   assert(resizedTop()<resizedEdge,'Resized crossing follows geometry rather than an obsolete one-screen deadline');
   const resizedAgain=f.api.measure({width:1200,height:713,start:3100});
-  assert.equal(resizedAgain.travel,Math.max(resizedAgain.galleryTravel+resizedAgain.exitTravel,resizedAgain.blackEnd)+713,'Resize recalculates the unified Works pace, full exit and black hold');
+  assert.equal(resizedAgain.travel,resizedAgain.galleryTravel+resizedAgain.exitTravel+713,'Resize recalculates the unified Works pace, full exit and standalone hold');
   const restored=fixture(width,height).api.measure({width,height,start:2700});
   assert.equal(restored.holdDistance,measured.holdDistance,'A fresh history/reload state computes the same threshold without traversing the timeline');
   f.reduced.matches=true;f.reduced.dispatchEvent({type:'change'});
@@ -224,7 +219,7 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   assert.equal(f.viewport.parentElement,f.journey,'Reduced motion restores the static Works grid');
   assert(!f.viewport.classList.contains('works-is-enhanced'));
   assert(f.duplicates.every(node=>node.getAttribute('aria-hidden')===null));
-  f.reduced.matches=false;f.api.measure({width,height,start:2700});f.api.update(height,{now:200});
+  f.reduced.matches=false;f.api.measure({width,height,start:2700});f.api.update(height,{now:now+=16});
   assert.equal(f.viewport.parentElement,f.hero,'Returning to normal motion restores the shared viewport');
 }
 const css=fs.readFileSync(path.join(root,'works-scroll.css'),'utf8');
@@ -244,15 +239,6 @@ reference.api.measure({width:1267,height:713});tall.api.measure({width:1267,heig
 assert.equal(reference.window.WorksGallery.getLayout().focal,tall.window.WorksGallery.getLayout().focal,'A taller viewport no longer zooms the approved camera');
 const a=reference.window.WorksGallery.getProjectedCards(.68),b=tall.window.WorksGallery.getProjectedCards(.68);
 for(let i=0;i<a.length;i++){assert(Math.abs((a[i].maxX-a[i].minX)-(b[i].maxX-b[i].minX))<.001,'Card width stays identical at equal CSS width');assert(Math.abs((a[i].maxY-a[i].minY)-(b[i].maxY-b[i].minY))<.001,'Card height stays identical at equal CSS width');}
-for(const [width,height] of [[375,812],[1920,960]]){
-  const parity=fixture(width,height),duration=height*2.3;
-  const metrics=parity.api.measure({width,height,backgroundScrollDistance:duration});
-  assert(Math.abs(metrics.fadeTravel-duration)<1e-8,'The return to black receives the exact About native-scroll duration');
-  const quarter=parity.api.update(metrics.blackStart+duration*.25,{now:100});
-  assert(Math.abs(quarter.blackProgress-.103515625)<1e-8,'Both background directions use the same quintic curve');
-  parity.api.update(metrics.blackEnd,{now:110});
-  assert.equal(parity.api.update(metrics.blackStart+duration*.25,{now:120}).blackProgress,quarter.blackProgress,'Returning through the same native distance restores the same gradient');
-}
 const hoverExit=fixture(1920,960),hoverMetrics=hoverExit.api.measure({width:1920,height:960});
 hoverExit.api.update(hoverMetrics.galleryTravel*.5,{now:10});
 const hoverCard=hoverExit.list.children.find(card=>card.classList.contains('is-front')&&card.classList.contains('is-in-view'));
@@ -262,4 +248,4 @@ hoverExit.api.update(hoverMetrics.galleryTravel*.5,{now:340});
 assert.equal(hoverExit.window.WorksGallery.isAnimating(),false,'The selected card settles on the shared clock');
 for(const now of [400,420,750,1080])hoverExit.api.update(-1,{now});
 assert.equal(hoverExit.window.WorksGallery.isAnimating(),false,'Hover reset finishes after reversing out of Works instead of keeping an idle RAF alive');
-console.log('Works handoff checks passed: normalized camera, unified camera pace, matching About/Works background, hover reset on chapter exit, full exit, cached geometry and reversible layout.');
+console.log('Works handoff checks passed: normalized camera, unified camera pace, hover reset on chapter exit, full exit, cached geometry and reversible layout.');

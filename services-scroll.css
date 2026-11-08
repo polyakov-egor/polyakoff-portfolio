@@ -11,6 +11,12 @@
   transform: translate3d(0, var(--services-scroll-y, 100svh), 0);
 }
 .hero > .services.services-is-shared.services-is-visible { visibility: visible; }
+/* The heading is uncovered by the last Works plane. The deck then rises
+   into its normal layout while the same scroll carries the title upwards. */
+.hero > .services.services-is-intro { z-index: 6; pointer-events: none; }
+.services-is-shared .services__header { opacity: var(--services-heading-opacity, 0); }
+.services-is-shared :is(.services__deck, .services__approach) { translate: 0 var(--services-deck-entry-y, 0px); }
+.services-is-intro :is(.services__deck, .services__approach) { visibility: hidden; }
 .hero.is-services > .hero__datetime,
 .hero.is-services > .hero__footer,
 .hero.is-services > .hero__about-logo { z-index: 1000; visibility: visible; }

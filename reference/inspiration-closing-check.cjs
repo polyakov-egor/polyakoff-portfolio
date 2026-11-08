@@ -139,14 +139,19 @@ if(require.main===module)(async()=>{
       oldVisible:f.oldLayer.style.visibility,newVisible:f.newLayer.style.visibility,morph:f.root.dataset.morphProgress});
     f.api.update(height,{rawDistance:height,restore:true});
     assert.equal(f.root.dataset.morphProgress,'0.00000','The joined original title is intact at the merge checkpoint');
+    near(f.api.getBlackProgress(),0,'The background stays light until the title starts to turn');
     assert.equal(f.oldLayer.style.visibility,'visible');assert.equal(f.newLayer.style.visibility,'hidden');
     f.api.update(height*1.125,{rawDistance:height*1.125});
     near(Number(f.root.dataset.morphProgress),.25,'A quarter of the title roll uses one eighth of a viewport');
+    near(f.api.getBlackProgress(),.103515625,'The bottom-up reveal uses the same quintic progress as the title');
     const quarter=pose();
     assert(position(f.oldLayer).y<0&&position(f.newLayer).y>0,'Outgoing and incoming titles pass through opposite sides of the reading band');
     assert(/rotateX\((?!0\.0000)[\d.]+deg\)/.test(f.oldLayer.style.transform),'Both full-line planes tilt during the roll');
     f.api.update(height*1.25,{rawDistance:height*1.25});
     near(Number(f.root.dataset.morphProgress),.5);
+    f.api.updateTheme((_, y)=>y<height/2?1:0);
+    assert.equal(f.oldLayer.style.color,'#1d1d1d','The upper face stays dark over the remaining light');
+    assert.equal(f.newLayer.style.color,'#fff','The lower face turns white over the rising dark surface');
     assert(f.oldLayer.style.transform.includes('rotateX(45.0000deg)')&&f.newLayer.style.transform.includes('rotateX(-45.0000deg)'),
       'At the handoff the neighboring faces have opposing pitches, matching the reference roll');
     assert(f.oldLayer.style.transform.includes('rotateZ(-8.0000deg)')&&f.newLayer.style.transform.includes('rotateZ(-8.0000deg)'),
@@ -159,8 +164,10 @@ if(require.main===module)(async()=>{
     f.api.update(height*1.4,{rawDistance:height*1.4});
     f.api.update(height*1.125,{rawDistance:height*1.125});
     assert.equal(pose(),quarter,'Reverse scrolling reconstructs the exact same intermediate roll');
+    near(f.api.getBlackProgress(),.103515625,'Reverse restores the identical matte position');
     f.api.update(height*1.5,{rawDistance:height*1.5});
     assert.equal(f.root.dataset.morphProgress,'1.00000');assert.equal(f.oldLayer.style.visibility,'hidden');assert.equal(f.newLayer.style.visibility,'visible');
+    near(f.api.getBlackProgress(),1,'The background is dark before Works can enter');
     assert(f.oldLayer.style.transform.includes('rotateX(90.0000deg)')&&f.newLayer.style.transform.includes('rotateX(0.0000deg)'),
       'The outgoing title becomes edge-on while the new title settles flat');
     near(Number(f.oldLayer.style.opacity),0,'The old edge darkens out before Works');
@@ -188,8 +195,11 @@ if(require.main===module)(async()=>{
     near(position(f.creation).y,(height-titleHeight)/2,'Returning from Works restores the exact new-title center');
     assert(f.creation.style.transform.endsWith('scale(1.00000)'));near(Number(f.creation.style.opacity),1);assert.equal(f.creation.style.visibility,'visible');
     f.api.update(height*1.1,{rawDistance:height*1.1,reducedMotion:true});assert.equal(f.root.dataset.morphProgress,'0.00000');
+    near(f.api.getBlackProgress(),0);
     f.api.update(height*1.3,{rawDistance:height*1.3,reducedMotion:true});assert.equal(f.root.dataset.morphProgress,'1.00000','Reduced motion replaces the tilted roll with a deterministic midpoint swap');
+    near(f.api.getBlackProgress(),1,'Reduced motion switches background at the same midpoint');
     f.api.update(-1,{rawDistance:-1});assert.equal(f.root.hidden,true);
+    near(f.api.getBlackProgress(),0,'Reversing before the closing chapter clears its black field');
     assert.equal(f.reads,reads,'The complete title roll, reverse, Works handoff and reduced motion use cached geometry');
   }
 
@@ -216,11 +226,13 @@ if(require.main===module)(async()=>{
     assert(Number(f.root.dataset.morphProgress)>0&&Number(f.root.dataset.morphProgress)<1);
     page.scroll(start+height*3.25);page.frames();
     near(Number(f.root.dataset.morphProgress),.5,'The half-screen roll remains tied to eased scroll distance');
+    near(Number(page.hero.style.getPropertyValue('--works-black-progress')),.5,'The actual hero clock starts the dark return at the closing title');
     assert(!page.hero.classList.contains('is-works'),'Works cannot appear halfway through the new message');
     const hold=Number(f.journey.dataset.headingHoldDistance),worksStart=start+height*3.5;
     page.scroll(worksStart+2);page.frames();
     assert(page.hero.classList.contains('is-works'),'Actual Works enters immediately after the new-title interval');
     assert.equal(f.root.dataset.morphProgress,'1.00000');
+    near(Number(page.hero.style.getPropertyValue('--works-black-progress')),1,'Works enters over the already dark backdrop');
     const creationHeld=f.creation.style.transform;
     page.scroll(worksStart+hold-.5);page.frames();
     assert.equal(f.creation.style.transform,creationHeld,'New title holds at center until images reach its cached lower edge');
@@ -232,6 +244,7 @@ if(require.main===module)(async()=>{
     assert.equal(f.creation.style.transform,creationHeld,'Works reverse restores the completed new title');
     page.scroll(start+height*2+height*.4);page.frames();
     assert(Number(f.root.dataset.progress)<1,'Reverse rearms and traverses closing');
+    near(Number(page.hero.style.getPropertyValue('--works-black-progress')),0,'Reverse restores light before the title roll');
     page.scroll(start+height*2-10);page.frames();assert.equal(f.root.hidden,true,'Reverse restores the original category headline');
     assert.equal(page.raf.size,0,'The shared clock goes idle after each settled chapter');
   }

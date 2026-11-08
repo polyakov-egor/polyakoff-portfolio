@@ -34,29 +34,6 @@
   const clamp = value => Math.max(0, Math.min(1, value));
   const smooth = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
   let last = '', dimensions = '', themeTargets = [];
-  let lastInput = null, nativeServicesDark = false, nativeObserver = null;
-  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)');
-  // With reduced motion the later chapters return to ordinary document flow.
-  // One observer changes the same background after Works; no scroll listener,
-  // geometry polling or extra animation clock is needed for this fallback.
-  function watchNativeServices() {
-    nativeObserver?.disconnect(); nativeObserver = null;
-    nativeServicesDark = false;
-    const services = document.querySelector('[data-services]');
-    if (reduced?.matches && services && typeof IntersectionObserver === 'function') {
-      nativeObserver = new IntersectionObserver(entries => {
-        const entry = entries.find(value => value.target === services);
-        if (!entry) return;
-        const dark = entry.boundingClientRect.top <= (lastInput?.height || window.innerHeight || 1) * .5;
-        if (dark === nativeServicesDark) return;
-        nativeServicesDark = dark; last = '';
-        if (lastInput) update(lastInput);
-      }, { rootMargin: `0px 0px -${Math.round((lastInput?.height || window.innerHeight || 1) * .5)}px 0px`, threshold: 0 });
-      nativeObserver.observe(services);
-    }
-    last = '';
-    if (lastInput) update(lastInput);
-  }
   // A plain rising soft matte: the same field drives pixels and UI contrast.
   function gradientField(progress, height, feather) {
     const span = Math.max(1, height * feather);
@@ -94,8 +71,7 @@
   }
   function update({ progress = 0, width, height, feather = .7, mode = 'gradient', reducedMotion = false, blackProgress = 0 }) {
     if (!(width > 0 && height > 0)) return;
-    lastInput = { progress, width, height, feather, mode, reducedMotion, blackProgress };
-    const p = clamp(progress), black = reducedMotion && nativeServicesDark ? 1 : clamp(blackProgress), signature = `${width}|${height}|${p.toFixed(6)}|${feather}|${mode}|${reducedMotion}|${black.toFixed(6)}`;
+    const p = clamp(progress), black = clamp(blackProgress), signature = `${width}|${height}|${p.toFixed(6)}|${feather}|${mode}|${reducedMotion}|${black.toFixed(6)}`;
     if (last === signature) return;
     last = signature;
     hero.dataset.aboutReveal = mode;
@@ -128,7 +104,7 @@
     light.style.maskImage = p === 0 || p === 1 || reducedMotion ? 'none' : plain ? plainLight.mask : 'url(#about-exposure-mask)';
     light.style.webkitMaskImage = light.style.maskImage;
     if (reducedMotion) light.style.opacity = String(p);
-    const field = plain ? plainLight : geometry({ width, height, progress: p, mode, feather });
+    const field = useEdge ? geometry({ width, height, progress: p, mode, feather }) : plainLight;
     const useBlackMask = plain && !reducedMotion && black > 0 && black < 1;
     hero.style.setProperty('--works-black-mask', useBlackMask ? plainBlack.mask : 'none');
     hero.style.setProperty('--works-black-opacity', String(plain && !reducedMotion ? (black === 0 ? 0 : 1) : black));
@@ -146,13 +122,14 @@
     }
     const sample = (x, y) => (p === 0 ? 0 : p === 1 ? 1 : reducedMotion ? p : field.sample(x, y))
       * (1 - (useBlackMask ? plainBlack.sample(x, y) : black));
-    hero.style.setProperty('--about-clock-progress', sample(width * .95, height * .04).toFixed(5));
-    hero.style.setProperty('--about-reveal-footer-progress', sample(width * .5, height * .95).toFixed(5));
+    // Pick contrasting ink as the return matte crosses each fixed control.
+    // An inverse continuous blend makes ink and background both gray midway.
+    const chromeSample = (x, y) => black > 0 ? Number(sample(x, y) > .5) : sample(x, y);
+    hero.style.setProperty('--about-clock-progress', chromeSample(width * .95, height * .04).toFixed(5));
+    hero.style.setProperty('--about-reveal-footer-progress', chromeSample(width * .5, height * .95).toFixed(5));
     hero.style.setProperty('--about-copy-progress', sample(width * .5, height * .58).toFixed(5));
-    for (const target of themeTargets) target.element.style.setProperty('--about-light-progress', sample(target.x, target.y).toFixed(5));
+    for (const target of themeTargets) target.element.style.setProperty('--about-light-progress', chromeSample(target.x, target.y).toFixed(5));
+    window.InspirationClosing?.updateTheme?.(sample);
   }
   window.HeroAboutReveal = Object.freeze({ update });
-  reduced?.addEventListener('change', watchNativeServices);
-  window.addEventListener?.('resize', watchNativeServices, { passive: true });
-  watchNativeServices();
 })();

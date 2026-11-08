@@ -9,16 +9,15 @@
   if (!journey || !viewport || !hero || !window.WorksGallery) return;
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const clamp = value => Math.max(0, Math.min(1, value));
-  let travel = 0, galleryTravel = 0, exitTravel = 0, fadeTravel = 0, emptyHold = 0;
+  let travel = 0, galleryTravel = 0, exitTravel = 0, emptyHold = 0;
   let height = 1, start = 0, previous = null, previousTime = 0, entranceOffset = 0, holdDistance = 0;
-  let clearProgress = 1.15, phasePerViewport = .14, blackStart = 0, blackEnd = 0;
+  let clearProgress = 1.15, phasePerViewport = .14;
   let headingAscent=[];
   let enhanced = false;
   // Use one world-space camera speed for entry, browsing and departure. Its
   // pace matches the previous two-screen final exit, without its acceleration.
   const entranceProgress = .13;
   const finalProgress = 43.2 / 56.592;
-  const blackStartProgress = .64;
 
   function helixProgress(distance) {
     return Math.min(clearProgress,entranceProgress+Math.max(0,distance)/height*phasePerViewport);
@@ -111,7 +110,7 @@
     }
   }
 
-  function measure({ width = hero.clientWidth, height: suppliedHeight = hero.clientHeight, start: suppliedStart = 0, backgroundScrollDistance } = {}) {
+  function measure({ width = hero.clientWidth, height: suppliedHeight = hero.clientHeight, start: suppliedStart = 0 } = {}) {
     height = Math.max(1, suppliedHeight);
     start = suppliedStart;
     setEnhanced(!reduced.matches);
@@ -121,29 +120,19 @@
     if (artwork) artwork.style.transform = `translate3d(${(width - 2560 * scale) / 2}px, ${(height - 1305 * scale) / 2}px, 0) scale(${scale})`;
     const galleryLayout=window.WorksGallery.measure({ width, height });
     entranceOffset=Number.isFinite(galleryLayout?.entranceOffset)?galleryLayout.entranceOffset:0;
-    clearProgress=measureClearProgress();
+    clearProgress=measureClearProgress(window.WorksGallery.getProjectedMotionBounds);
     const paceClearProgress=measureClearProgress(window.WorksGallery.getPaceReferenceBounds);
     phasePerViewport=Math.max(.001,(paceClearProgress-finalProgress)/2);
     const distanceAt=progress=>Math.max(0,(progress-entranceProgress)/phasePerViewport*height);
     galleryTravel=reduced.matches?0:distanceAt(finalProgress);
     exitTravel=reduced.matches?0:Math.max(0,(clearProgress-finalProgress)/phasePerViewport*height);
-    // Reuse About's actual native scroll interval, including all its duration
-    // controls. Both directions now traverse the same gradient at the same pace.
-    fadeTravel=reduced.matches?0:Math.max(1,Number.isFinite(backgroundScrollDistance)?backgroundScrollDistance:height*1.8);
-    // A taller gap profile can clear the last image sooner. Retain About's
-    // fade duration and leave a visible last card above the finished black.
-    blackStart=reduced.matches?0:Math.max(0,Math.min(distanceAt(blackStartProgress),galleryTravel+exitTravel-fadeTravel-height*.25));
-    blackEnd=blackStart+fadeTravel;
-    travel=reduced.matches?0:Math.max(galleryTravel+exitTravel,blackEnd)+emptyHold;
+    travel=galleryTravel+exitTravel+emptyHold;
     holdDistance=reduced.matches?0:measureHeadingHold();
     measureHeadingAscent();
     journey.dataset.headingHoldDistance=holdDistance.toFixed(3);
     journey.dataset.totalTravel=travel.toFixed(3);
     journey.dataset.galleryTravel=galleryTravel.toFixed(3);
     journey.dataset.clearProgress=clearProgress.toFixed(6);
-    journey.dataset.blackStart=blackStart.toFixed(3);
-    journey.dataset.blackEnd=blackEnd.toFixed(3);
-    journey.dataset.backgroundScrollDistance=fadeTravel.toFixed(3);
     journey.dataset.phasePerViewport=phasePerViewport.toFixed(6);
     previous = null; previousTime = 0;
     // Keep the static accessibility grid independent of the pinned timeline.
@@ -156,17 +145,16 @@
       viewport.removeAttribute('aria-hidden');
       window.WorksGallery.update(0, { reducedMotion: true });
     }
-    return { travel, galleryTravel, exitTravel, fadeTravel, emptyHold, holdDistance, blackStart, blackEnd, phasePerViewport };
+    return { travel, galleryTravel, exitTravel, emptyHold, holdDistance, phasePerViewport };
   }
 
   function update(localDistance, { reducedMotion = reduced.matches, now = 0 } = {}) {
     if (!enhanced || reducedMotion) {
       window.InspirationClosing?.updateWorks(localDistance,{holdDistance,height,headingProgress:0,reducedMotion:true});
-      return {blackProgress:0,finished:false};
+      return {finished:false};
     }
     const active = localDistance > 0;
-    // Keep the shared background/chrome timeline alive, but stop the gallery
-    // itself before entry and as soon as the last projected plane has cleared.
+    // Stop the gallery before entry and once the last projected plane clears.
     const galleryVisible = active && localDistance < galleryTravel + exitTravel;
     window.WorksGallery.setVisible?.(galleryVisible);
     const progress = clamp(Math.max(0, localDistance) / Math.max(1, travel));
@@ -185,8 +173,6 @@
     const velocity = previous === null || !active ? 0 : (progress - previous) * 1000 / elapsed;
     if (galleryVisible) window.WorksGallery.update(helix, { reducedMotion: false, scrollVelocity: velocity, now });
     const headingProgress=headingOffset(Math.max(0,localDistance));
-    const blackPosition=clamp((localDistance-blackStart)/Math.max(1,fadeTravel));
-    const blackProgress=localDistance>=blackEnd?1:localDistance<=blackStart?0:blackPosition*blackPosition*blackPosition*(blackPosition*(blackPosition*6-15)+10);
     window.InspirationClosing?.updateWorks(localDistance,{holdDistance,height,headingProgress,reducedMotion:false});
     previous = progress; previousTime = now;
     journey.dataset.scrollProgress = progress.toFixed(5);
@@ -196,9 +182,8 @@
     journey.dataset.chapterStart = start.toFixed(3);
     journey.dataset.headingOffset='0.000';
     journey.dataset.headingProgress=headingProgress.toFixed(5);
-    journey.dataset.blackProgress=blackProgress.toFixed(5);
     journey.dataset.galleryFinished=String(localDistance>=galleryTravel+exitTravel);
-    return {blackProgress,finished:localDistance>=galleryTravel+exitTravel};
+    return {finished:localDistance>=galleryTravel+exitTravel};
   }
 
   // A triggered entrance can consume a gesture while it finishes. Its owner

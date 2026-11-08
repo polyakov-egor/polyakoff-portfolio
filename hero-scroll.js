@@ -92,7 +92,7 @@
   }
   applyTuningCss();
   let base, target, textTravel = 0, textHeight = 0, frame = 0, storyTop = 0, inspirationTravel = 0, worksTravel = 0, servicesTravel = 0, servicesStart = Infinity, logoEntryDistance = 50;
-  let flightMetrics = null, servicesRebase = null, servicesEntryGap = 0;
+  let flightMetrics = null, servicesRebase = null, servicesIntroTravel = 0;
   let displayedDistance = null, lastTime = 0;
   let lastHeroPaint = null, lastNativeLanding = null;
 
@@ -130,8 +130,7 @@
     inspirationTravel = window.InspirationChapter?.measure({ width: base.width, height: base.height,
       anchor: { x: (base.width - target.size) / 2, y: target.y, size: target.size, radius: target.radius } })?.travel || 0;
     worksTravel = window.WorksScrollChapter?.measure({ width:base.width, height:base.height,
-      start:base.height*settings.heroScrollDuration+textTravel*settings.aboutScrollDuration+inspirationTravel,
-      backgroundScrollDistance:flightSpan*settings.aboutBackgroundDuration*settings.aboutRevealScrollDuration*settings.aboutScrollDuration })?.travel || 0;
+      start:base.height*settings.heroScrollDuration+textTravel*settings.aboutScrollDuration+inspirationTravel })?.travel || 0;
     measureServices(preserveServiceAnchor);
     writeJourneyBudget();
   }
@@ -142,14 +141,14 @@
       distance:preserveServiceAnchor?Math.max(0,window.scrollY-storyTop):undefined});
     servicesTravel=services?.travel||0;
     servicesStart=services?.start??Infinity;
-    servicesEntryGap=services?.entryGap||0;
+    servicesIntroTravel=services?.introTravel||0;
     servicesRebase=services?.rebaseDistance??null;
   }
 
   function writeJourneyBudget() {
     const worksStart=base.height*settings.heroScrollDuration+textTravel*settings.aboutScrollDuration+inspirationTravel;
     if(Number.isFinite(servicesStart)){
-      servicesStart=worksStart+Math.max(0,worksTravel-base.height)+servicesEntryGap;
+      servicesStart=worksStart+worksTravel-servicesIntroTravel;
       window.ServicesScrollChapter?.setStart?.(servicesStart);
     }
     journey.style.height=`${base.height+worksStart+worksTravel+servicesTravel}px`;
@@ -357,9 +356,10 @@
     // A timed flip or a category/headline checkpoint owns this gesture. Even
     // an already exact anchor must discard a retained destination beyond it.
     if (chapter?.animating || chapter?.blockSmooth || settledDistance !== null || chapter?.scrollAdjustment) window.SiteSmoothScroll?.cancel?.();
-    const worksState=window.WorksScrollChapter?.update((settledDistance??(distance+(chapter?.scrollAdjustment||0)))-worksStart,{reducedMotion:reducedMotion.matches,now});
-    window.ServicesScrollChapter?.update((settledDistance??distance)-servicesStart,{reducedMotion:reducedMotion.matches});
-    const worksBlack=clamp(Number(worksState?.blackProgress)||0);
+    const sceneDistance=settledDistance??(distance+(chapter?.scrollAdjustment||0));
+    window.WorksScrollChapter?.update(sceneDistance-worksStart,{reducedMotion:reducedMotion.matches,now});
+    window.ServicesScrollChapter?.update(sceneDistance-servicesStart,{reducedMotion:reducedMotion.matches});
+    const worksBlack=sceneDistance>=worksStart&&!reducedMotion.matches?1:window.InspirationClosing?.getBlackProgress?.()??0;
     hero.style.setProperty('--works-black-progress',String(worksBlack));
     window.HeroAboutReveal?.update({ progress: lightProgress, width: base.width, height: base.height,
       mode: settings.aboutRevealMode, feather: settings.aboutFillFeather, reducedMotion: reducedMotion.matches, blackProgress:worksBlack });

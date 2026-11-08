@@ -1,5 +1,5 @@
-/* The real hero clock must pass its native background interval to Works and
-   move the welcome/logo surfaces spatially in both scroll directions. */
+/* The real hero clock owns the About exposure and moves the welcome/logo
+   surfaces spatially in both scroll directions. */
 const assert = require('node:assert/strict');
 const { makePage, turn, near } = require('./scroll-check.cjs');
 const number = (element, property) => Number(element.style.values.get(property));
@@ -17,7 +17,7 @@ const quintic = value => value * value * value * (value * (value * 6 - 15) + 10)
       beforeScroll({ window }) {
         window.WorksScrollChapter = {
           measure(options) { measures.push({ ...options }); return { travel: height * 5 }; },
-          update() { return { blackProgress: 0 }; },
+          update() {},
           setStart() {},
         };
       },
@@ -34,20 +34,16 @@ const quintic = value => value * value * value * (value * (value * 6 - 15) + 10)
       const metrics = page.window.AboutTextFlight.getMetrics();
       const span = Math.max(1, metrics.end - metrics.start);
       const measured = measures.at(-1);
-      const expectedNativeDuration = span * settings.aboutBackgroundDuration * settings.aboutRevealScrollDuration * settings.aboutScrollDuration;
-      near(measured.backgroundScrollDistance, expectedNativeDuration, 'Works receives the actual native black-to-white scroll duration');
-      assert(measured.backgroundScrollDistance > 0 && Number.isFinite(measured.backgroundScrollDistance));
+      const duration = span * settings.aboutBackgroundDuration * settings.aboutRevealScrollDuration * settings.aboutScrollDuration;
+      assert.equal(measured.backgroundScrollDistance, undefined, 'About exposure duration does not extend the Works journey');
       near(measured.width, width); near(measured.height, height);
 
-      // Use the interval supplied to Works to drive the real About renderer.
-      // If its units or duration diverge from the About clock, these sampled
-      // coverage values cease to match at the same native scroll positions.
+      // Verify the configured interval on the real About renderer in both directions.
       const nativeStart = height * settings.heroScrollDuration
         + (metrics.start + span * settings.aboutBackgroundStart) * settings.aboutScrollDuration;
-      const duration = measured.backgroundScrollDistance;
       for (const fraction of [0, .25, .5, .75, 1, .75, .5, .25, 0]) {
         page.scroll(nativeStart + duration * fraction); page.frames();
-        near(number(page.hero, '--about-light-progress'), quintic(fraction), 'The Works duration covers the same About gradient forward and backward');
+        near(number(page.hero, '--about-light-progress'), quintic(fraction), 'About uses the same configured duration forward and backward');
       }
     }
 
@@ -84,5 +80,5 @@ const quintic = value => value * value * value * (value * (value * 6 - 15) + 10)
     assert.equal(welcome.attributes['aria-hidden'], 'false');
     assert.equal(page.raf.size, 0, 'All scroll-driven surfaces settle on the shared clock');
   }
-  console.log('Scroll transition parity passed: native About/Works background duration across settings and four viewports; immediate welcome recession, opaque logo slide and deterministic reverse.');
+  console.log('Scroll transition parity passed: native About exposure duration across settings and four viewports; immediate welcome recession, opaque logo slide and deterministic reverse.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

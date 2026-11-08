@@ -28,12 +28,12 @@ const descendants=root=>[root,...root.children.flatMap(descendants)];
 async function setup(width,height){
   // Instrument the production projection pass inside its existing VM. This
   // counts render-time geometry as well as the public measurement helpers.
-  const originalRead=fs.readFileSync,marker='function projectCards(progress,offset=0,interaction=false,meshes=null){';
+  const originalRead=fs.readFileSync,marker=/function projectCards\([^\n]*\)\{/;
   fs.readFileSync=function(filename,...args){
     const source=originalRead.call(this,filename,...args);
     if(path.resolve(filename)!==path.join(site,'works-gallery.js'))return source;
-    assert(source.includes(marker),'The actual gallery projection pass is instrumented');
-    return source.replace(marker,marker+'window.__storyProjectionPasses=(window.__storyProjectionPasses||0)+1;');
+    assert(marker.test(source),'The actual gallery projection pass is instrumented');
+    return source.replace(marker,'$&window.__storyProjectionPasses=(window.__storyProjectionPasses||0)+1;');
   };
   let f;try{f=fixture(width,height);}finally{fs.readFileSync=originalRead;}
   const {page}=f;
@@ -70,12 +70,13 @@ module.exports={setup};
 if(require.main===module)(async()=>{
   for(const [width,height]of[[375,812],[768,1024],[1920,960]]){
     const f=await setup(width,height),{page}=f;
-    let servicesStart=Number(page.hero.dataset.servicesStart);
-    f.jump(servicesStart+height+10);
+    const worksClear=()=>Number(page.hero.dataset.servicesStart)+Number(page.nodes['[data-services]'].dataset.servicesIntroTravel);
+    const coveredStart=worksClear()+10;
+    f.jump(coveredStart);
     const sleeping=f.counts();
     // More than 100 shared-clock frames, with native scroll still moving the
     // Services panel. Previous chapters must not issue even redundant paints.
-    for(let i=1;i<=100;i++){page.scroll(servicesStart+height+10+i*height*.004);page.frame();}
+    for(let i=1;i<=100;i++){page.scroll(coveredStart+i*height*.004);page.frame();}
     page.frames();
     assert.deepEqual(f.counts(),sleeping,`${width}: covered Hero/About/Inspiration/Works does no hidden paint or projection work`);
     assert.equal(page.raf.size,0,'The shared clock sleeps after Services settles');
@@ -95,7 +96,7 @@ if(require.main===module)(async()=>{
     assert(f.counts().flightCalls>sleeping.flightCalls,'The visible About engine is resumed');
 
     // Configuration and layout invalidate caches even at a settled endpoint.
-    servicesStart=Number(page.hero.dataset.servicesStart);f.jump(servicesStart+height+10);
+    f.jump(worksClear()+10);
     const configured=f.counts();
     f.read.allowed=true;page.layout(true);f.flight.layout(true);
     page.window.HeroScrollEffect.setSettings({wordmarkBlur:57,aboutTopBlur:22});page.frames();

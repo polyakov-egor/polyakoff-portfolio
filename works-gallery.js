@@ -1,4 +1,4 @@
-/* Curved tangent planes orbit a cylinder. The scroll story owns all time. */
+/* Tangent planes orbit a cylinder. Only scroll motion bends their surfaces. */
 (() => {
   'use strict';
   const viewport=document.querySelector('[data-works-gallery]'),list=viewport?.querySelector('[data-works-cards]');
@@ -12,7 +12,7 @@
     {name:'It’sme',tags:['Web','Brand','2024'],image:'06-itsme.png',asset:'work-itsme',crop:'itsme',node:'796:5618'}
   ]);
   const clamp=(value,min=0,max=1)=>Math.max(min,Math.min(max,value));
-  const frontThreshold=.2,foregroundBoost=1;
+  const frontThreshold=.2,foregroundBoost=1,maxBow=.118;
   function foregroundScale(facing){
     const t=clamp((facing-frontThreshold)/(.85-frontThreshold));
     const boost=Math.min(foregroundBoost,(layout?.foregroundMaxScale??1+foregroundBoost)-1);
@@ -20,14 +20,14 @@
   }
   function fitForegroundScale(width,focal,planeWidth,planeHeight){
     // Size only the near arc to a phone's safe width; rear meshes keep their
-    // original dimensions. Probe the same curved columns used by the renderer.
+    // original dimensions. Allow space for the full bend during scroll.
     const inset=16,halfWidth=width/2-inset;
     let lower=1,upper=1+foregroundBoost;
     for(let step=0;step<20;step++){
       const scale=(lower+upper)/2,height=planeHeight*scale;
       let extent=0;
       for(let column=0;column<=columns;column++){
-        const u=uvs[column*2],localX=(u-.5)*planeWidth*scale,bow=Math.sin(u*Math.PI)*planeWidth*.118*scale,distance=6-bow;
+        const u=uvs[column*2],localX=(u-.5)*planeWidth*scale,bow=Math.sin(u*Math.PI)*planeWidth*maxBow*scale,distance=6-bow;
         extent=Math.max(extent,Math.abs(focal*localX/distance),Math.abs(focal*(localX+height*height*.025)/distance));
       }
       if(extent<=halfWidth)lower=scale;else upper=scale;
@@ -55,7 +55,7 @@
   button.append(arrow);pill.append(details,button);viewport.append(pill);
   const canvas=make('canvas','works-gallery-canvas');canvas.setAttribute('aria-hidden','true');viewport.append(canvas);
   let layout=null,lastProgress=0,lastReduced=false,poses=[],paintPoses=[],selected=null,pointer=null,touch=null,touchSelection=false,domTouchCard=null,lastTouchTime=-Infinity,leaveTimer=null,enterTimer=null,entrySerial=0,gpu=null,context2d=null;
-  let projectionDirty=true,rendererStarted=false,chapterVisible=true;
+  let projectionDirty=true,rendererStarted=false,chapterVisible=true,bend=0,bendFrame=0;
   const boundsCache=new Map();
   const hoverAmounts=new Float32Array(cards.length),hoverFrom=new Float32Array(cards.length);
   let hoverStart=null,hoverAnimating=false;
@@ -72,6 +72,7 @@
     if(leaveTimer)clearTimeout(leaveTimer);if(enterTimer)clearTimeout(enterTimer);
     leaveTimer=null;enterTimer=null;pointer=null;touch=null;domTouchCard=null;selected=null;touchSelection=false;
     hoverStart=null;hoverAnimating=false;hoverAmounts.fill(0);hoverFrom.fill(0);
+    bend=0;bendFrame=0;
     pill.classList.remove('is-visible','is-leaving','is-entering','is-entering-alt');pill.dataset.sequence='';
     pill.setAttribute('aria-hidden','true');button.setAttribute('tabindex','-1');canvas.classList.remove('is-project-hovered');canvas.hidden=true;
     viewport.dataset.hoveredSequence='';viewport.classList.add('works-is-sleeping');
@@ -160,7 +161,7 @@
     const phonePitch=clamp((width/height-.46)/.13),phoneCrowding=clamp((width/height-.59)/.06,0,2.8);
     layout={width,height,phone,tablet,cameraHeight,focal,radius:2,camera:8,planeWidth,planeHeight,foregroundMaxScale,verticalSpread:phone?1.18:1,pitchFactor:1.025,centerSpreadX:phone?1.5+.2*phoneCrowding:2.2,centerSpreadY:phone?1.8+.3*phoneCrowding:2.3};
     if(phone)layout.pitchFactor+=.125*phonePitch;
-    const entranceBounds=projectCardBounds(.13);
+    const entranceBounds=projectCardBounds(.13,0,false,1);
     const visibleEntranceBounds=entranceBounds.filter(pose=>pose.maxX>0&&pose.minX<width);
     // A wider helix can start below the viewport naturally. Align its first
     // visible image to the same entry edge in either direction.
@@ -175,7 +176,7 @@
     viewport.dataset.worksViewport=phone?'phone':tablet?'tablet':'desktop';update(lastProgress,{reducedMotion:lastReduced});
     return{...layout,foregroundWidth:planeWidth*focal/6};
   }
-  function projectCard(card,progress,offset=0,interaction=false,mesh=createMesh(card)){
+  function projectCard(card,progress,offset=0,deformation=0,mesh=createMesh(card),interaction=false){
     const{width,height,focal,radius,planeWidth,planeHeight,verticalSpread,camera,pitchFactor,centerSpreadX,centerSpreadY}=layout;
       // A little more pitch opens the narrow gaps without changing the
       // approved mesh sizes, cylinder radius or camera magnification.
@@ -185,27 +186,30 @@
       const facing=(camera*cos-radius)/Math.hypot(centerX,centerY,camera-centerZ),depthScale=foregroundScale(facing);
       // Open the gaps by separating projected centers, never by resizing the
       // rear planes or changing the orbit's angular phase and perspective.
-      const spreadX=(centerSpreadX-1)*focal*(centerX+centerY*centerY*.1)/(camera-centerZ),spreadY=-(centerSpreadY-1)*focal*centerY/(camera-centerZ);
+      const centerArc=centerY*centerY*.1;
+      const spreadX=(centerSpreadX-1)*focal*(centerX+centerArc)/(camera-centerZ),spreadY=-(centerSpreadY-1)*focal*centerY/(camera-centerZ);
       const hover=interaction?hoverAmounts[card.index]:0,scale=1-.1*hover;
       const renderedScale=depthScale*scale;
+      const restArc=(1-deformation)*centerArc;
       const{vertices,clip}=mesh;let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
       for(let i=0;i<uvs.length;i+=2){
-        const u=uvs[i],v=uvs[i+1],localX=(u-.5)*planeWidth*renderedScale,bow=Math.sin(u*Math.PI)*planeWidth*.118*renderedScale;
+        const u=uvs[i],v=uvs[i+1],localX=(u-.5)*planeWidth*renderedScale;
+        const bow=deformation?Math.sin(u*Math.PI)*planeWidth*maxBow*renderedScale*deformation:0;
         const wx=centerX+cos*localX+sin*bow,wy=centerY+(.5-v)*planeHeight*renderedScale,wz=centerZ-sin*localX+cos*bow,distance=camera-wz;
-        const x=width/2+focal*(wx+wy*wy*.1)/distance+spreadX,y=height/2-focal*wy/distance+spreadY+offset;
+        const x=width/2+focal*(wx+(restArc+deformation*wy*wy*.1))/distance+spreadX,y=height/2-focal*wy/distance+spreadY+offset;
         const vertex=vertices[i/2];vertex.x=x;vertex.y=y;vertex.distance=distance;
         minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
         const c=i*2;clip[c]=(x/width*2-1)*distance;clip[c+1]=(1-y/height*2)*distance;clip[c+2]=100.1/99.9*distance-20/99.9;clip[c+3]=distance;
       }
       return Object.assign(mesh,{minX,maxX,minY,maxY,x:minX,y:minY,cardWidth:maxX-minX,cardHeight:maxY-minY,worldY,worldZ:centerZ,angle,facing,hover,scale,foregroundScale:depthScale,front:facing>frontThreshold,visible:maxX>0&&minX<width&&maxY>0&&minY<height});
   }
-  function projectCards(progress,offset=0,interaction=false,meshes=null){
-    if(!meshes)return cards.map(card=>projectCard(card,progress,offset,interaction));
-    for(let i=0;i<cards.length;i++)projectCard(cards[i],progress,offset,interaction,meshes[i]);
+  function projectCards(progress,offset=0,deformation=0,meshes=null){
+    if(!meshes)return cards.map(card=>projectCard(card,progress,offset,deformation));
+    for(let i=0;i<cards.length;i++)projectCard(cards[i],progress,offset,deformation,meshes[i]);
     return meshes;
   }
-  function projectCardBounds(progress,offset=0,paceReference=false){
-    const cacheKey=paceReference?`pace:${progress}`:progress;
+  function projectCardBounds(progress,offset=0,paceReference=false,deformation=paceReference?1:0){
+    const cacheKey=paceReference?`pace:${progress}`:deformation?`bend:${progress}`:progress;
     const cached=boundsCache.get(cacheKey);
     if(cached)return offset?cached.map(pose=>({...pose,minY:pose.minY+offset,maxY:pose.maxY+offset})):cached;
     const{width,height,focal,radius,planeWidth,planeHeight,verticalSpread,camera,pitchFactor,centerSpreadX,centerSpreadY}=layout;
@@ -218,7 +222,8 @@
       // This reference is queried only at measurement, never while painting.
       const t=clamp((facing-frontThreshold)/(.85-frontThreshold));
       const scale=paceReference?1+.25*t*t*(3-2*t):foregroundScale(facing);
-      const spreadX=paceReference?0:(centerSpreadX-1)*focal*(centerX+centerY*centerY*.1)/(camera-centerZ),spreadY=paceReference?0:-(centerSpreadY-1)*focal*centerY/(camera-centerZ);
+      const centerArc=centerY*centerY*.1;
+      const spreadX=paceReference?0:(centerSpreadX-1)*focal*(centerX+centerArc)/(camera-centerZ),spreadY=paceReference?0:-(centerSpreadY-1)*focal*centerY/(camera-centerZ);
       const scaledWidth=planeWidth*scale,scaledHeight=planeHeight*scale;
       const top=centerY+scaledHeight/2,bottom=centerY-scaledHeight/2;
       // Y is monotonic across mesh rows. X depends on rowY squared, so its
@@ -226,12 +231,14 @@
       const nearestRow=clamp(Math.round((.5+centerY/scaledHeight)*rows),0,rows);
       const nearest=centerY+(.5-nearestRow/rows)*scaledHeight;
       const minSquare=Math.min(top*top,bottom*bottom,nearest*nearest),maxSquare=Math.max(top*top,bottom*bottom);
+      const restArc=(1-deformation)*centerArc;
+      const minArc=restArc+deformation*minSquare*.1,maxArc=restArc+deformation*maxSquare*.1;
       let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
-      for(let x=0;x<=columns;x++){
-        const u=uvs[x*2],localX=(u-.5)*scaledWidth,bow=Math.sin(u*Math.PI)*scaledWidth*.118;
+      for(let x=0;x<=columns;x+=deformation?1:columns){
+        const u=uvs[x*2],localX=(u-.5)*scaledWidth,bow=Math.sin(u*Math.PI)*scaledWidth*maxBow*deformation;
         const wx=centerX+cos*localX+sin*bow,distance=camera-centerZ+sin*localX-cos*bow;
-        minX=Math.min(minX,width/2+focal*(wx+minSquare*.1)/distance+spreadX);
-        maxX=Math.max(maxX,width/2+focal*(wx+maxSquare*.1)/distance+spreadX);
+        minX=Math.min(minX,width/2+focal*(wx+minArc)/distance+spreadX);
+        maxX=Math.max(maxX,width/2+focal*(wx+maxArc)/distance+spreadX);
         minY=Math.min(minY,height/2-focal*top/distance+spreadY,height/2-focal*bottom/distance+spreadY);
         maxY=Math.max(maxY,height/2-focal*top/distance+spreadY,height/2-focal*bottom/distance+spreadY);
       }
@@ -248,6 +255,16 @@
     if(!layout)return null;const projected=projectCardBounds(Number.isFinite(progress)?progress:0),visibleX=projected.filter(pose=>pose.maxX>0&&pose.minX<layout.width);
     if(!visibleX.length)return null;return{minY:Math.min(...visibleX.map(pose=>pose.minY)),maxY:Math.max(...visibleX.map(pose=>pose.maxY)),leadY:projected[0].minY};
   }
+  function getProjectedMotionBounds(progress){
+    if(!layout)return[];
+    const offset=entranceOffset(progress);
+    const flat=projectCardBounds(progress,offset),bent=projectCardBounds(progress,offset,false,1);
+    // Each vertex coordinate is a ratio of linear functions of the bend.
+    // Its extrema are therefore at the flat or fully bent pose.
+    return flat.map(({index,minX,maxX,minY,maxY},i)=>({index,
+      minX:Math.min(minX,bent[i].minX),maxX:Math.max(maxX,bent[i].maxX),
+      minY:Math.min(minY,bent[i].minY),maxY:Math.max(maxY,bent[i].maxY)}));
+  }
   function render(){
     if(!canPaint()||!gpu||!context2d||!layout||lastReduced)return;
     const{gl,positions,positionAttribute,crop,edge,backAmount,brightness,surface}=gpu;gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.bindBuffer(gl.ARRAY_BUFFER,positions);gl.vertexAttribPointer(positionAttribute,4,gl.FLOAT,false,0,0);
@@ -260,7 +277,7 @@
     }
     context2d.clearRect(0,0,canvas.width,canvas.height);context2d.drawImage(surface,0,0);
   }
-  // Projective DOM quad is the fallback; the canvas adds the subtle mesh bow.
+  // The DOM fallback stays a projective quad. WebGL also bends its interior.
   function quadTransform(pose){
     const[a,b,c,d]=[pose.vertices[0],pose.vertices[columns],pose.vertices.at(-1),pose.vertices[rows*(columns+1)]];
     const dx1=b.x-c.x,dx2=d.x-c.x,dx3=a.x-b.x+c.x-d.x,dy1=b.y-c.y,dy2=d.y-c.y,dy3=a.y-b.y+c.y-d.y,den=dx1*dy2-dx2*dy1;
@@ -275,10 +292,20 @@
     for(let i=0;i<cards.length;i++)hoverAmounts[i]=hoverFrom[i]+((selected?.index===i?1:0)-hoverFrom[i])*eased;
     if(t===1){hoverAnimating=false;hoverStart=null;}
   }
+  function advanceBend(scrollVelocity,now){
+    const previous=bend,elapsed=now-bendFrame;
+    bendFrame=now;
+    if(!now){bend=0;return bend!==previous;}
+    const target=clamp((Math.abs(scrollVelocity||0)-.018)*5);
+    const dt=elapsed>0&&elapsed<64?elapsed:1000/60;
+    bend+=(target-bend)*(1-Math.exp(-dt/(target>bend?35:74)));
+    if(Math.abs(target-bend)<.004)bend=target;
+    return bend!==previous;
+  }
   function paintInteraction(){
     if(!canPaint()||!layout||lastReduced)return;
     const offset=entranceOffset(lastProgress);
-    paintPoses=poses.map(pose=>hoverAmounts[pose.index]===0?pose:projectCard(cards[pose.index],lastProgress,offset,true,interactionMeshes[pose.index]));
+    paintPoses=poses.map(pose=>hoverAmounts[pose.index]===0?pose:projectCard(cards[pose.index],lastProgress,offset,bend,interactionMeshes[pose.index],true));
     for(const pose of paintPoses){
       pose.element.style.transform=quadTransform(pose);
       pose.element.dataset.hoverScale=pose.scale.toFixed(5);
@@ -287,16 +314,17 @@
     }
     render();
   }
-  function update(progress,{reducedMotion=false,now=0}={}){
+  function update(progress,{reducedMotion=false,scrollVelocity=0,now=0}={}){
     const nextProgress=Number.isFinite(progress)?progress:0;
     if(!canPaint()){lastProgress=nextProgress;lastReduced=reducedMotion;projectionDirty=true;return;}
-    if(!projectionDirty&&nextProgress===lastProgress&&reducedMotion===lastReduced&&!hoverAnimating)return;
-    const changed=projectionDirty||nextProgress!==lastProgress||reducedMotion!==lastReduced;
+    const bendChanged=advanceBend(reducedMotion?0:scrollVelocity,reducedMotion?0:now);
+    const changed=projectionDirty||nextProgress!==lastProgress||reducedMotion!==lastReduced||bendChanged;
+    if(!changed&&!hoverAnimating)return;
     lastProgress=nextProgress;lastReduced=reducedMotion;if(!layout)return;
     viewport.classList.toggle('works-is-static',reducedMotion);
     if(reducedMotion){projectionDirty=false;hoverAnimating=false;hoverAmounts.fill(0);for(const{element}of cards){element.removeAttribute('style');element.classList.remove('is-in-view');element.setAttribute('tabindex','0');}canvas.hidden=true;poses=[];paintPoses=[];hideProject();viewport.classList.remove('works-is-sleeping');return;}
     advanceHover(now);
-    if(changed)poses=projectCards(lastProgress,entranceOffset(lastProgress),false,baseMeshes);
+    if(changed)poses=projectCards(lastProgress,entranceOffset(lastProgress),bend,baseMeshes);
     projectionDirty=false;
     const active=poses.reduce((best,pose)=>Math.abs(pose.worldY)<Math.abs(best.worldY)?pose:best);
     for(const pose of poses){const{element}=pose;element.style.zIndex=`${Math.round((pose.worldZ+3)*100)+1}`;element.classList.toggle('is-in-view',pose.visible);element.classList.toggle('is-front',pose.front);element.setAttribute('tabindex',pose.visible&&pose.front?'0':'-1');}
@@ -367,7 +395,7 @@
   function point(event){
     const rect=canvas.getBoundingClientRect();
     // CSS transforms and a mobile visual viewport may scale the retained
-    // canvas. Hit-test in the same layout coordinates as the curved meshes.
+    // canvas. Hit-test in the same layout coordinates as the rendered meshes.
     return{x:(event.clientX-rect.left)*(rect.width>0?layout.width/rect.width:1),y:(event.clientY-rect.top)*(rect.height>0?layout.height/rect.height:1)};
   }
   function ignoreHover(event){return event.pointerType==='touch'||event.sourceCapabilities?.firesTouchEvents===true||Date.now()-lastTouchTime<800;}
@@ -432,10 +460,10 @@
     if(!canvas.contains(event.target)&&!pill.contains(event.target)&&!cards.some(card=>card.element.contains(event.target)))hideProject();
   });
   window.addEventListener('blur',()=>{if(!canPaint())return;pointer=null;touch=null;domTouchCard=null;hideProject();});
-  window.WorksGallery=Object.freeze({measure,update,setVisible,getProjectedBounds,
+  window.WorksGallery=Object.freeze({measure,update,setVisible,getProjectedBounds,getProjectedMotionBounds,
     getProjectedCardBounds:progress=>layout?projectCardBounds(progress,entranceOffset(progress)):[],
     getPaceReferenceBounds:progress=>layout?projectCardBounds(progress,0,true):[],
-    isAnimating:()=>canPaint()&&hoverAnimating,
-    getProjectedCards:progress=>layout?projectCards(progress,entranceOffset(progress)).map(({index,minX,maxX,minY,maxY,angle,worldY,worldZ,facing,front,visible,vertices,foregroundScale})=>({index,minX,maxX,minY,maxY,angle,worldY,worldZ,facing,front,visible,vertices,foregroundScale})):[],
+    isAnimating:()=>canPaint()&&(hoverAnimating||bend>0),
+    getProjectedCards:(progress,deformation=0)=>layout?projectCards(progress,entranceOffset(progress),clamp(deformation)).map(({index,minX,maxX,minY,maxY,angle,worldY,worldZ,facing,front,visible,vertices,foregroundScale})=>({index,minX,maxX,minY,maxY,angle,worldY,worldZ,facing,front,visible,vertices,foregroundScale})):[],
     getProjects:()=>projects.map(project=>({...project,tags:[...project.tags]})),getLayout:()=>layout?{...layout}:null});
 })();
