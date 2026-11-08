@@ -386,11 +386,10 @@
     const closing=window.InspirationClosing?.update(localDistance-flip.leadIn-height*chapterUnits,
       {rawDistance:(held?.owned?raw:raw+scrollAdjustment)-flip.leadIn-height*chapterUnits,
         now,restore:restoreStages,reducedMotion});
+    result.animating=result.animating||Boolean(closing?.animating);
     result.blockSmooth=result.blockSmooth||Boolean(closing?.locked);
-    if(closing?.scrollAdjustment){
-      result.scrollAdjustment+=closing.scrollAdjustment;
-      if(Number.isFinite(closing.settleDistance))result.settleLocalDistance=height*chapterUnits+closing.settleDistance;
-    }
+    if(closing?.scrollAdjustment)result.scrollAdjustment+=closing.scrollAdjustment;
+    if(Number.isFinite(closing?.settleDistance))result.settleLocalDistance=flip.leadIn+height*chapterUnits+closing.settleDistance;
     return result;
   }
 

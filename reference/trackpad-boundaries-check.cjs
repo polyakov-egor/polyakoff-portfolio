@@ -60,13 +60,20 @@ async function returned(width=1920,height=960,{newBurstDuringReturn=false}={}){
     near(f.page.window.scrollY,before,'The old burst never enters the title roll');
     const events=burst(f.wheel,direction);
     assert(events[0].prevented,'A single rising sample is still quarantined');
-    assert(events.some(event=>!event.prevented),'Two confirmed rising samples release the visible checkpoint before220ms');
-    f.page.frames();
-    assert.equal(f.root.dataset.locked,'false');
     if(direction>0){
-      assert(Number(f.root.dataset.morphProgress)>0,'Forward acceleration enters the separate title roll');
+      assert(events.every(event=>event.prevented),'Forward acceleration is consumed by the separate title roll');
+      f.page.frame(100);
+      assert(Number(f.root.dataset.morphProgress)>0,'Two confirmed rising samples start the title roll before 220ms');
+      f.page.frames();
+      assert.equal(f.root.dataset.morphProgress,'1.00000');
+      assert.equal(f.root.dataset.locked,'true','The creation title retains its own settled checkpoint');
       assert(!f.page.hero.classList.contains('is-works'),'The first renewed burst cannot skip directly into Works');
-    }else assert(local(f)<height*3-8,'A deliberate reversed burst traverses the merge backward');
+    }else{
+      assert(events.some(event=>!event.prevented),'A deliberate reverse releases native scroll');
+      f.page.frames();
+      assert.equal(f.root.dataset.locked,'false');
+      assert(local(f)<height*3-8,'A deliberate reversed burst traverses the merge backward');
+    }
   }
 
   // New intent is directional: tiny opposite samples cannot borrow the
@@ -77,7 +84,9 @@ async function returned(width=1920,height=960,{newBurstDuringReturn=false}={}){
     assert(f.wheel(-.1,16).prevented);
     assert(f.wheel(8,16).prevented);
     assert(f.wheel(8,16).prevented);
-    assert(!f.wheel(8,16).prevented,'A clean24px of confirmed intent eventually releases');
+    assert(f.wheel(8,16).prevented,'A clean 24px of confirmed intent starts the roll without native scrolling');
+    f.page.frame(100);
+    assert(Number(f.root.dataset.morphProgress)>0);
   }
 
   // About and Inspiration are separate consumers. A newly recognized gesture

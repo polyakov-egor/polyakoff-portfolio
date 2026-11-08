@@ -5,7 +5,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const {fixture}=require('./inspiration-closing-check.cjs');
+const {fixture,advance}=require('./inspiration-closing-check.cjs');
 const {turn,near}=require('./scroll-check.cjs');
 const source=fs.readFileSync(path.join(__dirname,'../services-scroll.js'),'utf8');
 const serviceStyle=fs.readFileSync(path.join(__dirname,'../services-scroll.css'),'utf8');
@@ -26,10 +26,10 @@ async function pageWithServices(width,height,naturalHeight,naturalFooterHeight=0
   deck.className='services__deck';deck.setAttribute('data-services-deck','');
   header.append(heading);root.append(header,deck);
   const headingTop=width<600?191:width<1024?150:width<1680?120:220;
-  const headingHeight=width<600?64:width<1680?96:128;
+  const headingHeight=Math.min(width<600?64:width<1680?96:128,height*.2);
   const headingCenter=headingTop+headingHeight/2;
-  const deckTop=headingTop+headingHeight+(width<600?80:width<1680?90:140);
-  const deckHeight=width<600?310:width<1680?400:420;
+  const deckTop=headingTop+headingHeight+Math.min(width<600?80:width<1680?90:140,height*.12);
+  const deckHeight=Math.min(width<600?310:width<1680?400:420,height*.43);
   let sectionHeight=naturalHeight,footerHeight=naturalFooterHeight,reads=0;
   function geometry(node,property,value){
     Object.defineProperty(node,property,{get(){assert(f.read.allowed,'Only layout may read Services geometry');reads++;return value();}});
@@ -51,7 +51,7 @@ async function pageWithServices(width,height,naturalHeight,naturalFooterHeight=0
   }
   const visible=[];page.window.ServicesScreens={get:element=>element===root?{setVisible:value=>visible.push(value)}:null};
   vm.runInContext(source,page.context,{filename:'services-scroll.js'});page.frames();
-  return {...f,services:root,deck,deckTop,headingCenter,footer,backdrop,background,main,visible,get reads(){return reads;},
+  return {...f,services:root,deck,deckTop,deckHeight,headingCenter,footer,backdrop,background,main,visible,get reads(){return reads;},
     setHeight:value=>sectionHeight=value,setFooterHeight:value=>footerHeight=value};
 }
 function jump(f,distance){
@@ -59,18 +59,25 @@ function jump(f,distance){
   f.page.window.dispatchEvent({type:'pageshow',persisted:true});f.page.scroll(distance);f.page.frames();
   f.read.allowed=false;f.page.layout(false);
 }
+function send(f,type,properties={}){
+  const event={type,target:{closest:()=>null},preventDefault(){this.defaultPrevented=true;},defaultPrevented:false,...properties};
+  f.page.window.dispatchEvent(event);
+  return event;
+}
 
 (async()=>{
   const introLayer=Number(/\.hero > \.services\.services-is-intro\s*\{[^}]*z-index:\s*(\d+)/.exec(serviceStyle)?.[1]);
   const worksLayer=Number(/\.hero > \.works-viewport\.works-is-enhanced\s*\{[^}]*z-index:\s*(\d+)/.exec(worksStyle)?.[1]);
   assert(introLayer<worksLayer,'The incoming Services title is painted below the last Works card');
-  for(const [width,height,sectionHeight]of[[375,812,1230],[768,1024,1300],[1440,800,1172],[1920,960,1390],[2560,1305,1460]]){
-    const f=await pageWithServices(width,height,sectionHeight),{page,services,deck,deckTop,headingCenter}=f;
+  for(const [width,height,sectionHeight]of[[375,812,1230],[768,1024,1300],[1280,560,1172],[1440,800,1172],[1920,960,1390],[2560,1305,1460]]){
+    const f=await pageWithServices(width,height,sectionHeight),{page,services,deck,deckTop,deckHeight,headingCenter}=f;
     const worksStart=Number(page.hero.dataset.worksStart),worksTravel=Number(f.journey.dataset.totalTravel);
     const start=Number(page.hero.dataset.servicesStart),intro=introLead(width,height),clear=start+intro;
     const fade=height*.55;
     const centeredY=height/2-headingCenter,readingTravel=sectionHeight+centeredY-height;
+    const openingTravel=Number(services.dataset.servicesOpeningTravel);
     const opacity=()=>styleNumber(services,'--services-heading-opacity');
+    const reveal=()=>styleNumber(services,'--services-reveal-progress');
     const deckY=()=>y(services)+deckTop+styleNumber(services,'--services-deck-entry-y');
     near(Number(services.dataset.servicesIntroTravel),intro,'The title has a responsive lead under the final Works cards');
     roundedNear(clear,worksStart+worksTravel,'Services begins moving as the last card clears');
@@ -85,6 +92,7 @@ function jump(f,distance){
       page.scroll(start+fade*fraction);page.frames();
       near(y(services)+headingCenter,height/2,'The fading heading stays at the viewport center');
       assert(opacity()>previousOpacity,'The centered title becomes progressively visible');
+      near(reveal(),0,'Pagination and glow remain hidden throughout the Works overlap');
       previousOpacity=opacity();
       assert(services.classList.contains('services-is-intro'));
       assert(!services.inert);
@@ -101,28 +109,65 @@ function jump(f,distance){
     const cards=page.window.WorksGallery.getProjectedCardBounds(progress);
     assert(cards.some(card=>card.maxX>0&&card.minX<width&&card.maxY>0&&card.minY<height),
       'An actual Works card is still on screen when the title reaches full opacity');
-    page.scroll(clear+1);page.frames();
-    roundedNear(y(services),centeredY-1,'The heading begins to move immediately after the final card');
-    near(opacity(),1,'The title stays fully visible as native scrolling continues');
+    jump(f,clear-35);
+    assert(!f.wheel(180,500).prevented,'The gesture that clears Works remains native up to the heading stop');
+    page.frame();
+    for(let i=0;i<15&&services.dataset.servicesStage!=='center';i++){f.wheel(8,16);page.frame(0);}
+    assert.equal(services.dataset.servicesStage,'center','The last work leaves a settled center title');
+    assert(f.wheel(5,16).prevented,'The old gesture cannot launch the deck');
+    page.frames();
+    roundedNear(y(services),centeredY,'The heading stays centered after the final card');
+    near(opacity(),1,'The title stays fully visible');
+    near(reveal(),0,'The settled title has no glow or pagination');
     assert(!services.classList.contains('services-is-intro'));
     assert(deck.inert&&deckY()>height,'The deck does not pop into the viewport at the boundary');
     assert(f.viewport.inert&&page.hero.classList.contains('is-services-covered'),'Works cannot intercept input after the final card');
-    page.scroll(clear+height*.14);page.frames();
-    assert(!deck.inert&&deckY()<height,'The same scroll brings the deck up from below');
+
+    assert(f.wheel(120,500).prevented,'One fresh gesture starts timed entry');
+    page.frame(0);advance(page,350);
+    assert.equal(services.dataset.servicesStage,'opening');
+    assert(y(services)<centeredY&&y(services)>centeredY-openingTravel,'The shared clock moves both parts of Services');
+    assert(reveal()>0&&reveal()<1&&deck.inert,'Pagination and glow follow the timed entry while card input waits');
+    roundedNear(page.window.scrollY-120,clear,'Native distance cannot scrub the timed entry');
+    page.scroll(clear+openingTravel*2);page.frame(0);
+    roundedNear(page.window.scrollY-120,clear,'A delayed native momentum tick is rebased');
+    advance(page,325);
+    assert(f.wheel(44,16).prevented,'An additional gesture during the animation is consumed');
+    advance(page,40);
+    assert(f.wheel(12,16).prevented,'The opening gesture tail cannot continue past the composed frame');
+    page.frames();
+    assert.equal(services.dataset.servicesStage,'open');
+    near(reveal(),1,'Pagination and glow are visible at the complete frame');
+    assert(!deck.inert&&deckY()+deckHeight<=height-50,'The entire active card fits above the footer at the first stop');
+    roundedNear(y(services),centeredY-openingTravel,'The deck and header settle to the actual native pose');
+    roundedNear(page.window.scrollY-120,clear+openingTravel,'The first step has exactly one native landing');
     assert.equal(f.visible.at(-1),true,'The visible deck wakes its carousel');
+
+    const cardTarget={closest:selector=>selector.includes('button')?deck:null};
+    assert(f.wheel(-120,500,{target:cardTarget}).prevented,'Reverse can begin over the card button');
+    page.frame(0);advance(page,760);page.frames();
+    assert.equal(services.dataset.servicesStage,'center');
+    near(reveal(),0,'Reverse fully restores the plain heading');
+    assert(!f.wheel(-80,500).prevented,'The next reverse gesture returns to Works');
+    page.frames();
+    assert(!f.viewport.inert&&services.classList.contains('services-is-intro'));
+
+    jump(f,clear+openingTravel);
+    assert.equal(services.dataset.servicesStage,'open','History can restore the composed frame');
+    assert(!f.wheel(55,500).prevented,'A fresh scroll after the composed frame continues natively');
+    page.frames();
+    roundedNear(y(services),centeredY-openingTravel-55,'Native continuation starts at the same pose');
     const reads=f.reads;
     for(const fraction of[.25,.5,.75,1]){
-      const after=readingTravel*fraction;page.scroll(clear+after);page.frames();
+      const after=openingTravel+(readingTravel-openingTravel)*fraction;page.scroll(clear+after);page.frames();
       roundedNear(y(services),centeredY-after,'Reading the complete panel remains native');
       assert(!services.inert);
     }
     near(y(services)+sectionHeight,height,'The final approach text can reach the viewport bottom');
     assert.equal(f.reads,reads,'No natural-height measurement happens during scrolling');
-    for(const local of[intro+height*.14,intro+1,intro*.5,fade*.5,-1]){
-      page.scroll(start+local);page.frames();
-      roundedNear(y(services),centeredY-Math.max(0,local-intro),'Reverse traversal restores the same entry poses');
-      if(local===fade*.5)near(opacity(),.5,'Reverse scrolling restores the partial title fade');
-    }
+    jump(f,start+fade*.5);
+    near(opacity(),.5,'History restoration keeps the earlier Works overlap reversible');
+    jump(f,start-1);
     assert(services.inert);assert.equal(f.viewport.inert,false);
     assert.equal(f.visible.at(-1),false,'Leaving the chapter pauses its carousel RAF/input');
 
@@ -146,6 +191,29 @@ function jump(f,distance){
     assert.equal(services.parentElement,page.hero,'Re-enabling motion returns to the shared stable viewport');
     jump(f,Number(page.hero.dataset.servicesStart)+intro*.5);
     assert.equal(f.viewport.inert,false,'The shared Works viewport becomes interactive on reverse/partial re-entry');
+
+    if(width<600){
+      const currentClear=Number(page.hero.dataset.servicesStart)+intro;
+      jump(f,currentClear+openingTravel*.1);
+      assert.equal(services.dataset.servicesStage,'center','History inside the animation restores a complete stop');
+      send(f,'touchstart',{touches:[{clientX:100,clientY:200}]});
+      assert(send(f,'touchmove',{touches:[{clientX:100,clientY:175}]}).defaultPrevented,'A vertical touch starts timed entry');
+      page.frame(0);advance(page,750);page.frames();
+      assert.equal(services.dataset.servicesStage,'open');
+      assert(send(f,'touchmove',{touches:[{clientX:100,clientY:160}]}).defaultPrevented,'The original finger cannot scroll past its landing');
+      send(f,'touchend',{touches:[]});
+      send(f,'touchstart',{touches:[{clientX:100,clientY:200}]});
+      assert(!send(f,'touchmove',{touches:[{clientX:100,clientY:196}]}).defaultPrevented,'The first move of a fresh native exit swipe is never cancelled');
+      send(f,'touchend',{touches:[]});
+    }else if(width===1920){
+      const currentClear=Number(page.hero.dataset.servicesStart)+intro;
+      jump(f,currentClear);
+      assert(send(f,'keydown',{key:'PageDown'}).defaultPrevented,'PageDown triggers a complete deck entry');
+      page.frame(0);advance(page,100);
+      assert(!send(f,'keydown',{key:'End'}).defaultPrevented,'End can bypass a running Services hold');
+      page.scroll(currentClear+nextReading);page.frames();
+      assert.equal(services.dataset.servicesStage,'native','An old animation cannot recapture End');
+    }
   }
   for(const [width,height,sectionHeight,footerHeight]of[[375,812,1230,812],[768,1024,1300,1100],[1920,960,1390,960]]){
     const f=await pageWithServices(width,height,sectionHeight,footerHeight),{page,services,footer,backdrop,background}=f;
@@ -199,5 +267,5 @@ function jump(f,distance){
     assert(!footer.classList.contains('site-footer-is-shared'));
     near(Number(services.dataset.servicesTravel),0,'The normal-flow footer is not included in the reduced-motion pinned budget');
   }
-  console.log('Services and footer handoff checks passed: centered title under Works, continuous deck entry, reverse poses, shared chrome, hidden input/RAF gate, cached geometry, reflow anchors and reduced-motion order.');
+  console.log('Services and footer handoff checks passed: plain center title under Works, one-gesture timed deck entry, responsive full-card landing, native continuation, reverse and restored poses, cached geometry and reduced-motion flow.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

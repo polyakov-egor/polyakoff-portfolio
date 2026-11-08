@@ -43,8 +43,16 @@ function element() {
     assert(Number(hero.style['--about-reveal-footer-progress']) > Number(hero.style['--about-clock-progress']), 'The light field reaches the bottom controls first');
     update(.8, 'gradient'); update(.5, 'gradient'); assert.equal(light.style.maskImage, gradientMask, 'Reverse restores the same gradient');
     update(.5, 'gradient', 1.5); assert.notEqual(light.style.maskImage, gradientMask, 'Softness widens the plain gradient');
+    update(.5, 'gradient', .7);
+    const gradientSpan = mask => {
+      const stops = [...mask.matchAll(/(-?\d+\.\d+)px/g)].map(match => Number(match[1]));
+      return stops[1] - stops[0];
+    };
+    const lightSpan = gradientSpan(light.style.maskImage);
     update(1, 'gradient', .7, false, .5);
     assert(hero.style['--works-black-mask'].startsWith('linear-gradient(to bottom'));
+    const blackSpan = gradientSpan(hero.style['--works-black-mask']);
+    assert(blackSpan > 0 && blackSpan < lightSpan, 'The heading transition has a firmer edge than About');
     assert.equal(hero.style['--works-black-opacity'], '1');
     assert.equal(backdrop.style['--works-black-opacity'], '1', 'The shared fixed backdrop paints the black return');
     assert.equal(backdrop.style['--works-black-mask'], hero.style['--works-black-mask'], 'Chrome and the one background use exactly the same field');

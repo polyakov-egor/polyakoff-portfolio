@@ -100,7 +100,7 @@
     svg.style.visibility = useEdge ? 'visible' : 'hidden';
     light.style.opacity = String(p === 0 ? 0 : 1);
     const plainLight = gradientField(p, height, feather);
-    const plainBlack = gradientField(black, height, feather);
+    const plainBlack = gradientField(black, height, feather * .72);
     light.style.maskImage = p === 0 || p === 1 || reducedMotion ? 'none' : plain ? plainLight.mask : 'url(#about-exposure-mask)';
     light.style.webkitMaskImage = light.style.maskImage;
     if (reducedMotion) light.style.opacity = String(p);

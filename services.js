@@ -538,15 +538,16 @@ function mountServices(root) {
     if (!width || !height) return;
     const style = getComputedStyle(root);
     const number = name => Number.parseFloat(style.getPropertyValue(name));
+    const fit = Math.min(1, height / (number('--services-card-height') || height));
     geometry = createOrbitGeometry({
       width, height,
-      sideWidth: number('--services-side-width'), sideHeight: number('--services-side-height'),
-      sideOffset: number('--services-side-offset'), sideTop: number('--services-side-top'),
+      sideWidth: number('--services-side-width') * fit, sideHeight: number('--services-side-height') * fit,
+      sideOffset: number('--services-side-offset') * fit, sideTop: number('--services-side-top') * fit,
     });
     deck.style.perspective = `${geometry.perspective}px`;
     for (const surface of surfaces) {
       if (!view.HeroSquircle?.path) continue;
-      const radius = number('--services-radius') || 48;
+      const radius = (number('--services-radius') || 48) * fit;
       surface.style.clipPath = `path("${view.HeroSquircle.path(geometry.width, geometry.height, radius, 1)}")`;
     }
     paintOrbit(true);

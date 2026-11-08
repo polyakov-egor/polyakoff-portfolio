@@ -11,12 +11,51 @@
   transform: translate3d(0, var(--services-scroll-y, 100svh), 0);
 }
 .hero > .services.services-is-shared.services-is-visible { visibility: visible; }
-/* The heading is uncovered by the last Works plane. The deck then rises
-   into its normal layout while the same scroll carries the title upwards. */
+/* The last Works plane uncovers only the heading. A fresh scroll opens the
+   full panel and sets the native continuation at the same coordinates. */
 .hero > .services.services-is-intro { z-index: 6; pointer-events: none; }
+.services-is-shared {
+  --services-fit-deck-gap: 140px;
+  --services-fit-counter-gap: 60px;
+  --services-fit-deck-width: 49.25svh;
+  --services-fit-card-width: 36.85svh;
+}
 .services-is-shared .services__header { opacity: var(--services-heading-opacity, 0); }
+.services-is-shared .services__counter { opacity: var(--services-reveal-progress, 0); }
+.services-is-shared .services__heading {
+  font-size: min(var(--services-heading-size), 10svh);
+  margin-top: min(var(--services-fit-counter-gap), 7svh) !important;
+}
+.services-is-shared .services__word[data-active="true"]::before,
+.services-is-shared .services__word[data-active="true"]::after { opacity: var(--services-reveal-progress, 0); }
+.services-is-shared:is(.services-is-intro, [data-services-stage="center"], [data-services-stage="opening"], [data-services-stage="closing"]) .services__word::before,
+.services-is-shared:is(.services-is-intro, [data-services-stage="center"], [data-services-stage="opening"], [data-services-stage="closing"]) .services__word::after { transition: none; }
+.services-is-shared .services__deck {
+  width: min(calc(2 * var(--services-side-offset) + var(--services-side-width)), var(--services-fit-deck-width));
+  height: min(var(--services-card-height), 43svh);
+  margin-top: min(var(--services-fit-deck-gap), 12svh);
+}
+.services-is-shared .services-card {
+  width: min(var(--services-card-width), var(--services-fit-card-width));
+  height: min(var(--services-card-height), 43svh);
+}
 .services-is-shared :is(.services__deck, .services__approach) { translate: 0 var(--services-deck-entry-y, 0px); }
 .services-is-intro :is(.services__deck, .services__approach) { visibility: hidden; }
+@media (min-width: 600px) and (max-width: 1679px) {
+  .services-is-shared {
+    --services-fit-deck-gap: 90px;
+    --services-fit-counter-gap: 48px;
+    --services-fit-card-width: 35.475svh;
+  }
+}
+@media (max-width: 599px) {
+  .services-is-shared {
+    --services-fit-deck-gap: 80px;
+    --services-fit-counter-gap: 40px;
+    --services-fit-deck-width: 43.55svh;
+    --services-fit-card-width: 34.677svh;
+  }
+}
 .hero.is-services > .hero__datetime,
 .hero.is-services > .hero__footer,
 .hero.is-services > .hero__about-logo { z-index: 1000; visibility: visible; }

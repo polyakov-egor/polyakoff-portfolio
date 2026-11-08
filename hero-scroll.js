@@ -352,33 +352,40 @@
     if (releasedScene) lastHeroPaint = null;
     if(chapter && chapter.travel!==inspirationTravel){inspirationTravel=chapter.travel;writeJourneyBudget();}
     const worksStart=inspirationStart+inspirationTravel;
-    const settledDistance=Number.isFinite(chapter?.settleLocalDistance)?inspirationStart+chapter.settleLocalDistance:null;
+    const inspirationAnchor=Number.isFinite(chapter?.settleLocalDistance)?inspirationStart+chapter.settleLocalDistance:null;
+    const inspirationCorrection=chapter?.scrollAdjustment||0;
+    const services=window.ServicesScrollChapter?.update((inspirationAnchor??(distance+inspirationCorrection))-servicesStart,{
+      requestedLocalDistance:(inspirationAnchor??(requestedDistance+inspirationCorrection))-servicesStart,
+      reducedMotion:reducedMotion.matches,now
+    });
+    const settledDistance=Number.isFinite(services?.settleLocalDistance)?servicesStart+services.settleLocalDistance:inspirationAnchor;
+    const scrollAdjustment=inspirationCorrection+(services?.scrollAdjustment||0);
+    const animating=chapter?.animating||services?.animating;
     // A timed flip or a category/headline checkpoint owns this gesture. Even
     // an already exact anchor must discard a retained destination beyond it.
-    if (chapter?.animating || chapter?.blockSmooth || settledDistance !== null || chapter?.scrollAdjustment) window.SiteSmoothScroll?.cancel?.();
-    const sceneDistance=settledDistance??(distance+(chapter?.scrollAdjustment||0));
+    if (animating || chapter?.blockSmooth || services?.blockSmooth || settledDistance !== null || scrollAdjustment) window.SiteSmoothScroll?.cancel?.();
+    const sceneDistance=settledDistance??(distance+scrollAdjustment);
     window.WorksScrollChapter?.update(sceneDistance-worksStart,{reducedMotion:reducedMotion.matches,now});
-    window.ServicesScrollChapter?.update(sceneDistance-servicesStart,{reducedMotion:reducedMotion.matches});
     const worksBlack=sceneDistance>=worksStart&&!reducedMotion.matches?1:window.InspirationClosing?.getBlackProgress?.()??0;
     hero.style.setProperty('--works-black-progress',String(worksBlack));
     window.HeroAboutReveal?.update({ progress: lightProgress, width: base.width, height: base.height,
       mode: settings.aboutRevealMode, feather: settings.aboutFillFeather, reducedMotion: reducedMotion.matches, blackProgress:worksBlack });
     let nativeCorrectionAccepted = false;
-    if(chapter?.scrollAdjustment){
-      nativeCorrectionAccepted = moveNative(storyTop + requestedDistance + chapter.scrollAdjustment);
+    if(scrollAdjustment){
+      nativeCorrectionAccepted = moveNative(storyTop + requestedDistance + scrollAdjustment);
     }
     if(settledDistance!==null)displayedDistance=Math.max(0,settledDistance);
-    else if(chapter?.scrollAdjustment)displayedDistance=Math.max(0,displayedDistance+chapter.scrollAdjustment);
+    else if(scrollAdjustment)displayedDistance=Math.max(0,displayedDistance+scrollAdjustment);
     // The chapter already rendered its exact held pose. A verified physical
     // landing (or zero correction) is settled too, even at fractional pixels.
-    if(settledDistance!==null&&!chapter?.animating&&(nativeCorrectionAccepted||!chapter?.scrollAdjustment)) {
+    if(settledDistance!==null&&!animating&&(nativeCorrectionAccepted||!scrollAdjustment)) {
       displayedDistance=Math.max(0,window.scrollY-storyTop);
     }
     hero.dataset.inspirationStart = inspirationStart.toFixed(3);
     // Chapter anchor corrections happen after the outer hero/theme was painted.
     // Paint that corrected pose once before sleeping, even if native scroll
     // already equals the newly settled visual distance.
-    if (releasedScene || displayedDistance !== requestedDistance || Math.abs(distance - displayedDistance) > .25 || chapter?.animating || (chapter?.scrollAdjustment && !nativeCorrectionAccepted) || window.WorksGallery?.isAnimating?.() || window.SiteSmoothScroll?.isAnimating?.()) schedule();
+    if (releasedScene || displayedDistance !== requestedDistance || Math.abs(distance - displayedDistance) > .25 || animating || (scrollAdjustment && !nativeCorrectionAccepted) || window.WorksGallery?.isAnimating?.() || window.SiteSmoothScroll?.isAnimating?.()) schedule();
     else lastTime = 0;
   }
 
@@ -420,11 +427,16 @@
   });
   hero.addEventListener('hero:layout', event => measure(event.detail));
   window.addEventListener('scroll', schedule, { passive: true });
-  window.addEventListener('pageshow', () => {window.InspirationChapter?.restore?.();measure();});
+  window.addEventListener('pageshow', () => {
+    window.InspirationChapter?.restore?.();
+    window.ServicesScrollChapter?.restore?.();
+    measure();
+  });
   window.addEventListener('inspiration:ready', schedule);
   window.addEventListener('works:ready', () => measure());
   window.addEventListener('works:interaction', schedule);
   window.addEventListener('services:ready', () => measure());
+  window.addEventListener('services:motion', schedule);
   window.addEventListener('chapter-assets:ready', schedule);
   reducedMotion.addEventListener('change', schedule);
   if (document.fonts?.ready) document.fonts.ready.then(() => measure());
