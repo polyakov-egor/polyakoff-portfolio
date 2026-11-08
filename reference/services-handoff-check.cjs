@@ -239,6 +239,7 @@ function send(f,type,properties={}){
     const cardOffset=()=>styleNumber(footer,'--site-footer-card-offset');
     const cardOpacity=()=>styleNumber(footer,'--site-footer-card-opacity');
     const cardY=()=>footerY(footer)+footerHeight*.7+cardShift();
+    const cardRestY=height-footerHeight*.3;
     const wordmarkOpacity=()=>styleNumber(footer,'--site-footer-wordmark-opacity');
     const wordmarkFilter=()=>footer.style.getPropertyValue('--site-footer-wordmark-filter');
     const start=Number(page.hero.dataset.servicesStart),intro=introLead(width,height);
@@ -254,7 +255,7 @@ function send(f,type,properties={}){
 
     jump(f,footerStart-1);
     near(footerY(footer),height,'The footer waits just below Services');
-    near(cardY(),height+40,'The card starts with an extra 40 px lift below the viewport');
+    roundedNear(cardY(),cardRestY,'The hidden card is already at its settled height');
     near(cardOffset(),1,'The card starts at the full tilt and scale offset');
     near(cardOpacity(),0,'The card starts transparent');
     near(reveal(),0,'The fixed footer art is hidden during Services');
@@ -269,15 +270,16 @@ function send(f,type,properties={}){
     page.scroll(footerStart+cardStart-.01*footerHeight);page.frames();
     assert(wordmarkOpacity()>.2,'The wordmark is already visible before the card enters');
     near(cardOpacity(),0,'The card waits for the intro and wordmark');
-    near(cardY(),height+40,'The card waits below the viewport during the lead-in');
+    roundedNear(cardY(),cardRestY,'The card waits at its settled height during the lead-in');
     page.scroll(cardEntry);page.frames();
     const entryPose=[cardShift(),cardOffset(),cardOpacity()];
-    assert(cardY()<height&&cardOffset()>.5,'The card is visible while it still has more than half of the starting tilt');
+    roundedNear(cardY(),cardRestY,'The card reveals from inside the viewport at its final height');
+    assert(cardOpacity()>0&&cardOffset()>.5,'The card is visible while it still has more than half of the starting tilt');
     roundedNear(cardOffset(),.88**5,'Card tilt and scale follow the form entrance easing');
     roundedNear(cardOpacity(),1-(1-.12/.45)**5,'Card opacity finishes faster than the tilt');
     page.scroll(footerStart+footerHeight*.8);page.frames();
     const wordmarkPose=[wordmarkOpacity(),wordmarkFilter()];
-    assert(cardY()<height&&cardY()>height-footerHeight*.3,'The card slides toward its final position');
+    roundedNear(cardY(),cardRestY,'The card stays at its final height as the footer moves');
     near(wordmarkOpacity(),.5,'The wordmark fades in as it comes into view');
     assert.match(wordmarkFilter(),/^blur\([\d.]+px\)$/,'The incoming wordmark is blurred');
     page.scroll(footerStart+footerHeight*.93);page.frames();

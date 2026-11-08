@@ -107,10 +107,10 @@
     // Read only during layout, never during the shared scroll clock.
     const sectionHeight=measureHeight(root,viewportHeight);
     const footerHeight=measureHeight(footer,viewportHeight);
-    const footerCardTop=footerCard?.offsetTop||0;
+    const footerCardInset=footerHeight-(footerCard?.offsetTop||0);
     const footerWordmarkTop=footerWordmark?.offsetTop||0;
     const footerIntroBottom=(footerIntro?.offsetTop||0)+(footerIntro?.offsetHeight||0);
-    const footerCardStart=Math.min(footerHeight-1,Math.max(footerIntroBottom,
+    const footerCardStart=Math.min(footerHeight-1,Math.max(footerIntroBottom,footerCardInset,
       footerWordmarkTop+.33*(footerHeight-footerWordmarkTop)));
     const footerWordmarkBlur=clamp(width*.03,24,42);
     const totalHeight=sectionHeight+footerHeight;
@@ -129,7 +129,7 @@
     const travel=enhanced?totalHeight+centeredY-viewportHeight:0;
     layout={height:viewportHeight,sectionHeight,footerHeight,totalHeight,start,centeredY,
       deckTop,deckHeight,deckEntryY,introTravel,openingTravel,travel,
-      footerCardTop,footerCardStart,footerWordmarkTop,footerWordmarkBlur};
+      footerCardStart,footerWordmarkTop,footerWordmarkBlur};
     if(!stage&&!motion&&oldLayout?.height!==viewportHeight)lastDistance=null;
     let rebaseDistance=null;
     if(enhanced&&oldLayout&&Number.isFinite(oldLocal)&&oldLocal>=0&&oldLocal<=oldLayout.introTravel+oldLayout.travel+.5){
@@ -297,9 +297,8 @@
         // The form entrance uses quintic ease-out and completes the fade before the motion.
         const cardOffset=(1-cardPhase)**5;
         const cardOpacity=1-(1-clamp(cardPhase/.45,0,1))**5;
-        const cardRestInset=layout.footerHeight-layout.footerCardTop;
-        const cardTop=Math.max(top,layout.height-cardRestInset*(1-cardOffset))+40*cardOffset;
-        const cardShift=cardTop-top-layout.footerCardTop;
+        // Counter the footer's translation so the card reveals at its settled viewport position.
+        const cardShift=entered-layout.footerHeight;
         const wordmarkProgress=smooth(clamp((entered-layout.footerWordmarkTop)/Math.max(1,layout.footerHeight-layout.footerWordmarkTop),0,1));
         const wordmarkBlur=layout.footerWordmarkBlur*(1-wordmarkProgress);
         footer.style.setProperty('--site-footer-card-shift',`${cardShift.toFixed(3)}px`);

@@ -10,7 +10,7 @@
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const clamp = value => Math.max(0, Math.min(1, value));
   let travel = 0, galleryTravel = 0, exitTravel = 0, emptyHold = 0;
-  let height = 1, start = 0, previous = null, previousTime = 0, entranceOffset = 0, holdDistance = 0;
+  let height = 1, start = 0, entranceOffset = 0, holdDistance = 0;
   let clearProgress = 1.15, phasePerViewport = .14;
   let headingAscent=[];
   let enhanced = false;
@@ -134,7 +134,6 @@
     journey.dataset.galleryTravel=galleryTravel.toFixed(3);
     journey.dataset.clearProgress=clearProgress.toFixed(6);
     journey.dataset.phasePerViewport=phasePerViewport.toFixed(6);
-    previous = null; previousTime = 0;
     // Keep the static accessibility grid independent of the pinned timeline.
     if (reduced.matches) {
       window.WorksGallery.setVisible?.(true);
@@ -169,12 +168,9 @@
     viewport.setAttribute('aria-hidden', String(!galleryVisible));
     const inspiration=hero.querySelector('.inspiration');
     if(inspiration)inspiration.setAttribute('aria-hidden',String(exit>=height||inspiration.hidden));
-    const elapsed = previousTime && now ? Math.max(1, Math.min(64, now - previousTime)) : 16.67;
-    const velocity = previous === null || !active ? 0 : (progress - previous) * 1000 / elapsed;
-    if (galleryVisible) window.WorksGallery.update(helix, { reducedMotion: false, scrollVelocity: velocity, now });
+    if (galleryVisible) window.WorksGallery.update(helix, { reducedMotion: false, now });
     const headingProgress=headingOffset(Math.max(0,localDistance));
     window.InspirationClosing?.updateWorks(localDistance,{holdDistance,height,headingProgress,reducedMotion:false});
-    previous = progress; previousTime = now;
     journey.dataset.scrollProgress = progress.toFixed(5);
     journey.dataset.scrollTarget = progress.toFixed(5);
     journey.dataset.helixProgress = helix.toFixed(5);
@@ -187,7 +183,7 @@
   }
 
   // A triggered entrance can consume a gesture while it finishes. Its owner
-  // rebases only this boundary; cached geometry and gallery velocity stay intact.
+  // rebases only this boundary; the cached geometry stays intact.
   function setStart(value) { if (Number.isFinite(value)) start = value; }
   window.WorksScrollChapter = Object.freeze({ measure, update, setStart });
   // The renderer may be prefetched while About is visible. Preparation can

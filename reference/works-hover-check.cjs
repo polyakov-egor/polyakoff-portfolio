@@ -74,7 +74,7 @@ assert(f.getDrawBrightness().some(value=>Math.abs(value-.6)<1e-6),'The hovered w
 assert.equal(f.getDrawBrightness().filter(value=>value<1).length,1,'Only the selected visible work changes brightness');
 assert.equal(f.list.children[front.index].dataset.hoverScale,'0.90000');
 for(let i=0;i<f.list.children.length;i++)if(i!==front.index)assert.equal(f.list.children[i].style.transform,idleTransforms[i],'Unselected card geometry is unchanged');
-assert(f.shaders.some(source=>source.includes('vec4(color.rgb*uBrightness,alpha)')),'Brightness does not lower alpha or reveal cards through each other');
+assert(f.shaders.some(source=>source.includes('vec4(color.rgb*uBrightness*alpha,alpha)')),'The antialiased edge is premultiplied without applying hover brightness to alpha');
 
 f.list.children[front.index].dispatch('pointerleave',{pointerType:'mouse'});
 assert.equal(f.pill.getAttribute('aria-hidden'),'true','Leaving the card starts hiding immediately, without a hover grace timer');
@@ -176,24 +176,11 @@ assert.equal(f.getDrawBrightness(),settledDraw,'An unchanged settled pose does n
 const motion=fixture();
 const maxDeviation=()=>Math.max(...motion.getDrawBends());
 motion.api.update(centralPhase,{now:1000});
-assert(maxDeviation()<1e-6,'Idle WebGL cards have straight projected edges');
-const reverse=[];
-for(const direction of [1,-1]){
-  const start=direction===1?1000:2000;
-  motion.api.update(centralPhase,{now:start});
-  motion.api.update(centralPhase,{now:start+16,scrollVelocity:direction*.4});
-  const first=maxDeviation();
-  assert(first>.001&&motion.api.isAnimating(),'Moving the scroll timeline bends the actual WebGL mesh on the shared clock');
-  motion.api.update(centralPhase,{now:start+32,scrollVelocity:direction*.4});
-  const peak=maxDeviation();
-  assert(peak>first,'The mesh eases into the motion');
-  motion.api.update(centralPhase,{now:start+48,scrollVelocity:0});
-  assert(maxDeviation()<peak&&maxDeviation()>.001,'The mesh starts flattening without a jump when scroll stops');
-  for(let now=start+64;now<=start+640;now+=16)motion.api.update(centralPhase,{now,scrollVelocity:0});
-  assert(maxDeviation()<1e-6&&!motion.api.isAnimating(),'Settling returns the same flat edges and sleeps the shared clock');
-  reverse.push(first);
-}
-assert(Math.abs(reverse[0]-reverse[1])<1e-6,'Both scroll directions use the same deformation strength');
+const idleBend=maxDeviation();
+assert(idleBend>.001&&!motion.api.isAnimating(),'Restored curvature is visible without keeping the clock awake');
+motion.api.update(centralPhase+.02,{now:1020});
+motion.api.update(centralPhase,{now:1040});
+assert(Math.abs(maxDeviation()-idleBend)<1e-6,'Forward and reverse give the same curved mesh at the same scroll position');
 for(const phase of [.13,.36,.62,.9,1.14]){
   const bounds=motion.api.getProjectedMotionBounds(phase);
   for(const amount of [0,.25,.7,1])for(const pose of motion.api.getProjectedCards(phase,amount)){
@@ -201,12 +188,11 @@ for(const phase of [.13,.36,.62,.9,1.14]){
     assert(pose.minX>=extent.minX-1e-7&&pose.minY>=extent.minY-1e-7&&pose.maxX<=extent.maxX+1e-7&&pose.maxY<=extent.maxY+1e-7,'Motion bounds keep all intermediate edges until the actual exit');
   }
 }
-motion.api.update(centralPhase,{now:3000,scrollVelocity:.4});
 motion.api.setVisible(false);
-assert(!motion.api.isAnimating(),'A hidden gallery cancels its bending state');
+assert(!motion.api.isAnimating(),'A hidden gallery sleeps');
 motion.api.setVisible(true);
 motion.api.update(centralPhase,{now:3100});
-assert(maxDeviation()<1e-6,'Returning without a new scroll does not restore stale curvature');
+assert(Math.abs(maxDeviation()-idleBend)<1e-6,'Returning restores the same curved surface');
 
 // Convex hull separation checks the real projected planes, rather than
 // bounding boxes whose corners can overlap even when the images are apart.
@@ -249,5 +235,5 @@ for(const[width,height]of[[375,812],[390,844],[414,896],[768,1024],[1267,713],[1
   }else assert.equal(layout.foregroundMaxScale,2,'Desktop and tablet retain the requested200% scale of the original');
   gapMetrics.push(`${width}x${height}: ${minimum.toFixed(1)}px (${pairs} pairs)`);
 }
-console.log('Works hover checks passed: planar idle edges, velocity-only bend and settlement, conservative motion bounds, open front-plane gaps, enlarged hit mesh, relative90%hover and selected-only40% dimming.');
+console.log('Works hover checks passed: stable curved surfaces, conservative exit bounds, open front-plane gaps, enlarged hit mesh, relative90%hover and selected-only40% dimming.');
 console.log('Minimum projected front/front gaps: '+gapMetrics.join('; '));

@@ -2,8 +2,8 @@
 .works-is-sleeping { visibility: hidden !important; pointer-events: none !important; }
 .works-is-sleeping .works-card.is-in-view { will-change: auto; }
 .works-cards { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 72px 36px; width: 100%; padding: 100px var(--page-inset, 24px); color: #1d1d1d; }
-.works-card { position: relative; min-width: 0; margin: 0; user-select: none; }
-.works-card__media { position: relative; width: 100%; aspect-ratio: 960 / 500; overflow: hidden; border-radius: 5%; transition: filter 300ms ease, transform 300ms ease; }
+.works-card { --works-card-radius: 2.604167% / 5%; position: relative; min-width: 0; margin: 0; user-select: none; }
+.works-card__media { position: relative; width: 100%; aspect-ratio: 960 / 500; overflow: hidden; border-radius: var(--works-card-radius); transition: filter 300ms ease, transform 300ms ease; }
 .works-card.is-hovered .works-card__media { filter: brightness(.6); }
 .works-is-static .works-card.is-hovered .works-card__media { transform: scale(.9); }
 .works-card__media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
@@ -16,7 +16,7 @@
 .works-is-enhanced .works-card:not(.is-front) .works-card__media img { filter: blur(28px); }
 .works-is-enhanced.works-has-canvas .works-card__media { opacity: 0; }
 .works-is-enhanced:not(.works-has-canvas) .works-card.is-front { pointer-events: auto; cursor: pointer; }
-.works-card:focus-visible { outline: 3px solid #1d1d1d; outline-offset: 10px; border-radius: 5%; }
+.works-card:focus-visible { outline: 3px solid #1d1d1d; outline-offset: 10px; border-radius: var(--works-card-radius); }
 .works-gallery-canvas { display: none; position: absolute; inset: 0; z-index: 700; width: 100%; height: 100%; pointer-events: auto; touch-action: pan-y; }
 .works-is-enhanced.works-has-canvas .works-gallery-canvas { display: block; }
 .works-gallery-canvas[hidden] { display: none; }

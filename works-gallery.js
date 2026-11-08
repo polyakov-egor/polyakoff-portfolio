@@ -1,4 +1,4 @@
-/* Tangent planes orbit a cylinder. Only scroll motion bends their surfaces. */
+/* Curved tangent planes orbit a cylinder. The scroll story owns all time. */
 (() => {
   'use strict';
   const viewport=document.querySelector('[data-works-gallery]'),list=viewport?.querySelector('[data-works-cards]');
@@ -13,6 +13,7 @@
   ]);
   const clamp=(value,min=0,max=1)=>Math.max(min,Math.min(max,value));
   const frontThreshold=.2,foregroundBoost=1,maxBow=.118;
+  const cardAspect=960/500,cornerRadius=.05;
   function foregroundScale(facing){
     const t=clamp((facing-frontThreshold)/(.85-frontThreshold));
     const boost=Math.min(foregroundBoost,(layout?.foregroundMaxScale??1+foregroundBoost)-1);
@@ -20,7 +21,7 @@
   }
   function fitForegroundScale(width,focal,planeWidth,planeHeight){
     // Size only the near arc to a phone's safe width; rear meshes keep their
-    // original dimensions. Allow space for the full bend during scroll.
+    // original dimensions. Allow space for the curved foreground mesh.
     const inset=16,halfWidth=width/2-inset;
     let lower=1,upper=1+foregroundBoost;
     for(let step=0;step<20;step++){
@@ -55,7 +56,7 @@
   button.append(arrow);pill.append(details,button);viewport.append(pill);
   const canvas=make('canvas','works-gallery-canvas');canvas.setAttribute('aria-hidden','true');viewport.append(canvas);
   let layout=null,lastProgress=0,lastReduced=false,poses=[],paintPoses=[],selected=null,pointer=null,touch=null,touchSelection=false,domTouchCard=null,lastTouchTime=-Infinity,leaveTimer=null,enterTimer=null,entrySerial=0,gpu=null,context2d=null;
-  let projectionDirty=true,rendererStarted=false,chapterVisible=true,bend=0,bendFrame=0;
+  let projectionDirty=true,rendererStarted=false,chapterVisible=true;
   const boundsCache=new Map();
   const hoverAmounts=new Float32Array(cards.length),hoverFrom=new Float32Array(cards.length);
   let hoverStart=null,hoverAnimating=false;
@@ -72,7 +73,6 @@
     if(leaveTimer)clearTimeout(leaveTimer);if(enterTimer)clearTimeout(enterTimer);
     leaveTimer=null;enterTimer=null;pointer=null;touch=null;domTouchCard=null;selected=null;touchSelection=false;
     hoverStart=null;hoverAnimating=false;hoverAmounts.fill(0);hoverFrom.fill(0);
-    bend=0;bendFrame=0;
     pill.classList.remove('is-visible','is-leaving','is-entering','is-entering-alt');pill.dataset.sequence='';
     pill.setAttribute('aria-hidden','true');button.setAttribute('tabindex','-1');canvas.classList.remove('is-project-hovered');canvas.hidden=true;
     viewport.dataset.hoveredSequence='';viewport.classList.add('works-is-sleeping');
@@ -106,7 +106,11 @@
         vec4 backColor(vec2 uv){vec2 o=vec2(.01171875)/uCrop.zw;vec4 c=texture2D(uImage,uv)*4.;
           c+=(texture2D(uImage,uv+vec2(o.x,0.))+texture2D(uImage,uv-vec2(o.x,0.))+texture2D(uImage,uv+vec2(0.,o.y))+texture2D(uImage,uv-vec2(0.,o.y)))*2.;
           c+=texture2D(uImage,uv+o)+texture2D(uImage,uv-o)+texture2D(uImage,uv+vec2(-o.x,o.y))+texture2D(uImage,uv+vec2(o.x,-o.y));return c/16.;}
-        void main(){vec2 d=abs(vUv-.5)-vec2(.45);float sdf=length(max(d,0.))-.05;float alpha=1.-smoothstep(-uEdge,uEdge,sdf);if(alpha<.005)discard;vec2 uv=(vUv+uCrop.xy)/uCrop.zw;vec4 sharp=texture2D(uImage,uv);vec4 color=gl_FrontFacing?sharp:mix(sharp,backColor(uv),uBackAmount);gl_FragColor=vec4(color.rgb*uBrightness,alpha);}`);
+        void main(){vec2 aspect=vec2(${cardAspect},1.);float radius=${cornerRadius};
+          vec2 d=abs(vUv-.5)*aspect-(.5*aspect-radius);
+          float sdf=length(max(d,0.))+min(max(d.x,d.y),0.)-radius;
+          float alpha=1.-smoothstep(-uEdge,uEdge,sdf);if(alpha<.005)discard;
+          vec2 uv=(vUv+uCrop.xy)/uCrop.zw;vec4 sharp=texture2D(uImage,uv);vec4 color=gl_FrontFacing?sharp:mix(sharp,backColor(uv),uBackAmount);gl_FragColor=vec4(color.rgb*uBrightness*alpha,alpha);}`);
       const program=gl.createProgram();gl.attachShader(program,vertex);gl.attachShader(program,fragment);gl.linkProgram(program);
       if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error('Works link failed');gl.useProgram(program);
       const positions=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,positions);
@@ -114,7 +118,7 @@
       gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,uvs,gl.STATIC_DRAW);
       const uvAttribute=gl.getAttribLocation(program,'aUv');gl.enableVertexAttribArray(uvAttribute);gl.vertexAttribPointer(uvAttribute,2,gl.FLOAT,false,0,0);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(indices),gl.STATIC_DRAW);
-      gl.uniform1i(gl.getUniformLocation(program,'uImage'),0);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.clearColor(0,0,0,0);
+      gl.uniform1i(gl.getUniformLocation(program,'uImage'),0);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);gl.clearColor(0,0,0,0);
       gpu={gl,surface,positions,positionAttribute,crop:gl.getUniformLocation(program,'uCrop'),edge:gl.getUniformLocation(program,'uEdge'),backAmount:gl.getUniformLocation(program,'uBackAmount'),brightness:gl.getUniformLocation(program,'uBrightness'),textures:new Map()};
       // Prefetch starts after the layout has already been measured. Match its
       // retained backing surface now rather than waiting for another resize.
@@ -153,7 +157,7 @@
     const cameraHeight=phone?height:Math.min(height,width*(tablet ? .9 : 713/1267));
     const focal=cameraHeight/(2*Math.tan((width<900?45:35)*Math.PI/360));
     const planeWidth=phone?Math.min(1.7,(width-32)*6/focal):1.7;
-    const planeHeight=planeWidth/1.92,foregroundMaxScale=phone?fitForegroundScale(width,focal,planeWidth,planeHeight):1+foregroundBoost;
+    const planeHeight=planeWidth/cardAspect,foregroundMaxScale=phone?fitForegroundScale(width,focal,planeWidth,planeHeight):1+foregroundBoost;
     // Safari's browser bars shorten a phone's CSS viewport independently of
     // its screen resolution. Open the pitch modestly as that viewport gets
     // shorter, retaining the rear helix instead of pushing its whole trace
@@ -252,7 +256,7 @@
   }
   function entranceOffset(progress){const t=clamp((progress-.13)/.17);return layout.entranceOffset*(1-t)**3;}
   function getProjectedBounds(progress){
-    if(!layout)return null;const projected=projectCardBounds(Number.isFinite(progress)?progress:0),visibleX=projected.filter(pose=>pose.maxX>0&&pose.minX<layout.width);
+    if(!layout)return null;const projected=projectCardBounds(Number.isFinite(progress)?progress:0,0,false,1),visibleX=projected.filter(pose=>pose.maxX>0&&pose.minX<layout.width);
     if(!visibleX.length)return null;return{minY:Math.min(...visibleX.map(pose=>pose.minY)),maxY:Math.max(...visibleX.map(pose=>pose.maxY)),leadY:projected[0].minY};
   }
   function getProjectedMotionBounds(progress){
@@ -270,7 +274,8 @@
     const{gl,positions,positionAttribute,crop,edge,backAmount,brightness,surface}=gpu;gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.bindBuffer(gl.ARRAY_BUFFER,positions);gl.vertexAttribPointer(positionAttribute,4,gl.FLOAT,false,0,0);
     for(const pose of [...paintPoses].sort((a,b)=>a.worldZ-b.worldZ)){
       const entry=gpu.textures.get(pose.project.image);if(!entry||!pose.visible)continue;
-      gl.bindTexture(gl.TEXTURE_2D,entry.texture);gl.uniform4fv(crop,entry.crop);gl.uniform1f(edge,Math.min(.005,1/Math.max(100,pose.cardWidth)));gl.uniform1f(backAmount,clamp(-pose.facing*1.5));
+      const projectedShortSide=Math.min(pose.cardWidth/cardAspect,pose.cardHeight);
+      gl.bindTexture(gl.TEXTURE_2D,entry.texture);gl.uniform4fv(crop,entry.crop);gl.uniform1f(edge,Math.min(.005,.75/Math.max(100,projectedShortSide)));gl.uniform1f(backAmount,clamp(-pose.facing*1.5));
       // Dim RGB, never alpha: overlapping cards must remain opaque.
       gl.uniform1f(brightness,1-.4*pose.hover);
       gl.bufferData(gl.ARRAY_BUFFER,pose.clip,gl.DYNAMIC_DRAW);gl.drawElements(gl.TRIANGLES,indices.length,gl.UNSIGNED_SHORT,0);
@@ -292,20 +297,10 @@
     for(let i=0;i<cards.length;i++)hoverAmounts[i]=hoverFrom[i]+((selected?.index===i?1:0)-hoverFrom[i])*eased;
     if(t===1){hoverAnimating=false;hoverStart=null;}
   }
-  function advanceBend(scrollVelocity,now){
-    const previous=bend,elapsed=now-bendFrame;
-    bendFrame=now;
-    if(!now){bend=0;return bend!==previous;}
-    const target=clamp((Math.abs(scrollVelocity||0)-.018)*5);
-    const dt=elapsed>0&&elapsed<64?elapsed:1000/60;
-    bend+=(target-bend)*(1-Math.exp(-dt/(target>bend?35:74)));
-    if(Math.abs(target-bend)<.004)bend=target;
-    return bend!==previous;
-  }
   function paintInteraction(){
     if(!canPaint()||!layout||lastReduced)return;
     const offset=entranceOffset(lastProgress);
-    paintPoses=poses.map(pose=>hoverAmounts[pose.index]===0?pose:projectCard(cards[pose.index],lastProgress,offset,bend,interactionMeshes[pose.index],true));
+    paintPoses=poses.map(pose=>hoverAmounts[pose.index]===0?pose:projectCard(cards[pose.index],lastProgress,offset,1,interactionMeshes[pose.index],true));
     for(const pose of paintPoses){
       pose.element.style.transform=quadTransform(pose);
       pose.element.dataset.hoverScale=pose.scale.toFixed(5);
@@ -314,17 +309,16 @@
     }
     render();
   }
-  function update(progress,{reducedMotion=false,scrollVelocity=0,now=0}={}){
+  function update(progress,{reducedMotion=false,now=0}={}){
     const nextProgress=Number.isFinite(progress)?progress:0;
     if(!canPaint()){lastProgress=nextProgress;lastReduced=reducedMotion;projectionDirty=true;return;}
-    const bendChanged=advanceBend(reducedMotion?0:scrollVelocity,reducedMotion?0:now);
-    const changed=projectionDirty||nextProgress!==lastProgress||reducedMotion!==lastReduced||bendChanged;
+    const changed=projectionDirty||nextProgress!==lastProgress||reducedMotion!==lastReduced;
     if(!changed&&!hoverAnimating)return;
     lastProgress=nextProgress;lastReduced=reducedMotion;if(!layout)return;
     viewport.classList.toggle('works-is-static',reducedMotion);
     if(reducedMotion){projectionDirty=false;hoverAnimating=false;hoverAmounts.fill(0);for(const{element}of cards){element.removeAttribute('style');element.classList.remove('is-in-view');element.setAttribute('tabindex','0');}canvas.hidden=true;poses=[];paintPoses=[];hideProject();viewport.classList.remove('works-is-sleeping');return;}
     advanceHover(now);
-    if(changed)poses=projectCards(lastProgress,entranceOffset(lastProgress),bend,baseMeshes);
+    if(changed)poses=projectCards(lastProgress,entranceOffset(lastProgress),1,baseMeshes);
     projectionDirty=false;
     const active=poses.reduce((best,pose)=>Math.abs(pose.worldY)<Math.abs(best.worldY)?pose:best);
     for(const pose of poses){const{element}=pose;element.style.zIndex=`${Math.round((pose.worldZ+3)*100)+1}`;element.classList.toggle('is-in-view',pose.visible);element.classList.toggle('is-front',pose.front);element.setAttribute('tabindex',pose.visible&&pose.front?'0':'-1');}
@@ -341,7 +335,9 @@
         const a=pose.vertices[indices[i]],b=pose.vertices[indices[i+1]],c=pose.vertices[indices[i+2]],den=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);if(Math.abs(den)<1e-8)continue;
         const aa=((b.y-c.y)*(x-c.x)+(c.x-b.x)*(y-c.y))/den,bb=((c.y-a.y)*(x-c.x)+(a.x-c.x)*(y-c.y))/den,cc=1-aa-bb;if(aa<0||bb<0||cc<0)continue;
         const reciprocal=aa/a.distance+bb/b.distance+cc/c.distance,u=(aa*a.u/a.distance+bb*b.u/b.distance+cc*c.u/c.distance)/reciprocal,v=(aa*a.v/a.distance+bb*b.v/b.distance+cc*c.v/c.distance)/reciprocal;
-        if(Math.hypot(Math.max(0,Math.abs(u-.5)-.45),Math.max(0,Math.abs(v-.5)-.45))>.05)continue;
+        const cornerX=Math.max(0,(Math.abs(u-.5)-.5)*cardAspect+cornerRadius);
+        const cornerY=Math.max(0,Math.abs(v-.5)-.5+cornerRadius);
+        if(Math.hypot(cornerX,cornerY)>cornerRadius)continue;
         const distance=1/reciprocal;if(distance<nearestDistance){nearestDistance=distance;nearest=pose;eligible=pose.front&&den<0;}
       }
     }
@@ -461,9 +457,9 @@
   });
   window.addEventListener('blur',()=>{if(!canPaint())return;pointer=null;touch=null;domTouchCard=null;hideProject();});
   window.WorksGallery=Object.freeze({measure,update,setVisible,getProjectedBounds,getProjectedMotionBounds,
-    getProjectedCardBounds:progress=>layout?projectCardBounds(progress,entranceOffset(progress)):[],
+    getProjectedCardBounds:progress=>layout?projectCardBounds(progress,entranceOffset(progress),false,1):[],
     getPaceReferenceBounds:progress=>layout?projectCardBounds(progress,0,true):[],
-    isAnimating:()=>canPaint()&&(hoverAnimating||bend>0),
-    getProjectedCards:(progress,deformation=0)=>layout?projectCards(progress,entranceOffset(progress),clamp(deformation)).map(({index,minX,maxX,minY,maxY,angle,worldY,worldZ,facing,front,visible,vertices,foregroundScale})=>({index,minX,maxX,minY,maxY,angle,worldY,worldZ,facing,front,visible,vertices,foregroundScale})):[],
+    isAnimating:()=>canPaint()&&hoverAnimating,
+    getProjectedCards:(progress,deformation=1)=>layout?projectCards(progress,entranceOffset(progress),clamp(deformation)).map(({index,minX,maxX,minY,maxY,angle,worldY,worldZ,facing,front,visible,vertices,foregroundScale})=>({index,minX,maxX,minY,maxY,angle,worldY,worldZ,facing,front,visible,vertices,foregroundScale})):[],
     getProjects:()=>projects.map(project=>({...project,tags:[...project.tags]})),getLayout:()=>layout?{...layout}:null});
 })();

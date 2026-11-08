@@ -140,12 +140,12 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   function settleAt(distance){
     f.api.update(distance,{now:now+=16});
     for(let frame=0;frame<45&&f.window.WorksGallery.isAnimating();frame++)f.api.update(distance,{now:now+=16});
-    assert(!f.window.WorksGallery.isAnimating(),'A stationary scroll pose finishes flattening on the shared clock');
+    assert(!f.window.WorksGallery.isAnimating(),'A stationary scroll pose lets the shared clock sleep');
   }
   settleAt(height*3);
   const imageBefore=f.list.children.map(node=>node.style.transform),heldBefore=f.closingUpdates.at(-1).headingProgress;
   f.api.update(height*.7,{now:now+=16});settleAt(height*3);
-  assert.deepEqual(f.list.children.map(node=>node.style.transform),imageBefore,'Reverse restores exactly the same early camera pose after the bend settles');
+  assert.deepEqual(f.list.children.map(node=>node.style.transform),imageBefore,'Reverse restores exactly the same curved camera pose');
   assert.equal(f.closingUpdates.at(-1).headingProgress,heldBefore,'Reverse restores exactly the same cached header ascent');
   f.api.update(galleryTravel,{now:now+=16});
   assert(Math.abs(Number(f.journey.dataset.helixProgress)-43.2/56.592)<.00001,'The twelfth work retains its pose at the former endpoint');
@@ -167,7 +167,6 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   assert.deepEqual(screenBounds(f),completedBounds,'Reverse/forward exactly restores the completed exit');
   f.api.update(galleryTravel*.5,{now:now+=16});
   assert.equal(f.viewport.getAttribute('aria-hidden'),'false','Rewinding wakes the gallery in the same owner frame');
-  assert(f.updates.at(-1)[1].scrollVelocity<0,'Reverse scrolling preserves velocity direction');
   const geometry=f.window.WorksGallery.getProjectedCards(Number(f.journey.dataset.helixProgress));
   assert(geometry.some(pose=>pose.front)&&geometry.some(pose=>!pose.front),'Orbit distinguishes actual front and back surfaces');
   assert(new Set(geometry.map(pose=>Math.round(pose.angle*100))).size===12,'Cards follow tangent orientations instead of billboarding');
