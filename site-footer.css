@@ -105,7 +105,11 @@
 }
 
 .site-footer-is-shared .site-footer__card {
-  transform: translate3d(-50%, var(--site-footer-card-shift, 0px), 0);
+  transform-origin: 50% 0%;
+  transform: translate3d(-50%, var(--site-footer-card-shift, 0px), 0)
+    perspective(600px) rotateX(calc(-20deg * var(--site-footer-card-offset, 1)))
+    scale(calc(1 - .1 * var(--site-footer-card-offset, 1)));
+  opacity: var(--site-footer-card-opacity, 0);
 }
 
 @supports (corner-shape: squircle) {

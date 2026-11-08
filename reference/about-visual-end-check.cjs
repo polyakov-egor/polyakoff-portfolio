@@ -47,6 +47,18 @@ for (const frame of [
     }
     page.api.update(at);assert.deepEqual(page.snapshot(),snapshot,'Returning from the visual-end query preserves deterministic reverse animation');
   }
+  page.layout(true);
+  page.api.configure({variant:'second',triggerMode:'portrait',triggerGapPx:140,fadeSpeed:1.35,wordForce:3,letterForce:3,fadeShape:'distance',fadeBoundary:1,detach:.23,rotation:.8});
+  const words=page.words(),rowTops=words.map(word=>word.getBoundingClientRect().top);
+  const finalTop=rowTops.at(-1),previousTop=Math.max(...rowTops.filter(top=>top<finalTop));
+  page.layout(false);
+  const returnAfter=page.api.getReturnAfter();
+  assert(returnAfter<page.api.getVisualEnd(),'The readable return point precedes the forward exit');
+  assert(finalTop-returnAfter>frame.bottom,'The final line lands under the portrait');
+  assert(finalTop-returnAfter+frame.font*1.2<=frame.height*.85,'The final line fits within the reading area');
+  page.api.update(returnAfter);
+  assert(words.filter((word,index)=>rowTops[index]===finalTop).every(word=>word.style.getPropertyValue('--flight-word-active')==='0'), 'The final row stays intact at the reverse landing');
+  assert(words.filter((word,index)=>rowTops[index]===previousTop).some(word=>word.querySelectorAll('.about-flight__glyph').some(glyph=>Number(glyph.style.getPropertyValue('--flight-letter-opacity'))>.1)), 'The preceding row is still visible in flight');
   page.api.update(0,{variant:'first'});assert.equal(page.api.getVisualEnd(),page.api.getMetrics().end,'Frozen first iteration keeps the conservative bound');
   page.api.update(0,{variant:'second',reducedMotion:true});assert.equal(page.api.getVisualEnd(),page.api.getMetrics().end,'Reduced motion keeps the conservative bound');
   page.layout(true);frame.width+=32;measure();page.layout(false);

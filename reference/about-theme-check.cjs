@@ -184,5 +184,32 @@ function checkPhase(page, after, message) {
   assert.equal(reduced.raf.size, 0, 'Reduced motion does not create an extra theme animation loop');
   reduced.scroll(0); reduced.frame();
   assert.equal(light(reduced), 0, 'Reduced motion also restores the dark opening hero');
+
+  const timed = makeUnitDurationPage(1920, 960, 0, new Map(), true, {
+    beforeScroll({window, nodes}) {
+      nodes['.hero'].dataset.aboutTransitionMs = '550';
+      window.SiteSmoothScroll = { usesSmoothedScroll: () => true };
+    }
+  });
+  await turn();
+  const timedMetrics = timed.window.AboutTextFlight.getMetrics();
+  const timedStart = 960 + timedMetrics.start + (timedMetrics.end - timedMetrics.start) * .32;
+  timed.scroll(timedStart - 1); timed.frame();
+  near(light(timed), 0, 'Timed About stays dark before the trigger');
+  timed.scroll(timedStart + 1); timed.frame(0);
+  near(light(timed), 0, 'Crossing the trigger starts a continuous transition');
+  timed.frame(275);
+  near(light(timed), .5, 'About reaches its midpoint without additional scroll');
+  timed.frame(275);
+  near(light(timed), 1, 'About finishes at white after 550 ms');
+  assert.equal(timed.raf.size, 0, 'The timed backdrop sleeps at its endpoint');
+  timed.scroll(timedStart - 1); timed.frame(0);
+  timed.frame(275); near(light(timed), .5, 'The same threshold reverses the timed backdrop');
+  timed.frame(275); near(light(timed), 0, 'Reverse also completes at 550 ms');
+  timed.reduced.matches = true;
+  timed.reduced.dispatchEvent({type: 'change'});
+  timed.scroll(timedStart + 1); timed.frame();
+  near(light(timed), 1, 'Reduced motion uses the final theme without a timed frame');
+  assert.equal(timed.raf.size, 0);
   console.log('Theme checks passed: shared monotonic/reversible/damped light progress, morph guard, live timing, effective first/second metrics, late budget extension, cached tuning, persistence/history/resize/fallback/reduced motion and fresh defaults.');
 })().catch(error => {console.error(error); process.exitCode = 1;});

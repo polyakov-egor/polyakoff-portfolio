@@ -9,8 +9,8 @@ const local=f=>f.page.window.scrollY-120-start(f);
 const after=f=>f.page.flightUpdates.at(-1).after;
 const advance=(page,ms)=>{for(let left=ms;left>0;left-=Math.min(left,25))page.frame(Math.min(left,25));};
 
-async function fixture(width=1920,height=960){
-  const f=rendererPage(width,height,{visualEnd:true,worksTravel:height*8});
+async function fixture(width=1920,height=960,options={}){
+  const f=rendererPage(width,height,{visualEnd:true,worksTravel:height*8,...options});
   await turn();f.page.frames();
   const boundary=start(f);
   f.page.scroll(boundary-1);f.page.frames();
@@ -19,15 +19,19 @@ async function fixture(width=1920,height=960){
   assert.equal(f.view.root.dataset.flipRunning,'false');
   near(local(f),2,'Fixture enters the exact People anchor');
   f.read.allowed=false;f.page.layout(false);
+  f.returnAfter=options.returnAfter;
   return f;
 }
 function endpoint(f){
+  if(Number.isFinite(f.returnAfter))return f.returnAfter;
   const settings=f.page.window.HeroScrollEffect.getSettings();
   return (start(f)-1-f.page.hero.heroLayout.height*settings.heroScrollDuration)/settings.aboutScrollDuration;
 }
 function held(f,label){
-  near(local(f),-1,`${label}: native input stays at the About endpoint`);
-  assert(after(f)>=endpoint(f)-.5,`${label}: hidden About never rewinds ahead of its reveal`);
+  const settings=f.page.window.HeroScrollEffect.getSettings();
+  const distance=f.page.hero.heroLayout.height*settings.heroScrollDuration+endpoint(f)*settings.aboutScrollDuration;
+  near(local(f),distance-start(f),`${label}: native input stays at the About landing`);
+  assert(after(f)>=endpoint(f)-.5,`${label}: old momentum cannot rewind past the landing`);
   assert(f.worksUpdates.every(distance=>distance<0),`${label}: the return never enters Works`);
 }
 function event(f,type,properties={},elapsed=0){
@@ -63,10 +67,39 @@ function event(f,type,properties={},elapsed=0){
     assert(local(f)<-100,'About consumes just its own new displacement');
   }
 
+  // A measured return point prepares readable About before the portrait is
+  // revealed, while forward navigation still plays the final scatter first.
+  {
+    const returnAfter=280;
+    const f=await fixture(1920,960,{returnAfter}),{page,view}=f;
+    const forwardBoundary=start(f);
+    const settings=page.window.HeroScrollEffect.getSettings();
+    const desired=960*settings.heroScrollDuration+returnAfter*settings.aboutScrollDuration;
+    assert(page.wheel(-3000,230).prevented);
+    page.frame(0);
+    near(page.window.scrollY-120,desired,'Reverse targets the measured reading point');
+    advance(page,950);
+    assert.equal(view.root.hidden,false,'The flip still owns the visible scene before it finishes');
+    near(after(f),returnAfter,'Readable text is ready behind the flipping portrait');
+    page.frames();
+    assert.equal(view.root.hidden,true);
+    assert.equal(page.copy.getAttribute('aria-hidden'),'false');
+    near(after(f),returnAfter,'About is readable on the first settled frame');
+    near(start(f),forwardBoundary,'The forward flip threshold stays at the end of About');
+    assert.equal(page.raf.size,0,'The readable pose does not need an idle RAF');
+    assert(!page.wheel(-80,300).prevented,'A fresh reverse gesture continues the native About scroll');
+    page.frames();assert(after(f)<returnAfter-20);
+    page.scroll(forwardBoundary-5);page.frames();
+    assert.equal(view.root.hidden,true,'About remains active before the original forward threshold');
+    page.scroll(forwardBoundary+6);page.frames();
+    assert.equal(view.root.hidden,false,'The original forward threshold triggers People again');
+    assert.equal(view.index.textContent,'01');
+  }
+
   // One swipe can span the whole reverse. It is never reinterpreted as the
   // first movement on About, even when the finger remains down after reveal.
   {
-    const f=await fixture(),{page,view}=f;
+    const f=await fixture(1920,960,{returnAfter:280}),{page,view}=f;
     event(f,'touchstart',{touches:[{clientX:500,clientY:300}]});
     assert(event(f,'touchmove',{touches:[{clientX:500,clientY:380}]},30).prevented);
     page.frame(0);held(f,'Initial swipe');
@@ -76,6 +109,7 @@ function event(f,type,properties={},elapsed=0){
     }
     assert.equal(view.root.hidden,true);
     const visibleAfter=after(f);
+    near(visibleAfter,f.returnAfter,'The reverse swipe reveals the measured reading pose');
     assert(event(f,'touchmove',{touches:[{clientX:500,clientY:550}]},30).prevented,'The original finger remains quarantined');
     event(f,'touchend',{touches:[]});
     event(f,'touchstart',{touches:[{clientX:500,clientY:300}]});
@@ -87,7 +121,7 @@ function event(f,type,properties={},elapsed=0){
 
   // Auto-repeat from the key that started the reverse is not a new command.
   {
-    const f=await fixture(),{page,view}=f;
+    const f=await fixture(1920,960,{returnAfter:280}),{page,view}=f;
     assert(event(f,'keydown',{key:'PageUp',repeat:false}).prevented);
     page.frame(0);held(f,'Initial key');
     for(let i=0;!view.root.hidden&&i<100;i++){
@@ -96,6 +130,7 @@ function event(f,type,properties={},elapsed=0){
     }
     assert.equal(view.root.hidden,true);
     const visibleAfter=after(f);
+    near(visibleAfter,f.returnAfter,'Keyboard return reveals the same measured pose');
     assert(event(f,'keydown',{key:'PageUp',repeat:true},30).prevented,'Held key repeats remain consumed after reveal');
     event(f,'keyup',{key:'PageUp'});
     const next=event(f,'keydown',{key:'PageUp',repeat:false},30);
@@ -108,7 +143,7 @@ function event(f,type,properties={},elapsed=0){
   // About text that has already been consumed. Restoring outside the gate is
   // still ordinary history and must not replay the card transition.
   {
-    const f=await fixture(),{page,view}=f;
+    const f=await fixture(1920,960,{returnAfter:280}),{page,view}=f;
     page.wheel(-960*2);page.frame(0);advance(page,150);
     page.layout(true);f.read.allowed=true;page.resize(1440,800);page.frames();
     held(f,'Return resize');assert.equal(view.root.hidden,true);assert.equal(page.raf.size,0);
@@ -117,5 +152,5 @@ function event(f,type,properties={},elapsed=0){
     assert.equal(restored.view.root.hidden,true,'History already inside About stays in About');
     assert.equal(restored.scrollAdjustments.length,0,'About history does not rebase to the Inspiration anchor');
   }
-  console.log('Inspiration return checks passed: per-screen wheel/swipe/key quarantine, no hidden About rewind, fresh-input release, five layouts, resize/history and no idle clock.');
+  console.log('Inspiration return checks passed: readable About landing, unchanged forward trigger, per-screen wheel/swipe/key quarantine, fresh-input release, resize/history and no idle clock.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

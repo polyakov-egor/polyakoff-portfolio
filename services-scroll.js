@@ -77,6 +77,8 @@
       root.classList.remove('services-is-visible','services-is-intro');
       footer?.style.removeProperty('--site-footer-scroll-y');
       footer?.style.removeProperty('--site-footer-card-shift');
+      footer?.style.removeProperty('--site-footer-card-offset');
+      footer?.style.removeProperty('--site-footer-card-opacity');
       footer?.style.removeProperty('--site-footer-wordmark-opacity');
       footer?.style.removeProperty('--site-footer-wordmark-filter');
       if(footerBackground&&backdrop)footer.prepend(footerBackground);
@@ -282,13 +284,18 @@
         footer.style.setProperty('--site-footer-scroll-y',`${top.toFixed(3)}px`);
         backdrop?.style.setProperty('--site-footer-reveal',clamp(1-top/layout.height,0,1).toFixed(4));
         const entered=layout.height-top;
-        const cardProgress=smooth(clamp(entered/layout.footerHeight,0,1));
+        const cardPhase=clamp(entered/layout.footerHeight,0,1);
+        // The form entrance uses quintic ease-out and completes the fade before the motion.
+        const cardOffset=(1-cardPhase)**5;
+        const cardOpacity=1-(1-clamp(cardPhase/.45,0,1))**5;
         const cardRestInset=layout.footerHeight-layout.footerCardTop;
-        const cardTop=Math.max(top,layout.height-cardRestInset*cardProgress);
+        const cardTop=Math.max(top,layout.height-cardRestInset*(1-cardOffset))+40*cardOffset;
         const cardShift=cardTop-top-layout.footerCardTop;
         const wordmarkProgress=smooth(clamp((entered-layout.footerWordmarkTop)/Math.max(1,layout.footerHeight-layout.footerWordmarkTop),0,1));
         const wordmarkBlur=layout.footerWordmarkBlur*(1-wordmarkProgress);
         footer.style.setProperty('--site-footer-card-shift',`${cardShift.toFixed(3)}px`);
+        footer.style.setProperty('--site-footer-card-offset',cardOffset.toFixed(4));
+        footer.style.setProperty('--site-footer-card-opacity',cardOpacity.toFixed(4));
         footer.style.setProperty('--site-footer-wordmark-opacity',wordmarkProgress.toFixed(4));
         footer.style.setProperty('--site-footer-wordmark-filter',wordmarkProgress>0&&wordmarkBlur>=.01?`blur(${wordmarkBlur.toFixed(2)}px)`:'none');
       }

@@ -5,6 +5,7 @@
   const scrollEffect = window.HeroScrollEffect;
   const backgroundEffect = window.BackgroundLineEffect;
   if (!effect || !scrollEffect || document.querySelector('[data-effect-controls]')) return;
+  const hideScrollTiming = Number(document.querySelector('.hero')?.dataset.aboutTransitionMs) > 0 ? ' hidden' : '';
 
   const controls = document.createElement('div');
   controls.className = 'effect-controls';
@@ -36,7 +37,7 @@
               <option value="radial">Расширяющийся засвет</option>
             </select>
           </div>
-          <div class="effect-controls__field">
+          <div class="effect-controls__field"${hideScrollTiming}>
             <div class="effect-controls__label"><label for="hero-effect-reveal-scroll-duration">Длительность перехода фона</label><output for="hero-effect-reveal-scroll-duration" data-effect-output="aboutRevealScrollDuration">1.80×</output></div>
             <input id="hero-effect-reveal-scroll-duration" data-effect-setting="aboutRevealScrollDuration" data-effect-owner="scroll" type="range" min="1" max="3" step="0.1" value="1.8" />
             <small class="effect-controls__hint">1× — прежний темп, 3× — втрое больше прокрутки для смены фона.</small>
@@ -109,11 +110,11 @@
             <div class="effect-controls__label"><label for="hero-effect-background-start">Светлый фон с</label><output for="hero-effect-background-start" data-effect-output="aboutBackgroundStart">32% разлёта</output></div>
             <input id="hero-effect-background-start" data-effect-setting="aboutBackgroundStart" data-effect-owner="scroll" type="range" min="0" max="1" step="0.01" value="0.32" />
           </div>
-          <div class="effect-controls__field">
+          <div class="effect-controls__field"${hideScrollTiming}>
             <div class="effect-controls__label"><label for="hero-effect-background-duration">Плавность смены фона</label><output for="hero-effect-background-duration" data-effect-output="aboutBackgroundDuration">45% разлёта</output></div>
             <input id="hero-effect-background-duration" data-effect-setting="aboutBackgroundDuration" data-effect-owner="scroll" type="range" min="0.05" max="1" step="0.01" value="0.45" />
           </div>
-          <small class="effect-controls__hint">Больше плавность — длиннее переход при прокрутке.</small>
+          <small class="effect-controls__hint"${hideScrollTiming}>Больше плавность — длиннее переход при прокрутке.</small>
         </div>
       </details>
       <details class="effect-controls__group">

@@ -36,7 +36,7 @@
   let viewport = { width: 1, height: 1 };
   let textGeometry = { centerX: 0, height: 0 };
   let lastGuideGeometry = '';
-  let anchor = { bottom: null, lineHeight: 67.2, firstRowTop: 0, maxRowTop: 0, maxLag: 0 };
+  let anchor = { bottom: null, lineHeight: 67.2, firstRowTop: 0, previousRowTop: 0, maxRowTop: 0, maxLag: 0 };
   const ease = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
 
   function graphemes(text) {
@@ -315,6 +315,21 @@
     return upper;
   }
 
+  function getReturnAfter() {
+    const metrics = getMetrics();
+    if (!metrics.rows) return null;
+    const rowStart = top => metrics.activeTriggerMode === 'portrait'
+      ? Math.max(0, metrics.rawStart + top - anchor.firstRowTop)
+      : metrics.start + top;
+    const last = rowStart(anchor.maxRowTop);
+    const previous = rowStart(anchor.previousRowTop);
+    // Leave the final line intact while the row above it is already breaking up.
+    const readingPoint = last - (last - previous) * .2;
+    const readableBottom = viewport.height * .85;
+    const visiblePoint = blurGeometry.textY + anchor.maxRowTop + anchor.lineHeight - readableBottom;
+    return Math.max(0, readingPoint, visiblePoint);
+  }
+
   function updateTopBlur(progress) {
     const enabled = lastTopBlur > 0 && !lastReduced;
     const { textY, near, far } = blurGeometry;
@@ -486,10 +501,12 @@
     }
 
     const start = Math.max(0, textY + content.offsetHeight - height * .97);
+    rowOffsets.sort((a, b) => a - b);
     anchor = {
       bottom: Number.isFinite(portraitBottom) ? portraitBottom : null,
       lineHeight: measurements[0]?.lineHeight || 67.2,
-      firstRowTop: rowOffsets.length ? Math.min(...rowOffsets) : 0,
+      firstRowTop: rowOffsets[0] ?? 0,
+      previousRowTop: rowOffsets.at(-2) ?? maxRowOffset,
       maxRowTop: maxRowOffset, maxLag
     };
     measured = {
@@ -517,5 +534,5 @@
     };
   }
 
-  window.AboutTextFlight = Object.freeze({ measure, update, configure, getMetrics, getVisualEnd, getState });
+  window.AboutTextFlight = Object.freeze({ measure, update, configure, getMetrics, getVisualEnd, getReturnAfter, getState });
 })();

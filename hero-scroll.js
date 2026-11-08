@@ -25,6 +25,7 @@
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const responseMs = 180;
   const aboutResponseMs = 260;
+  const aboutTransitionMs = Math.max(0, Number(hero.dataset.aboutTransitionMs) || 0);
   const frames = [
     { width: 375, height: 812, size: 160, y: 210, radius: 32, textY: 450, blurStart: 651.5, blurEnd: 756.5 },
     { width: 768, height: 1024, size: 180, y: 289, radius: 40, textY: 569, blurStart: 919.5, blurEnd: 998 },
@@ -92,9 +93,10 @@
   }
   applyTuningCss();
   let base, target, textTravel = 0, textHeight = 0, frame = 0, storyTop = 0, inspirationTravel = 0, worksTravel = 0, servicesTravel = 0, servicesStart = Infinity, logoEntryDistance = 50;
-  let flightMetrics = null, servicesRebase = null, servicesIntroTravel = 0;
+  let flightMetrics = null, aboutReturnAfter = null, servicesRebase = null, servicesIntroTravel = 0;
   let displayedDistance = null, lastTime = 0;
   let lastHeroPaint = null, lastNativeLanding = null;
+  let lastLightPaint = null, lightTarget = null, lightTransitionStart = null;
 
   function place(element, x, y, width, height) {
     if (!element) return;
@@ -120,13 +122,15 @@
     const fallbackStart = Math.max(0, target.textY + textHeight - base.height * .97);
     flightMetrics = flight || { start: fallbackStart, end: fallbackStart + textHeight + base.height * .38 };
     const flightSpan = Math.max(1, flightMetrics.end - flightMetrics.start);
-    const lightEnd = flightMetrics.start + flightSpan * (settings.aboutBackgroundStart + settings.aboutBackgroundDuration * settings.aboutRevealScrollDuration);
+    const lightSpan = aboutTransitionMs ? 0 : settings.aboutBackgroundDuration * settings.aboutRevealScrollDuration;
+    const lightEnd = flightMetrics.start + flightSpan * (settings.aboutBackgroundStart + lightSpan);
     const visualEnd = window.InspirationChapter && window.AboutTextFlight?.getVisualEnd?.();
     textTravel = typeof visualEnd === 'number' && Number.isFinite(visualEnd)
       ? Math.max(base.height * .2, visualEnd, lightEnd + base.height * .08)
       : Math.max(base.height * .2, target.textY + textHeight - base.height * .75, flightMetrics.end + base.height * .1, lightEnd + base.height * .1);
-    // Hero and about each receive their own native scroll budget. Text, glyph
-    // flight and theme still share the same virtual about distance.
+    aboutReturnAfter = window.AboutTextFlight?.getReturnAfter?.();
+    // Text and glyph flight share the About distance, which also sets the
+    // backdrop trigger before its timed transition takes over.
     inspirationTravel = window.InspirationChapter?.measure({ width: base.width, height: base.height,
       anchor: { x: (base.width - target.size) / 2, y: target.y, size: target.size, radius: target.radius } })?.travel || 0;
     worksTravel = window.WorksScrollChapter?.measure({ width:base.width, height:base.height,
@@ -243,6 +247,28 @@
     render();
   }
 
+  function updateAboutLight(after, requestedAfter, now) {
+    const span = Math.max(1, flightMetrics.end - flightMetrics.start);
+    const start = settings.aboutBackgroundStart;
+    if (!aboutTransitionMs) {
+      const flightProgress = (after - flightMetrics.start) / span;
+      return after > 0 ? smoother(start, start + settings.aboutBackgroundDuration * settings.aboutRevealScrollDuration, flightProgress) : 0;
+    }
+    const requestedTarget = Number(requestedAfter > 0 && requestedAfter >= flightMetrics.start + span * start);
+    if (lightTarget === null || reducedMotion.matches) {
+      lightTarget = requestedTarget;
+      lightTransitionStart = null;
+    }
+    if (lightTransitionStart !== null && now - lightTransitionStart >= aboutTransitionMs - .000001) lightTransitionStart = null;
+    if (lightTransitionStart === null && requestedTarget !== lightTarget) {
+      lightTarget = requestedTarget;
+      lightTransitionStart = now;
+    }
+    if (lightTransitionStart === null) return lightTarget;
+    const progress = smoother(0, 1, (now - lightTransitionStart) / aboutTransitionMs);
+    return lightTarget ? progress : 1 - progress;
+  }
+
   function render(now = typeof performance !== 'undefined' ? performance.now() : lastTime || 0) {
     frame = 0;
     if (!base || !target) return;
@@ -264,8 +290,8 @@
     const raw = smooth(0, 1, p);
     const eased = reducedMotion.matches ? (p < .5 ? 0 : 1) : 1 - (1 - raw) ** 2;
     const after = Math.min(textTravel, Math.max(0, distance - morphDistance) / settings.aboutScrollDuration);
-    const flightProgress = flightMetrics ? (after - flightMetrics.start) / Math.max(1, flightMetrics.end - flightMetrics.start) : 0;
-    const lightProgress = after > 0 ? smoother(settings.aboutBackgroundStart, settings.aboutBackgroundStart + settings.aboutBackgroundDuration * settings.aboutRevealScrollDuration, flightProgress) : 0;
+    const requestedAfter = Math.min(textTravel, Math.max(0, requestedDistance - morphDistance) / settings.aboutScrollDuration);
+    const lightProgress = updateAboutLight(after, requestedAfter, now);
     const inspirationOwnedScene = hero.classList.contains('is-inspiration');
     // Later chapters keep advancing the shared clock, but the finished Hero
     // and About pose is immutable. Do not rebuild its clip or touch every
@@ -328,9 +354,6 @@
       copy.style.setProperty('--about-text-y', `${lerp(base.height + 50, target.textY, textEntry) - after}px`);
       copy.setAttribute('aria-hidden', textOpacity < .01 ? 'true' : 'false');
       window.AboutTextFlight?.update(after, { ...flightOptions(), reducedMotion: reducedMotion.matches });
-      hero.style.setProperty('--about-light-progress', lightProgress);
-      hero.dataset.lightProgress = lightProgress.toFixed(4);
-      window.AboutCopyFade?.update({ progress: lightProgress });
       hero.dataset.scrollProgress = p.toFixed(4);
       hero.dataset.scrollTarget = clamp(requestedDistance / morphDistance).toFixed(4);
       hero.dataset.aboutScrollDuration = settings.aboutScrollDuration.toFixed(2);
@@ -340,16 +363,24 @@
       document.querySelector('.custom-cursor')?.classList.toggle('is-past-hero', p >= .12);
       window.HeroDepthEffect?.setScrollGate(1 - smooth(.15, .9, p));
     }
+    if (lastLightPaint !== lightProgress) {
+      lastLightPaint = lightProgress;
+      hero.style.setProperty('--about-light-progress', lightProgress);
+      hero.dataset.lightProgress = lightProgress.toFixed(4);
+      window.AboutCopyFade?.update({ progress: lightProgress });
+    }
     const inspirationStart = morphDistance + textTravel * settings.aboutScrollDuration;
     window.ChapterAssets?.update({ distance, requestedDistance, morphDistance, inspirationStart,
       worksStart: inspirationStart + inspirationTravel, servicesStart, height: base.height, reducedMotion: reducedMotion.matches });
+    const returnLocalDistance = Number.isFinite(aboutReturnAfter) && !reducedMotion.matches
+      ? Math.min(-1, (aboutReturnAfter - textTravel) * settings.aboutScrollDuration) : -1;
     const chapter=window.InspirationChapter?.update(distance-inspirationStart, {
-      reducedMotion:reducedMotion.matches, requestedLocalDistance:requestedDistance-inspirationStart, now, lightProgress });
+      reducedMotion:reducedMotion.matches, requestedLocalDistance:requestedDistance-inspirationStart, returnLocalDistance, now, lightProgress });
     // The flip renderer temporarily owns the same portrait/scene elements.
     // Restore the cached About pose once when its reverse transition releases
     // them; settings/measurement likewise invalidate the paint cache.
     const releasedScene = inspirationOwnedScene && !hero.classList.contains('is-inspiration');
-    if (releasedScene) lastHeroPaint = null;
+    if (releasedScene) { lastHeroPaint = null; lastLightPaint = null; }
     if(chapter && chapter.travel!==inspirationTravel){inspirationTravel=chapter.travel;writeJourneyBudget();}
     const worksStart=inspirationStart+inspirationTravel;
     const inspirationAnchor=Number.isFinite(chapter?.settleLocalDistance)?inspirationStart+chapter.settleLocalDistance:null;
@@ -385,7 +416,7 @@
     // Chapter anchor corrections happen after the outer hero/theme was painted.
     // Paint that corrected pose once before sleeping, even if native scroll
     // already equals the newly settled visual distance.
-    if (releasedScene || displayedDistance !== requestedDistance || Math.abs(distance - displayedDistance) > .25 || animating || (scrollAdjustment && !nativeCorrectionAccepted) || window.WorksGallery?.isAnimating?.() || window.SiteSmoothScroll?.isAnimating?.()) schedule();
+    if (releasedScene || displayedDistance !== requestedDistance || Math.abs(distance - displayedDistance) > .25 || animating || lightTransitionStart !== null || (scrollAdjustment && !nativeCorrectionAccepted) || window.WorksGallery?.isAnimating?.() || window.SiteSmoothScroll?.isAnimating?.()) schedule();
     else lastTime = 0;
   }
 
@@ -428,6 +459,7 @@
   hero.addEventListener('hero:layout', event => measure(event.detail));
   window.addEventListener('scroll', schedule, { passive: true });
   window.addEventListener('pageshow', () => {
+    lightTarget = null;
     window.InspirationChapter?.restore?.();
     window.ServicesScrollChapter?.restore?.();
     measure();

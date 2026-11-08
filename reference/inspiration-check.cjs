@@ -123,6 +123,7 @@ function rendererPage(width,height,options={}) {
     args.context.performance={now:()=>fixture.clock};
     args.window.scrollTo=({top,behavior})=>{fixture.scrollAdjustments.push({top,behavior});args.window.scrollY=top;};
     if(options.visualEnd)args.window.AboutTextFlight.getVisualEnd=()=>args.window.AboutTextFlight.getMetrics().end*.8;
+    if(Number.isFinite(options.returnAfter))args.window.AboutTextFlight.getReturnAfter=()=>options.returnAfter;
     if(options.worksTravel)args.window.WorksScrollChapter={measure:()=>({travel:options.worksTravel}),setStart(start){fixture.worksStart=start;},update(distance){fixture.worksUpdates.push(distance);}};
     args.window.InspirationHover={update(options){fixture.hoverUpdates.push({...options});}};
     for(const file of ['inspiration-headings.js','inspiration-gestures.js','inspiration.js'])vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),args.context,{filename:file});

@@ -195,7 +195,7 @@
   }
   const ready = cardIndex => media[cardIndex].every(img=>window.ChapterAssets?.isImageReady
     ?window.ChapterAssets.isImageReady(img):img.complete&&img.naturalWidth>0);
-  function update(localDistance,{reducedMotion=false,requestedLocalDistance=localDistance,now=0,lightProgress=1}={}) {
+  function update(localDistance,{reducedMotion=false,requestedLocalDistance=localDistance,returnLocalDistance=-1,now=0,lightProgress=1}={}) {
     if(!layout)return;
     const originalRaw=requestedLocalDistance;
     const held=window.InspirationGestures?.hold?.({height:layout.height,rawDistance:originalRaw,
@@ -204,10 +204,10 @@
     if(held?.restore)flip.restore=true;
     let raw=originalRaw;
     if(held?.owned){raw=held.rawDistance;localDistance=held.localDistance;}
-    if(returnGate.active){raw=-1;localDistance=-1;}
+    if(returnGate.active){raw=returnLocalDistance;localDistance=returnLocalDistance;}
     if(pendingRestore&&!flip.running&&(raw<0||ready(0)))flip.restore=true;
     const restoreStages=!flip.initialized||(flip.restore&&!flip.running);
-    let scrollAdjustment=returnGate.active?-1-originalRaw:held?.scrollAdjustment||0;
+    let scrollAdjustment=returnGate.active?returnLocalDistance-originalRaw:held?.scrollAdjustment||0;
     if(!flip.initialized || (flip.restore&&!flip.running)) {
       flip.value=flip.to=raw>=0&&ready(0)?1:0;flip.reveal=flip.value;flip.initialized=true;
       if(raw<0)flip.leadIn=0;
@@ -219,7 +219,7 @@
       if(flip.to===0 && !flip.running && raw>=0&&localDistance>=0&&ready(0)) {
         flip.leadIn=Math.max(0,raw);beginFlip(1,now);
       } else if(flip.to===1 && raw<flip.leadIn-8 && (flip.lastRaw===null||raw<flip.lastRaw)) {
-        beginReturn(now);scrollAdjustment=-1-originalRaw;raw=-1;localDistance=-1;
+        beginReturn(now);scrollAdjustment=returnLocalDistance-originalRaw;raw=returnLocalDistance;localDistance=returnLocalDistance;
       }
       else if(flip.to===0 && flip.running && raw>flip.leadIn+8 && raw>flip.lastRaw) beginFlip(1,now);
       if(flip.running) {
@@ -229,8 +229,7 @@
         if(elapsed===1) {
           flip.running=false;flip.value=flip.to;flip.revealedAt=now;
           if(flip.to===0) {
-            // Remove the input consumed by the one-shot entrance. The card
-            // is already at the about anchor, so this reset has no visual jump.
+            // Remove the one-shot entrance's overshoot at the About anchor.
             if(raw>=0)scrollAdjustment=-raw-1;
             flip.leadIn=0;
           }
@@ -247,6 +246,7 @@
       }
     }
     flip.lastRaw=raw;
+    if(returnGate.active&&Math.abs(scrollAdjustment)<.001)scrollAdjustment=0;
     layout.travel=layout.height*chapterUnits+closingTravel+flip.leadIn;
     const animating=flip.running||(flip.to===1&&flip.reveal<1);
     const result={animating,travel:layout.travel,scrollAdjustment,
@@ -255,7 +255,7 @@
       blockSmooth:animating||returnGate.active||(raw>=0&&flip.to===0&&!ready(0))};
     if(held?.owned)result.settleLocalDistance=held.settleLocalDistance;
     if(returnGate.active){
-      result.settleLocalDistance=-1;
+      result.settleLocalDistance=returnLocalDistance;
       if(!flip.running&&flip.value===0&&!returnGate.waiting){
         returnGate.waiting=true;
         // A burst recognized during the automatic return belongs to that
