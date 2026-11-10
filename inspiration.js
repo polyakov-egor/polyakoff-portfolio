@@ -25,7 +25,7 @@
   let layout = null, closingTravel = 0, pendingRestore = false, lastPaint = null;
   const flip = { initialized:false, value:0, from:0, to:0, started:0, running:false, leadIn:0, lastRaw:null, reveal:0, revealedAt:0, restore:true };
   const chapterUnits = 2;
-  const flipMs = 1000, revealMs = 650;
+  const enterFlipMs = 850, returnFlipMs = 1000, revealMs = 500;
   const returnGate={active:false,waiting:false,wheelId:0,wheelAmount:0,wheelDirection:0,wheelArmed:false,touch:null};
   let canReturn=false;
   function beginFlip(target,now) {
@@ -222,7 +222,7 @@
       }
       else if(flip.to===0 && flip.running && raw>flip.leadIn+8 && raw>flip.lastRaw) beginFlip(1,now);
       if(flip.running) {
-        const duration=Math.max(1,flipMs*Math.abs(flip.to-flip.from));
+        const duration=Math.max(1,(flip.to===1?enterFlipMs:returnFlipMs)*Math.abs(flip.to-flip.from));
         const elapsed=now>=flip.started+duration-.000001?1:clamp((now-flip.started)/duration);
         flip.value=lerp(flip.from,flip.to,flipEase(elapsed));
         if(elapsed===1) {
@@ -326,7 +326,7 @@
         element.style.transform=`translate3d(${-currentSize*.15085}px, ${-currentSize*.1}px, 0)`;
       }
       root.style.setProperty('--inspiration-background-opacity',smooth(.5,1,grow));
-      const headIn=flip.to===1?easeOut(flip.reveal*revealMs/650):smooth(.7,1,grow);
+      const headIn=flip.to===1?easeOut(flip.reveal):smooth(.7,1,grow);
       headingLeft.style.opacity=String(headIn);headingRight.style.opacity=String(headIn);
       headingLeft.style.transform=`translate3d(${-(layout.word+layout.font*3.4+64)*(1-headIn)}px, 0, 0)`;
       headingRight.style.transform=`translate3d(${(layout.font*7.5+88)*(1-headIn)}px, 0, 0)`;
@@ -355,8 +355,7 @@
       cards[1].style.filter=first>0&&first<1?`blur(${(18*(1-first)**2).toFixed(3)}px)`:'none';
       cards[2].style.filter=second>0&&second<1?`blur(${(18*(1-second)**2).toFixed(3)}px)`:'none';
       const font=lerp(layout.font,layout.fontNext,first);
-      const secondaryReveal=flip.to===1?clamp((flip.reveal*revealMs-650)/510):1;
-      if(window.InspirationHeadings)window.InspirationHeadings.update({first,second,font,stacked:layout.stacked,reveal:secondaryReveal});
+      if(window.InspirationHeadings)window.InspirationHeadings.update({first,second,font,stacked:layout.stacked,reveal:flip.to===1?flip.reveal:1});
       else for(let i=0;i<words.length;i++){
         const weights=[1-smooth(.15,.65,first),smooth(.25,.75,first)*(1-smooth(.15,.65,second)),smooth(.25,.75,second)];
         const enter=i===0?1:i===1?first:second,exit=i===0?first:i===1?second:0;

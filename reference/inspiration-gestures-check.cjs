@@ -39,8 +39,8 @@ const near=(a,b,msg)=>assert(Math.abs(a-b)<1e-8,`${msg}: ${a} versus ${b}`);
   const f=fixture();const e=f.wheel();assert(e.prevented);
   assert.equal(f.scrolls.length,1);assert.equal(f.scrolls[0].top,2800);assert.equal(f.scrolls[0].behavior,'instant');
   let p=f.update();assert.equal(p.position,0);assert.equal(p.target,1);assert(p.busy);
-  p=f.advance(400);near(p.position,.875,'The whole animation responds immediately and eases into its landing');assert(p.busy);
-  p=f.advance(400);assert.equal(p.position,1);assert(!p.busy);
+  p=f.advance(325);near(p.position,.875,'The 650ms animation responds immediately and eases into its landing');assert(p.busy);
+  p=f.advance(325);assert.equal(p.position,1);assert(!p.busy);
   assert.equal(f.scrolls.length,1,'Settled frames do not repeat native anchoring');
   const wakeCount=f.wakes;for(let i=0;i<20;i++)f.advance(16);assert.equal(f.wakes,wakeCount,'Idle updates schedule no extra frames');
   f.wheel(120);p=f.advance(800);assert.equal(p.position,2);assert.equal(f.scrolls.at(-1).top,3598);
@@ -48,13 +48,15 @@ const near=(a,b,msg)=>assert(Math.abs(a-b)<1e-8,`${msg}: ${a} versus ${b}`);
   f.wheel(-120);p=f.advance(800);assert.equal(p.position,0);assert.equal(f.scrolls.at(-1).top,2002);
 }
 
-// Long wheels/trackpad momentum and extra input while animating never chain.
+// A long wheel burst can advance both adjacent cards, while residual input
+// from the same burst cannot release the chapter.
 {
   const f=fixture();f.wheel(100);f.update();
   for(let i=0;i<26;i++){assert(f.wheel(80,50).prevented);f.update();}
-  assert.equal(f.update().position,1);assert.equal(f.scrolls.length,1,'A burst lasting beyond the animation still advances once');
-  assert(f.wheel(50,150).prevented);assert.equal(f.update().target,1,'Momentum after the animation is still the same gesture');
-  f.wheel(80,221);assert.equal(f.update().target,2,'A quiet period arms the next gesture');
+  assert.equal(f.update().position,2);assert.equal(f.scrolls.length,2,'A sustained burst advances twice, one card at a time');
+  assert(f.wheel(50,150).prevented);assert.equal(f.update().target,2,'Momentum after the animation is still the same gesture');
+  assert(!f.wheel(80,221).prevented,'A fresh gesture can release the Detail boundary');
+  assert.equal(f.scrolls.length,2);
 }
 {
   const f=fixture();for(const dy of [8,10]){assert(f.wheel(dy,50).prevented);assert.equal(f.scrolls.length,0);}
@@ -127,7 +129,8 @@ const near=(a,b,msg)=>assert(Math.abs(a-b)<1e-8,`${msg}: ${a} versus ${b}`);
 {
   const f=fixture();f.startTouch();assert(f.moveTouch(100,585).prevented);assert.equal(f.scrolls.length,0);
   assert(f.moveTouch(100,560).prevented);assert.equal(f.update().target,1);
-  assert(f.moveTouch(100,300).prevented);assert.equal(f.scrolls.length,1);
+  assert(f.moveTouch(100,530).prevented);assert.equal(f.scrolls.length,1);
+  assert.equal(f.update().queued,0,'A short swipe advances only one card');
   f.event('touchend',{touches:[]});f.advance(800);
   f.startTouch();f.moveTouch(100,550);assert.equal(f.advance(800).position,2);
   f.event('touchend',{touches:[]});f.startTouch();assert(!f.moveTouch(100,590).prevented,'Detail forwards touch exits before a touchmove is cancelled');
@@ -197,4 +200,4 @@ const near=(a,b,msg)=>assert(Math.abs(a-b)<1e-8,`${msg}: ${a} versus ${b}`);
   key.window.InspirationCardFlip={resetForNavigation:direction=>keyCloses.push(direction)};
   key.key('PageDown');assert.equal(key.update().target,1);assert.deepEqual(keyCloses,[1]);
 }
-console.log('Inspiration gestures passed: one switch per gesture, concurrent back-face return, native boundaries, entrance guards, restore/reduced and one shared clock.');
+console.log('Inspiration gestures passed: timed adjacent switches, long-gesture handoff, concurrent back-face return, native boundaries, entrance guards, restore/reduced and one shared clock.');

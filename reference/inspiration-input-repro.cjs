@@ -63,8 +63,8 @@ async function fixture(width=375,height=812) {
     assert.equal(page.raf.size,0,'The final corrected paint does not create idle animation');
   }
 
-  // One finger remains one switch even when held down beyond the duration,
-  // while native queued frames continue trying to move the page underneath.
+  // A long held swipe finishes two adjacent switches, while native queued
+  // frames cannot move the page beyond either anchor.
   {
     const f=await fixture(),{page,view,start,height}=f;
     input(f,'touchstart',{touches:[{identifier:1,clientX:100,clientY:600}]});
@@ -72,16 +72,18 @@ async function fixture(width=375,height=812) {
     for(let i=0;i<24;i++){
       page.scroll(start+height*(i%2?3.1:-.1));page.frame(70);
       const move=input(f,'touchmove',{touches:[{identifier:1,clientX:100,clientY:500-i*10}]});
-      assert(move.prevented,`The held finger never becomes a second swipe: step${i} ${JSON.stringify(view.root.dataset)}`);page.frame(0);
+      assert(move.prevented,`The held finger stays within the chapter: step${i} ${JSON.stringify(view.root.dataset)}`);page.frame(0);
       assert.equal(view.root.dataset.flipRunning,'false','Native rebounds cannot reverse the entry card');
       assert.equal(view.root.hidden,false,'The Inspiration chapter never flashes to About');
     }
     input(f,'touchend',{touches:[]});page.frames();
-    assert.equal(view.root.dataset.cardPosition,'1.00000');
-    assert.equal(view.index.textContent,'02');
+    assert.equal(view.root.dataset.cardPosition,'2.00000');
+    assert.equal(view.index.textContent,'03');
+    near(localDistance(page,start),height*2-2,'The long swipe and native rebounds stop at Detail');
+    assert(f.worksUpdates.every(distance=>distance<0),'The held swipe never reaches Works');
     input(f,'touchstart',{touches:[{identifier:2,clientX:100,clientY:600}]});
-    input(f,'touchmove',{touches:[{identifier:2,clientX:100,clientY:550}]});advance(page,800);page.frames();
-    assert.equal(view.index.textContent,'03','A separate deliberate swipe advances the next category');
+    input(f,'touchmove',{touches:[{identifier:2,clientX:100,clientY:650}]});advance(page,800);page.frames();
+    assert.equal(view.index.textContent,'02','A separate reverse swipe moves back one category');
   }
 
   // iOS browser-bar reflow and late Works preparation must preserve the

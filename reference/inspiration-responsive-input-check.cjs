@@ -8,20 +8,21 @@ const {rendererPage}=require('./inspiration-check.cjs');
 const {turn,near}=require('./scroll-check.cjs');
 const source=fs.readFileSync(path.join(__dirname,'../inspiration-gestures.js'),'utf8');
 
-function fixture({raw=2,enabled=true,entering=false,targetReady=()=>true}={}){
+function fixture({raw=2,enabled=true,entering=false,targetReady=()=>true,reducedMotion=false}={}){
   let time=1000;
   const scrolls=[],closes=[],root={dataset:{}};
   const events=()=>({listeners:new Map(),addEventListener(name,fn){if(!this.listeners.has(name))this.listeners.set(name,[]);this.listeners.get(name).push(fn);},
     dispatchEvent(event){for(const fn of this.listeners.get(event.type)||[])fn(event);}});
   const document=events(),window=events();document.hidden=false;
   window.scrollY=2000+raw;window.InspirationView={root};
+  window.HeroScrollEffect={getSettings:()=>({inspirationCardDurationMs:800})};
   window.scrollTo=options=>{scrolls.push(options);window.scrollY=options.top;};
   window.InspirationCardFlip={resetForNavigation:(...args)=>closes.push(args)};
   vm.runInNewContext(source,{window,document,performance:{now:()=>time},
     CustomEvent:class{constructor(type){this.type=type;}},
     requestAnimationFrame(){assert.fail('Input handoff must use the existing chapter clock');},
     setTimeout(){assert.fail('Input handoff must not add release timers');}});
-  let context={height:800,enabled,entering,targetReady};
+  let context={height:800,enabled,entering,targetReady,reducedMotion};
   const update=(patch={})=>{context={...context,...patch};return window.InspirationGestures.update({...context,origin:2000,rawDistance:window.scrollY-2000,now:time});};
   update({restore:true});context.restore=false;
   function advance(ms,patch={}){
@@ -77,17 +78,75 @@ function queueLate(kind,direction){
 }
 for(const kind of['wheel','touch','key'])for(const direction of[1,-1])queueLate(kind,direction);
 
-// A whole rising/decaying trackpad impulse remains one gesture, including an
-// isolated late spike. No quiet period is inserted by this fixture.
+// A short trackpad impulse remains a single change, even with an isolated
+// late spike. No quiet period is inserted by this fixture.
 for(const step of[8,16]){
-  const f=fixture();f.wheel(120,230);const started=f.time;
-  for(const delta of[80,60,40,20,12,8,4,2,1,.4])f.wheel(delta,step);
+  const f=fixture();f.wheel(60,230);const started=f.time;
+  for(const delta of[56,40,28,16,10,6,4,2,1,.4])f.wheel(delta,step);
   while(f.time<started+900)f.wheel(.3,step);
   assert.equal(f.update().position,1);
   assert.equal(f.update().queued,0);assert.equal(f.scrolls.length,1);
   f.wheel(34,step);f.wheel(.3,step);f.wheel(.3,step);
   assert.equal(f.update().target,1,'One rogue tail spike cannot launch a card');
   assert.equal(f.update().queued,0);
+}
+
+{
+  const f=fixture();
+  f.wheel(1,230,{deltaMode:2});
+  assert.equal(f.update().queued,0,'One page-sized wheel event cannot queue a second card');
+  assert.equal(f.advance(1600).position,1);
+  assert.equal(f.scrolls.length,1);
+}
+
+// The same long wheel burst or continuous swipe can queue the next adjacent
+// card, but the current animation must finish before the next one starts.
+for(const kind of['wheel','touch'])for(const direction of[1,-1])for(const assetsReady of[true,false]){
+  let ready=assetsReady;
+  const f=fixture({raw:direction>0?2:1598,targetReady:()=>ready});
+  if(kind==='wheel'){
+    const first=f.wheel(80*direction,230);
+    const continued=[95,100,110,130,140].map(delta=>f.wheel(delta*direction,16));
+    assert(continued.every(({event,intent})=>event.prevented&&intent.id===first.intent.id),
+      'A long wheel burst is consumed as the original gesture');
+  }else{
+    const touches=distance=>[{clientX:100,clientY:400-direction*distance}];
+    f.input('touchstart',{touches:touches(0)});
+    for(const distance of[45,85,130,180,250]){
+      assert(f.input('touchmove',{touches:touches(distance)},16).prevented,
+        'A long swipe is consumed before touchend');
+    }
+    f.input('touchend',{touches:[]});
+  }
+  let result=f.update();
+  assert.equal(result.queued,direction,`${kind}: the long gesture queues one more card`);
+  if(!assetsReady){
+    assert(result.pending,'The first animation waits for its image');
+    assert.equal(f.scrolls.length,0,'Waiting on an image does not move the native anchor');
+    ready=true;
+    result=f.update();
+  }
+  assert.equal(result.target,1,`${kind}: the first adjacent transition starts immediately`);
+  assert.equal(f.scrolls.length,1,'The second anchor waits for the first animation');
+  for(let frame=0;result.target===1&&frame<50;frame++)result=f.advance(20);
+  assert.equal(result.target,direction>0?2:0,`${kind}: one gesture starts two adjacent animations`);
+  assert(result.busy);
+  result=f.advance(800);
+  assert.equal(result.position,direction>0?2:0);
+  assert.equal(f.scrolls.length,2,'No third anchor or boundary release is queued');
+}
+
+{
+  let ready=false;
+  const f=fixture({targetReady:()=>ready,reducedMotion:true});
+  f.input('touchstart',{touches:[{clientX:100,clientY:400}]});
+  f.input('touchmove',{touches:[{clientX:100,clientY:180}]});
+  f.input('touchend',{touches:[]});
+  assert(f.update().pending);
+  ready=true;
+  const result=f.update();
+  assert.equal(result.position,2,'Decode settles both requested cards immediately with reduced motion');
+  assert.equal(result.queued,0);
 }
 
 // A fresh but early gesture belongs to the still-moving current card. Its
@@ -161,7 +220,8 @@ for(const step of[8,16]){
   const f=fixture(),ids=[];
   for(let i=0;i<140;i++)ids.push(f.wheel(120,step).intent.id);
   assert.equal(new Set(ids).size,1,'High-rate constant momentum is not discrete wheel notches');
-  assert.equal(f.update().target,1);assert.equal(f.scrolls.length,1);
+  assert.equal(f.update().target,2);assert.equal(f.scrolls.length,2);
+  assert.equal(f.window.scrollY,3598,'A long wheel tail stays at the Detail anchor');
 }
 
 async function checkVisibleEntrance(){
@@ -175,10 +235,10 @@ async function checkVisibleEntrance(){
     for(let count=0;view.root.dataset.flipRunning!=='true'&&count<80;count++)page.frame(10);
     assert.equal(view.root.dataset.flipRunning,'true');
     const advance=ms=>{for(let left=ms;left>0;){const step=Math.min(left,25);page.frame(step);left-=step;}};
-    advance(1000);assert.equal(view.root.dataset.flipRunning,'false');
+    advance(850);assert.equal(view.root.dataset.flipRunning,'false');
     // The native anchor correction is painted on the following shared frame;
     // permit that rebase, but never the removed invisible510ms reveal phase.
-    advance(650);page.frame(1000/60);page.frame(1000/60);
+    advance(500);page.frame(1000/60);page.frame(1000/60);
     near(Number(view.headingLeft.style.opacity),1,'Visible heading is fully arrived');
     assert.equal(view.root.dataset.gestureReady,'true',`${width}/${overshoot?'overshoot':'normal'}: entry has no invisible510ms/rebase lock after the heading settles (raf=${page.raf.size}, local=${page.window.scrollY-120-start}, flip=${view.root.dataset.flipProgress})`);
     near(page.window.scrollY-120-start,2,'Entry is already rebased to the People anchor');
@@ -189,5 +249,5 @@ async function checkVisibleEntrance(){
 }
 
 if(require.main===module)checkVisibleEntrance().then(()=>{
-  console.log('Responsive Inspiration input passed:650ms visible entry, one late adjacent handoff across wheel/touch/key and reverse, no momentum/early/hidden/boundary replay, bounded queue and discrete physical notches.');
+  console.log('Responsive Inspiration input passed: visible entry, long wheel and swipe, late adjacent handoff, and no short-tail, hidden or boundary replay.');
 }).catch(error=>{console.error(error);process.exitCode=1;});

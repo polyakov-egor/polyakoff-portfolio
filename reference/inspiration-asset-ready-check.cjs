@@ -62,13 +62,13 @@ function swipe(f,id){
     assert.equal(view.root.dataset.gesturePending,'');assert.equal(view.root.dataset.cardRunning,'true');
     assert.equal(view.root.dataset.cardPosition,'0.00000','The first decoded frame begins at the original pose');
     assert.equal(view.index.textContent,'01');
-    advance(page,400);near(Number(view.root.dataset.cardPosition),.875,'The full saved 800ms ease begins after decoding');
+    advance(page,325);near(Number(view.root.dataset.cardPosition),.875,'The full 650ms ease begins after decoding');
     assert.equal(view.root.dataset.cardRunning,'true');
-    advance(page,400);page.frames();assert.equal(view.index.textContent,'02');
+    advance(page,325);page.frames();assert.equal(view.index.textContent,'02');
     assert.equal(view.root.dataset.cardPosition,'1.00000');assert.equal(page.raf.size,0);
     loads.get('detail').loaded();loads.get('detail').decoded();await turn();page.frames();
     assert.equal(view.index.textContent,'02','Finishing the next decode cannot replay a swallowed second swipe');
     assert(swipe(f,3).prevented);advance(page,800);page.frames();assert.equal(view.index.textContent,'03');
   }
-  console.log('Inspiration decoded-asset checks passed: no late pop, full 800ms after both Music decodes, one consumed gesture, no polling RAF, immediate Content reset, and no queued navigation.');
+  console.log('Inspiration decoded-asset checks passed: no late pop, full 650ms after both Music decodes, no polling RAF, immediate Content reset, and unrelated swipes ignored during decoding.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

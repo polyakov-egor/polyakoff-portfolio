@@ -64,26 +64,28 @@ for(const step of[16,8]){
   f.advance(800);assert.equal(f.update().position,1);assert.equal(f.scrolls.length,3);
 }
 
-// A new intent recognized during an animation is spent there. It cannot be
-// queued or silently fire when that animation's 800ms endpoint is reached.
+// A new intent recognized early during an animation is spent there. It
+// cannot be queued or silently fire when that animation's endpoint is reached.
 {
-  const f=fixture();send(f,pulse60);send(f,Array(10).fill(.3));
+  const f=fixture();send(f,pulse60);send(f,[.3,.3]);
   const during=send(f,renewed60);
   assert(during.some(result=>result.intent.fresh));assert(f.update().busy);
   send(f,Array(100).fill(.2));assert.equal(f.update().position,1);assert.equal(f.scrolls.length,1);
   send(f,renewed60);assert.equal(f.update().target,2);
 }
 
-// Continuous input, one rogue spike and alternating native rebounds remain
-// one intent, even after the accepted transition has already finished.
-for(const values of[
-  Array(150).fill(80),
-  [...pulse60,...Array(56).fill(.3),34,.2,.2,.2,...Array(20).fill(.2)],
-  Array.from({length:120},(_,i)=>i%7===0?1920:960),
+// The classifier still recognizes only one intent for these streams. Strong
+// sustained input can queue the second card, while a short burst with a rogue
+// late spike cannot. Neither can spill into the next chapter.
+for(const [values,expected] of[
+  [Array(150).fill(80),2],
+  [[...pulse60,...Array(56).fill(.3),34,.2,.2,.2,...Array(20).fill(.2)],1],
+  [Array.from({length:120},(_,i)=>i%7===0?1920:960),2],
 ]){
   const f=fixture(),results=send(f,values);
   assert.equal(new Set(results.map(result=>result.intent.id)).size,1);
-  assert.equal(f.update().target,1);assert.equal(f.scrolls.length,1);
+  assert.equal(f.update().target,expected);assert.equal(f.scrolls.length,expected);
+  assert.equal(f.window.scrollY,f.scrolls.at(-1).top,'Continued input remains at its final card anchor');
 }
 {
   const f=fixture(),values=Array.from({length:100},(_,i)=>i%7===0?-1920:960);
@@ -113,4 +115,4 @@ for(const [raw,sign]of[[2,-1],[1598,1]]){
   ready=true;f.advance(0);assert(f.update().busy);f.advance(800);assert.equal(f.update().position,1);
   assert.equal(f.scrolls.length,1);assert.equal(f.update().queued,0);
 }
-console.log('Trackpad intent checks passed: shared event cache, 60/120Hz renewed swipes/reverse without silence, no continuous-tail/spike/rebound repeats, deliberate native exits, entrance and decoded-asset quarantine.');
+console.log('Trackpad intent checks passed: shared event cache, 60/120Hz renewed swipes, bounded sustained input, no short-tail or rebound replay, deliberate native exits, entrance and decoded-asset quarantine.');

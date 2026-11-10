@@ -6,7 +6,7 @@ const path=require('node:path');
 const {makePage,turn,near,scrollStorageKey}=require('./scroll-check.cjs');
 const root=path.join(__dirname,'..');
 const keys=['inspirationCardDurationMs','aboutFillFeather','musicActivity'];
-const defaults={inspirationCardDurationMs:800,aboutFillFeather:.7,musicActivity:1.35};
+const defaults={inspirationCardDurationMs:650,aboutFillFeather:.7,musicActivity:1.35};
 const bounds={inspirationCardDurationMs:[350,1800],aboutFillFeather:[.2,1.5],musicActivity:[.5,2.5]};
 (async()=>{
   for(const [width,height] of [[375,812],[768,1024],[1920,960],[2560,1305]]){
@@ -34,7 +34,7 @@ const bounds={inspirationCardDurationMs:[350,1800],aboutFillFeather:[.2,1.5],mus
     assert.equal(page.raf.size,0,'Tuning settles through the existing single clock');
   }
   const legacyRaw=JSON.stringify({whiteAt:.47,aboutScrollDuration:2.1,wordmarkFade:true});
-  const legacy=makePage(1920,960,0,new Map([[scrollStorageKey,legacyRaw]]));await turn();legacy.frames();
+  const legacy=makePage(1920,960,0,new Map([[scrollStorageKey,legacyRaw],['ff.hero.scroll.gradient-default.v1','1']]));await turn();legacy.frames();
   const api=legacy.window.HeroScrollEffect;
   near(api.getSettings().whiteAt,.47);near(api.getSettings().aboutScrollDuration,2.1);assert.equal(api.getSettings().wordmarkFade,true);
   for(const key of keys)near(api.getSettings()[key],defaults[key],'Legacy default '+key);

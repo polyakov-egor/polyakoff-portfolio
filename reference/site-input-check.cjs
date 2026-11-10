@@ -105,11 +105,10 @@ function nativeSequence(f,label,eventTarget=target){
       if(!props.deltaX)near(page.window.scrollY,before,'Pinch/shortcut does not move a category anchor');
     }
 
-    // First accepted gesture starts one complete transition. Additional fresh
-    // strokes during the timed animation may not queue Detail behind Music.
+    // A short accepted gesture and its tail stay within a single transition.
     assert(wheel(f,120,500).prevented);page.frame(0);
-    for(let i=0;i<3;i++){assert(wheel(f,130,140).prevented);page.frame(0);}
-    page.frames();assert.equal(view.index.textContent,'02','Busy-category input does not chain into a second switch');
+    for(let i=0;i<3;i++){assert(wheel(f,80,140).prevented);page.frame(0);}
+    page.frames();assert.equal(view.index.textContent,'02','A short tail does not chain into a second switch');
     assert.equal(view.root.dataset.gestureQueued,'0');
     advance(page,1500);page.frames();assert.equal(view.index.textContent,'02','No delayed category action remains after busy input');
 

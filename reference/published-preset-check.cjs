@@ -10,7 +10,7 @@ const libraryKey = 'ff.hero.effect.presets.v1';
 const keys = {depth:'ff.hero.depth.settings.v1',scroll:'ff.hero.scroll.settings.v1',background:'ff.background.lines.settings.v1'};
 const expected = {
   depth:{enabled:true,strength:2.5,smoothingMs:240,depthAmount:1.2,lighting:.7},
-  scroll:{inspirationCardDurationMs:800,aboutRevealMode:'gradient',aboutRevealScrollDuration:1.8,aboutFillFeather:1.5,musicActivity:2.1,
+  scroll:{inspirationCardDurationMs:650,aboutRevealMode:'gradient',aboutRevealScrollDuration:1.8,aboutFillFeather:1.5,musicActivity:2.1,
     aboutBackgroundStart:.13,aboutBackgroundDuration:.16,heroScrollDuration:2.2,whiteAt:.52,wordmarkBlur:57,wordmarkFade:false,
     aboutScrollDuration:2.5,aboutTopBlur:22,aboutFlightVariant:'second',aboutFadeSpeed:1.35,aboutTriggerMode:'portrait',aboutTriggerGapPx:140,
     aboutStartOffset:0,aboutWordForce:3,aboutLetterForce:3,aboutDetach:.23,aboutRotation:.8,aboutFadeShape:'distance',aboutFadeOrigin:'screen'},
@@ -23,7 +23,7 @@ function page(data = new Map(), failures = {}) {
     getItem(key){if(failures.read)throw new Error('Storage unavailable');return data.get(key)??null;},
     setItem(key,value){if(failures.write)throw new Error('Quota exceeded');data.set(key,String(value));writes.push(key);},
   };
-  const node={querySelector(){return node;}};
+  const node={dataset:{},querySelector(){return node;}};
   const window={localStorage:storage,HeroSquircle:{}};
   const context=vm.createContext({window,localStorage:storage,document:{querySelector(){return node;}},matchMedia(){return {matches:false};}});
   vm.runInContext(source,context,{filename:'published-effect-preset.js'});
@@ -82,6 +82,16 @@ assert.equal(existing.writes.length,writes,'The completed migration never rewrit
 assert.deepEqual(existing.read(keys.depth),manual);
 assert.equal(data.get(libraryKey),catalogBytes);
 assert.equal(probeOwner(existing,'depth').settings.strength,.85,'Owners honor later manual tuning');
+
+for (const [duration, result] of [[800, 650], [950, 950]]) {
+  const oldScroll = {...expected.scroll, inspirationCardDurationMs:duration, aboutFadeBoundary:.66};
+  const oldCatalog = JSON.stringify({version:1,presets:[untouched,original]});
+  const origin = page(new Map([[marker,'1'], [keys.scroll,JSON.stringify(oldScroll)], [libraryKey,oldCatalog]]));
+  assert.deepEqual(origin.read(keys.scroll), {...oldScroll,inspirationCardDurationMs:result}, 'Existing origins refresh only the former default speed');
+  assert.equal(origin.data.get(libraryKey),oldCatalog,'Timing refresh preserves saved named presets');
+  origin.data.set(keys.scroll,JSON.stringify(oldScroll));origin.run();
+  assert.deepEqual(origin.read(keys.scroll),oldScroll,'Later tuning can still use the previous duration');
+}
 
 const unavailable=page(new Map(),{read:true,write:true});
 for(const owner of Object.keys(keys))subset(probeOwner(unavailable,owner).settings,expected[owner],owner+' works without browser storage');

@@ -9,7 +9,7 @@
       enabled: true, strength: 2.5, smoothingMs: 240, depthAmount: 1.2, lighting: .7,
     }),
     scroll: Object.freeze({
-      inspirationCardDurationMs: 800, aboutRevealMode: 'gradient',
+      inspirationCardDurationMs: 650, aboutRevealMode: 'gradient',
       aboutRevealScrollDuration: 1.8, aboutFillFeather: 1.5, musicActivity: 2.1,
       aboutBackgroundStart: .13, aboutBackgroundDuration: .16,
       heroScrollDuration: 2.2, whiteAt: .52, wordmarkBlur: 57, wordmarkFade: false,
@@ -27,6 +27,7 @@
   window.PublishedEffectPresetNeedsMigration = true;
 
   const migrationKey = 'ff.hero.published-preset.123123123.v1';
+  const inspirationTimingKey = 'ff.hero.inspiration-timing.v1';
   const presetKey = 'ff.hero.effect.presets.v1';
   const ownerKeys = {
     depth: 'ff.hero.depth.settings.v1',
@@ -36,13 +37,20 @@
   const record = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   try {
     const storage = window.localStorage;
-    if (storage.getItem(migrationKey) === '1') {
-      window.PublishedEffectPresetNeedsMigration = false;
-      return;
-    }
     const read = key => {
       try { return JSON.parse(storage.getItem(key)); } catch { return null; }
     };
+    if (storage.getItem(migrationKey) === '1') {
+      window.PublishedEffectPresetNeedsMigration = false;
+      if (storage.getItem(inspirationTimingKey) !== '1') {
+        const scroll = record(read(ownerKeys.scroll));
+        if (scroll.inspirationCardDurationMs === 800) {
+          storage.setItem(ownerKeys.scroll, JSON.stringify({ ...scroll, inspirationCardDurationMs: preset.scroll.inspirationCardDurationMs }));
+        }
+        storage.setItem(inspirationTimingKey, '1');
+      }
+      return;
+    }
     const catalog = record(read(presetKey));
     const entries = Array.isArray(catalog.presets) ? catalog.presets : [];
     const existing = entries.find(entry => entry?.name === preset.name);
@@ -57,6 +65,7 @@
       : [restored, ...entries];
     storage.setItem(presetKey, JSON.stringify({ ...catalog, version: 1, presets: nextEntries }));
     storage.setItem('ff.hero.scroll.gradient-default.v1', '1');
+    storage.setItem(inspirationTimingKey, '1');
     storage.setItem(migrationKey, '1');
     window.PublishedEffectPresetNeedsMigration = false;
   } catch {

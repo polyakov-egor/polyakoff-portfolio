@@ -160,7 +160,10 @@ function oldPose(page) {
   const n=page.nodes,pick=selector=>plain(n[selector].style);
   return {card:page.card(),portrait:pick('[data-layer="portrait"]'),depth:pick('[data-layer="depth"]'),intro:pick('.hero__intro'),labels:pick('.hero__intro-frame'),welcome:pick('.hero__welcome'),wordmark:pick('.hero__wordmark-frame'),decoration:pick('.hero__decoration-scale'),after:page.flightUpdates.at(-1).after,gate:page.gate(),light:page.hero.dataset.lightProgress,textY:page.copy.style.values.get('--about-text-y'),textOpacity:page.copy.style.values.get('--about-text-opacity')};
 }
-function snapshot(page,view){return JSON.stringify({scene:page.card(),opacity:page.nodes['.hero__scene'].style.opacity,cards:view.cards.map(c=>({pose:cardPose(c),clip:c.style.clipPath,aria:c.getAttribute('aria-hidden')})),words:view.words.map(c=>({opacity:c.style.opacity,transform:c.style.transform,aria:c.getAttribute('aria-hidden')})),count:view.index.textContent,head:[view.headingLeft.style.opacity,view.headingLeft.style.transform,view.headingRight.style.opacity,view.headingRight.style.transform]});}
+function snapshot(page,view){
+  const opacity=page.nodes['.hero__scene'].style.opacity;
+  return JSON.stringify({scene:opacity==='0'?null:page.card(),opacity,cards:view.cards.map(c=>({pose:cardPose(c),clip:c.style.clipPath,aria:c.getAttribute('aria-hidden')})),words:view.words.map(c=>({opacity:c.style.opacity,transform:c.style.transform,aria:c.getAttribute('aria-hidden')})),count:view.index.textContent,head:[view.headingLeft.style.opacity,view.headingLeft.style.transform,view.headingRight.style.opacity,view.headingRight.style.transform]});
+}
 function enter(page,start,gesture=10){page.scroll(start-1);page.frames();page.scroll(start+gesture);page.frame();page.frames();}
 
 module.exports={installViewDOM,assetContract,rendererPage};
@@ -190,7 +193,7 @@ if(require.main===module)(async()=>{
     assert.equal(view.flipFront.querySelector('img').getAttribute('src'),'./assets/images/hero/portrait-2456.webp');
     near(Number(page.nodes['.hero__scene'].style.opacity),0,'The WebGL canvas is excluded from rotating planes');
     assert.equal(view.flipFront.style.visibility,'visible');near(cardPose(view.cards[0]).opacity,0);
-    advance(page,250);
+    advance(page,212.5);
     const quarter=cardPose(view.cards[0]),frontQuarter=cardPose(view.flipFront);
     assert(quarter.angle>-180&&quarter.angle<-90);
     near(frontQuarter.angle-quarter.angle,180,'Front and back share the vertical-axis turn');
@@ -198,31 +201,31 @@ if(require.main===module)(async()=>{
     near(quarter.opacity,0,'No girl crossfade before the edge');assert.equal(view.flipFront.style.visibility,'visible');
     assert(parseFloat(page.nodes['.hero__scene'].style.width)>sourceWidth);
     near(Number(view.headingLeft.style.opacity),0,'Headings wait for the rotation');
-    advance(page,240);assert.equal(view.flipFront.style.visibility,'visible');near(cardPose(view.cards[0]).opacity,0);
+    advance(page,202.5);assert.equal(view.flipFront.style.visibility,'visible');near(cardPose(view.cards[0]).opacity,0);
     advance(page,10);
     near(cardPose(view.flipFront).angle,90);near(cardPose(view.cards[0]).angle,-90);
     near((view.flipFront.style.visibility==='visible'?1:0)+cardPose(view.cards[0]).opacity,1,'Exactly one opaque face is presented at the floating-point edge');
     assert.equal(view.cards[0].style.backfaceVisibility,'hidden');
     advance(page,10);assert.equal(view.flipFront.style.visibility,'hidden');near(cardPose(view.cards[0]).opacity,1);
-    advance(page,490);
-    near(Number(view.root.dataset.flipProgress),1,'Flip completes after 1000 ms without more scrolling');
+    advance(page,415);
+    near(Number(view.root.dataset.flipProgress),1,'Flip completes after 850 ms without more scrolling');
     assert.equal(view.root.dataset.flipRunning,'false');near(Number(view.headingLeft.style.opacity),0);
     if(width>=1024)for(const i of [1,2])near(Number(view.words[i].style.opacity),0,'Secondary desktop words remain masked');
-    advance(page,325);
+    advance(page,250);
     assert(Number(view.headingLeft.style.opacity)>0&&Number(view.headingLeft.style.opacity)<1,'Main titles enter with their own ease-out');
     near(page.window.scrollY,held,'Intro does not advance native card anchors prematurely');
     const leftOffset=Number(/translate3d\(([-\d.e+]+)px/.exec(view.headingLeft.style.transform)[1]);
     assert(leftOffset<0&&Math.abs(leftOffset)<700,'Main entry uses a short measured slide rather than the entire viewport');
     if(width>=1024)for(const i of [1,2])near(Number(view.words[i].style.opacity),0);
-    advance(page,325);
-    near(Number(view.headingLeft.style.opacity),1,'Main titles finish at 650 ms after the flip');
+    advance(page,250);
+    near(Number(view.headingLeft.style.opacity),1,'Main titles finish at 500 ms after the flip');
     near(Number(view.headingRight.style.opacity),1);
     if(width>=1024)for(const i of [1,2])near(Number(view.words[i].style.opacity),0,'Secondary reveal begins only after main entry');
     advance(page,45);
     if(width>=1024)for(const i of [1,2])near(Number(view.words[i].style.opacity),0,'Inactive categories stay outside the single-line mask');
     advance(page,90);
     if(width>=1024)for(const i of [1,2])near(Number(view.words[i].style.opacity),0,'The first category remains the only visible option');
-    near(page.window.scrollY,held,'Native correction waits for the secondary cascade');
+    near(localScroll(page),2,'The People anchor is ready as soon as the main titles settle');
     advance(page,375);page.frames();
     near(localScroll(page),2,'Completed intro returns to the fixed People anchor');
     assert.equal(f.scrollAdjustments.length,1);assert.equal(f.scrollAdjustments[0].behavior,'instant');
@@ -232,7 +235,7 @@ if(require.main===module)(async()=>{
     near(page.gate(),0);assert.equal(view.root.querySelectorAll('img').length+view.root.querySelectorAll('article').length,nodeCount,'Animation does not allocate DOM clones');
   }
 
-  // One gesture invokes one 800 ms card transition. The image resolves from
+  // A short gesture invokes a 650 ms card transition. The image resolves from
   // a smaller blurred transparent card below, with no rotation of its own.
   for(const t of [
     {w:375,h:812,size:260,y:219,back:180,peek:24,font:32,head:563},
@@ -258,14 +261,14 @@ if(require.main===module)(async()=>{
       near(incoming.y,t.y+Math.min(t.h*.32,t.size*.7),'New card starts a short distance below its slot');
       assert.equal(f.hoverUpdates.at(-1).enabled,false,'Hover is gated while the card resolves');
       advance(page,100);
-      const phase=100/800,p=1-(1-phase)**3,partial=cardPose(view.cards[active]);
+      const phase=100/650,p=1-(1-phase)**3,partial=cardPose(view.cards[active]);
       near(Number(view.root.dataset.cardPosition),active-1+p,'The held-scroll transition responds with its timed ease-out');
       assert(partial.opacity>0&&partial.opacity<1,'The image first appears from transparency');
       near(partial.scale,.72+.28*p);near(partial.angle,0,'Incoming cards never rotate');
       near(parseFloat(view.cards[active].style.filter.slice(5)),18*(1-p)**2,'Blur decreases with the same timed pose');
       assert(partial.y>t.y&&partial.y<incoming.y,'The image resolves upward into the front slot');
       if(active===2){assert(cardPose(view.cards[0]).y>t.y-t.peek,'Oldest back card exits downward');assert(parseFloat(view.cards[0].style.filter.slice(5))>0,'Oldest back card blurs during its exit');}
-      advance(page,700);page.frames();
+      advance(page,550);page.frames();
       const current=cardPose(view.cards[active]),previous=cardPose(view.cards[active-1]);
       near(current.visibleSize,t.size);near(current.y,t.y);near(current.opacity,1);near(current.angle,0);assert.equal(view.cards[active].style.filter,'none');
       near(previous.visibleSize,t.back);near(previous.y,t.y-t.peek,'Only the immediately preceding card peeks above');
@@ -304,9 +307,9 @@ if(require.main===module)(async()=>{
     near(journeyHeight(reloaded.page),journeyHeight(page));
     assert(page.wheel(120).prevented);page.frame(0);
     for(let i=0;i<12;i++){assert(page.wheel(120,50).prevented);page.frame(0);}
-    page.frames();assert.equal(view.index.textContent,'02','A long momentum burst changes only one card');
-    assert.equal(f.scrollAdjustments.length,2,'Momentum does not inject repeated anchors');
-    page.wheel(120,230);page.frame(0);page.frames();assert.equal(view.index.textContent,'03','A fresh gesture changes exactly the next card');
+    page.frames();assert.equal(view.index.textContent,'03','A long gesture plays two adjacent changes');
+    assert.equal(f.scrollAdjustments.length,3,'The long gesture creates just one anchor per card');
+    page.wheel(-120,230);page.frame(0);page.frames();assert.equal(view.index.textContent,'02','A fresh short gesture changes one card back');
   }
 
   // Native rebounds do not count as a deliberate People-up navigation.
@@ -372,5 +375,5 @@ if(require.main===module)(async()=>{
       }
     }
   }
-  console.log('Inspiration checks passed: timed masked header cascade, one-gesture 800ms cards from opacity/zoom/blur, equal hover gates, exact adaptive assets/stack, automatic flip/quarantined reverse, loading/history/budget and one idle clock.');
+  console.log('Inspiration checks passed: timed masked header cascade, 650ms cards from opacity/zoom/blur, adjacent gesture handoff, equal hover gates, adaptive stack, automatic flip/quarantined reverse, loading/history/budget and one idle clock.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

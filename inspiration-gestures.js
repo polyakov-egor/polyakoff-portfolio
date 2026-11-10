@@ -44,8 +44,8 @@
   window.SiteWheelIntent=Object.freeze({sample});
 })();
 
-/* One deliberate gesture changes one category. The story owns the only
-   animation clock; outside this chapter native scrolling is left alone. */
+/* Category changes run to completion on the story clock. A long gesture can
+   reserve one more category without crossing the chapter boundary. */
 (() => {
   'use strict';
   const clamp = (n,a,b) => Math.max(a,Math.min(b,n));
@@ -53,13 +53,15 @@
   // and a gentle landing; it never scrubs its pose with native scroll pixels.
   const ease = t => 1-(1-clamp(t,0,1))**3;
   const wheelThreshold = 24, touchThreshold = 32;
+  const defaultDuration = 650;
   const duration = () => {
     const value=window.HeroScrollEffect?.getSettings?.().inspirationCardDurationMs;
-    return typeof value==='number'&&Number.isFinite(value)?clamp(value,350,1800):800;
+    return typeof value==='number'&&Number.isFinite(value)?clamp(value,350,1800):defaultDuration;
   };
-  const state = {initialized:false,position:0,target:0,from:0,started:0,duration:800,running:false,pending:null,queued:0};
+  const state = {initialized:false,position:0,target:0,from:0,started:0,duration:defaultDuration,running:false,pending:null,queued:0};
   let context = {height:1,rawDistance:-1,now:0,enabled:false,entering:false,reducedMotion:false,origin:0};
   let wheelAmount = 0, wheelUsed = true, wheelRelease = 0;
+  let wheelTravel = null;
   let touch = null, touchSerial = 0, keyRelease = '';
   let owned = false, awaitingPeople = false, released = 0, reentry = false, externalRestore = false;
   let releasedTouch = -1;
@@ -84,6 +86,12 @@
   function buffer(direction,time){
     if(!canBuffer(time)||state.target+direction<0||state.target+direction>2)return false;
     state.queued=direction;wake();return true;
+  }
+  function continueGesture(travel,time){
+    const {target,direction}=travel;
+    if((state.pending??state.target)!==target||state.queued||target+direction<0||target+direction>2)return;
+    if(busy()){state.queued=direction;wake();}
+    else navigate(direction,time);
   }
   function targetReady(target){return typeof context.targetReady!=='function'||context.targetReady(target);}
   function acquire(stage){
@@ -117,7 +125,6 @@
     state.from=state.position;state.target=target;state.started=time;state.duration=duration();
     state.running=!context.reducedMotion;state.pending=null;
     if(!state.running)state.position=target;
-    state.queued=0;
     owned=true;released=0;reentry=false;
     // This is an anchor for a timed switch, not a smooth-scroll animation.
     moveNative(context.origin+offset(target));
@@ -139,8 +146,7 @@
     }
     if(targetReady(target))startTransition(target,time);
     else {
-      // Spend this gesture once. A decode event starts the complete transition;
-      // waiting does not reserve extra swipes or keep the shared RAF awake.
+      // A decode event starts the complete transition without polling.
       state.pending=target;state.queued=0;owned=true;released=0;reentry=false;
     }
     if(notify)wake();return 'changed';
@@ -151,15 +157,29 @@
     const time=now(),intent=window.SiteWheelIntent.sample(event,time,context.height);
     if(!intent)return;
     const {delta:dy,direction,fresh}=intent;
-    if(fresh){wheelAmount=0;wheelUsed=false;wheelRelease=0;}
-    noteReentry(Math.sign(dy),fresh);
+    if(fresh){wheelAmount=0;wheelUsed=false;wheelRelease=0;wheelTravel=null;}
+    noteReentry(direction,fresh);
     if(!eligible()){
       // Input while the portrait flips or headings reveal is spent on that
       // entrance. It cannot reserve the first category switch behind it.
       if(context.entering&&!document.hidden)event.preventDefault();
-      wheelUsed=true;wheelAmount=0;return;
+      wheelUsed=true;wheelAmount=0;wheelTravel=null;return;
     }
     if(wheelRelease===direction)return;
+    const longThreshold=clamp(context.height*.60,400,550);
+    if(wheelTravel){
+      if(wheelTravel.direction!==direction)wheelTravel=null;
+      else {
+        wheelTravel.distance+=Math.min(Math.abs(dy),longThreshold/2);
+        wheelTravel.samples++;
+        if(wheelTravel.samples>=3&&wheelTravel.distance>=longThreshold){
+          continueGesture(wheelTravel,time);
+          wheelTravel=null;
+        }
+      }
+      event.preventDefault();
+      return;
+    }
     if(busy()){
       event.preventDefault();
       if(!wheelUsed&&canBuffer(time)){
@@ -173,10 +193,14 @@
     wheelAmount+=dy;
     if(Math.abs(wheelAmount)<wheelThreshold){event.preventDefault();return;}
     wheelUsed=true;
-    const result=navigate(Math.sign(wheelAmount),time);
+    const step=Math.sign(wheelAmount);
+    const result=navigate(step,time);
     // A deliberate boundary intent releases its threshold event and native
     // remainder together; sub-pixel sign noise cannot return/exit a chapter.
-    if(result==='native'){wheelRelease=Math.sign(wheelAmount);return;}
+    if(result==='native'){wheelRelease=step;return;}
+    if(result==='changed'){
+      wheelTravel={direction:step,target:state.pending??state.target,distance:Math.min(Math.abs(wheelAmount),longThreshold/2),samples:1};
+    }
     event.preventDefault();
   },{passive:false});
 
@@ -184,7 +208,7 @@
     if(event.touches.length!==1||ignored(event.target)){touch=null;return;}
     const point=event.touches[0];
     const bufferable=canBuffer(now());
-    touch={id:++touchSerial,x:point.clientX,y:point.clientY,used:!eligible()||(busy()&&!bufferable),bufferable,released:false,horizontal:false};
+    touch={id:++touchSerial,x:point.clientX,y:point.clientY,used:!eligible()||(busy()&&!bufferable),bufferable,released:false,horizontal:false,travel:null};
   },{passive:true});
   window.addEventListener('touchmove',event=>{
     if(!touch||event.touches.length!==1||ignored(event.target))return;
@@ -194,7 +218,7 @@
     if(Math.abs(dy)<.01||Math.abs(dx)>Math.abs(dy))return;
     noteReentry(Math.sign(dy),touch.id!==releasedTouch);
     if(!eligible()){
-      if(context.entering){event.preventDefault();touch.used=true;}
+      if(context.entering){event.preventDefault();touch.used=true;touch.travel=null;}
       return;
     }
     const direction=Math.sign(dy);
@@ -204,11 +228,20 @@
       navigate(direction,now());touch.used=true;touch.released=true;return;
     }
     event.preventDefault();
-    if(busy()){
-      if(!touch.used&&touch.bufferable&&Math.abs(dy)>=touchThreshold){touch.used=true;buffer(direction,now());}
-      return;
+    if(!touch.used&&Math.abs(dy)>=touchThreshold){
+      touch.used=true;
+      const time=now();
+      if(busy()){
+        if(touch.bufferable)buffer(direction,time);
+      } else if(navigate(direction,time)==='changed'){
+        touch.travel={direction,target:state.pending??state.target};
+      }
     }
-    if(!touch.used&&Math.abs(dy)>=touchThreshold){touch.used=true;navigate(direction,now());}
+    if(touch.travel?.direction!==direction)touch.travel=null;
+    if(touch.travel&&Math.abs(dy)>=Math.max(100,context.height*.15)){
+      continueGesture(touch.travel,now());
+      touch.travel=null;
+    }
   },{passive:false});
   const endTouch=()=>{touch=null;};
   window.addEventListener('touchend',endTouch,{passive:true});
@@ -239,12 +272,15 @@
     const rawDistance=Number.isFinite(options.rawDistance)?options.rawDistance:previous.rawDistance;
     context={...previous,...options,height,rawDistance,
       origin:Number.isFinite(options.origin)?options.origin:window.scrollY-rawDistance};
-    if(options.restore||!context.enabled||document.hidden)state.queued=0;
+    if(options.restore||!context.enabled||document.hidden){
+      state.queued=0;wheelTravel=null;
+      if(touch)touch.travel=null;
+    }
     if(context.entering){awaitingPeople=true;owned=false;released=0;reentry=false;}
     if(state.initialized&&context.enabled&&!previous.enabled){
       // A completed People screen is a new input boundary. Discard an old
       // wheel accumulator and require a quiet/new burst after this reveal.
-      wheelAmount=0;wheelUsed=true;wheelRelease=0;
+      wheelAmount=0;wheelUsed=true;wheelRelease=0;wheelTravel=null;
       state.queued=0;
       if(touch)touch.used=true;
     }
@@ -271,11 +307,12 @@
       state.position=state.from+(state.target-state.from)*ease(progress);
       if(progress===1){
         state.position=state.target;state.running=false;
-        // One new late gesture belongs to the visible card, not its old
-        // momentum. Start its adjacent move on this same shared-clock frame.
-        const queued=state.queued;state.queued=0;
-        if(queued)navigate(queued,context.now,false);
       }
+    }
+    if(state.queued&&!busy()){
+      // Start the reserved adjacent move on this same shared-clock frame.
+      const queued=state.queued;state.queued=0;
+      navigate(queued,context.now,false);
     }
     if(root){
       root.dataset.gestureStage=String(Math.round(state.position)+1);
@@ -287,8 +324,8 @@
     }
     return {position:state.position,busy:state.running,pending:state.pending!==null,active:clamp(Math.round(state.position),0,2),target:state.target,queued:state.queued};
   }
-  document.addEventListener('visibilitychange',()=>{if(document.hidden){settle();endTouch();wheelUsed=true;}else wake();});
-  window.addEventListener('blur',()=>{endTouch();wheelUsed=true;keyRelease='';state.queued=0;});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){settle();endTouch();wheelUsed=true;wheelTravel=null;}else wake();});
+  window.addEventListener('blur',()=>{endTouch();wheelUsed=true;wheelTravel=null;keyRelease='';state.queued=0;});
   window.addEventListener('popstate',externalNavigation);
   window.addEventListener('hashchange',externalNavigation);
   window.InspirationGestures=Object.freeze({update,hold});

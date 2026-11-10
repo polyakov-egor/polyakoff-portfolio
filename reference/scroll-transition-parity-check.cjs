@@ -55,6 +55,7 @@ const quintic = value => value * value * value * (value * (value * 6 - 15) + 10)
         opacity: number(welcome, '--welcome-opacity'),
         scale: number(welcome, '--welcome-scroll-scale'),
         y: parseFloat(welcome.style.values.get('--welcome-scroll-y')),
+        blur: parseFloat(/^blur\((.+)px\)$/.exec(welcome.style.filter)?.[1] || 0),
         logoOpacity: Number(logo.style.opacity),
         logoY: translationY(logo),
       };
@@ -63,7 +64,8 @@ const quintic = value => value * value * value * (value * (value * 6 - 15) + 10)
       const sceneY = parseFloat(scene.transform.split(',')[1]);
       const inset = width < 600 ? 106 : width < 768 ? 72 : 24;
       near(pose.scale, parseFloat(scene.width) / width, 'Welcome and the hero use the same scale');
-      near(pose.y, sceneY + sceneHeight - height + inset * (1 - sceneHeight / height) - 12 * (1 - pose.opacity),
+      const lift = 12 * quintic(Math.max(0, Math.min(1, (fraction - .055) / .08)));
+      near(pose.y, sceneY + sceneHeight - height + inset * (1 - sceneHeight / height) - lift,
         'Welcome stays attached to the bottom of the shrinking scene during its exit');
       return pose;
     };
@@ -72,21 +74,21 @@ const quintic = value => value * value * value * (value * (value * 6 - 15) + 10)
     near(initial.logoOpacity, 1, 'The logo uses its position, never an alpha fade');
     assert(initial.logoY > 20, 'At hero start the opaque logo sits below the bottom edge');
     const firstScroll = sample(.05);
-    assert(firstScroll.opacity < 1 && firstScroll.y < 0 && firstScroll.scale < 1, 'Welcome immediately recedes when hero scrolling starts');
-    const middle = sample(.125);
-    near(middle.opacity, .5);
+    assert(firstScroll.opacity === 1 && firstScroll.blur === 0 && firstScroll.y < 0 && firstScroll.scale < 1, 'Welcome shrinks at full opacity before the exit');
+    const middle = sample(.095);
+    assert(middle.opacity > 0 && middle.opacity < 1 && middle.blur > 0, 'Welcome softens before disappearing');
     near(middle.logoOpacity, 1);
     assert(middle.logoY > 0 && middle.logoY < initial.logoY, 'The opaque logo rises from below instead of fading in');
     const end = sample(.3);
     near(end.opacity, 0);
     near(end.logoY, 0); near(end.logoOpacity, 1);
     assert.equal(welcome.attributes['aria-hidden'], 'true');
-    const returned = sample(.125);
+    const returned = sample(.095);
     for (const key of Object.keys(middle)) near(returned[key], middle[key], `Reverse restores welcome/logo ${key}`);
     const restored = sample(0);
     for (const key of Object.keys(initial)) near(restored[key], initial[key], `Returning to hero restores ${key}`);
     assert.equal(welcome.attributes['aria-hidden'], 'false');
     assert.equal(page.raf.size, 0, 'All scroll-driven surfaces settle on the shared clock');
   }
-  console.log('Scroll transition parity passed: native About exposure duration across settings and four viewports; immediate welcome recession, opaque logo slide and deterministic reverse.');
+  console.log('Scroll transition parity passed: native About exposure duration across settings and four viewports, opaque welcome shrink, blurred exit, opaque logo slide and deterministic reverse.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

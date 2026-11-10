@@ -590,7 +590,7 @@ for (const [index, ambientDirection] of ['up', 'down', 'left', 'right'].entries(
 }
 // New tuning fields participate in presets while old records receive defaults.
 const tuning = makePage();
-assert.equal(tuning.scrollDefaults.inspirationCardDurationMs,800);
+assert.equal(tuning.scrollDefaults.inspirationCardDurationMs,650);
 assert.equal(tuning.scrollDefaults.aboutFillFeather,.7);
 assert.equal(tuning.scrollDefaults.musicActivity,1.35);
 tuning.controllers.scroll.setSettings({inspirationCardDurationMs:500,aboutFillFeather:1.4,musicActivity:2.25});

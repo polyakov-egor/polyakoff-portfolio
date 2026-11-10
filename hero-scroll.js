@@ -25,6 +25,7 @@
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const responseMs = 180;
   const aboutResponseMs = 260;
+  const wordmarkZoomAmount = .15;
   const aboutTransitionMs = Math.max(0, Number(hero.dataset.aboutTransitionMs) || 0);
   const frames = [
     { width: 375, height: 812, size: 160, y: 210, radius: 32, textY: 450, blurStart: 651.5, blurEnd: 756.5 },
@@ -46,7 +47,7 @@
     aboutBackgroundStart: .32, aboutBackgroundDuration: .45,
     aboutTriggerMode: 'portrait', aboutTriggerGapPx: 100,
     aboutScrollDuration: 2.5, heroScrollDuration: 1,
-    inspirationCardDurationMs: 800, aboutFillFeather: .7, musicActivity: 1.35,
+    inspirationCardDurationMs: 650, aboutFillFeather: .7, musicActivity: 1.35,
     aboutRevealMode: 'gradient', aboutRevealScrollDuration: 1.8
   });
   const publishedDefaults = Object.freeze({ ...defaults, ...window.PublishedEffectPreset?.scroll });
@@ -314,8 +315,9 @@
     if (Math.abs(requestedDistance - displayedDistance) < .25) displayedDistance = requestedDistance;
     const distance = displayedDistance;
     const p = clamp(distance / morphDistance);
+    const reduced = reducedMotion.matches;
     const raw = smooth(0, 1, p);
-    const eased = reducedMotion.matches ? (p < .5 ? 0 : 1) : 1 - (1 - raw) ** 2;
+    const eased = reduced ? (p < .5 ? 0 : 1) : 1 - (1 - raw) ** 2;
     const after = Math.min(textTravel, Math.max(0, distance - morphDistance) / settings.aboutScrollDuration);
     const requestedAfter = Math.min(textTravel, Math.max(0, requestedDistance - morphDistance) / settings.aboutScrollDuration);
     const lightProgress = updateAboutLight(after, requestedAfter, now);
@@ -323,8 +325,8 @@
     // Later chapters keep advancing the shared clock, but the finished Hero
     // and About pose is immutable. Do not rebuild its clip or touch every
     // glyph/hidden layer on each Works/Services scroll frame.
-    if (!lastHeroPaint || lastHeroPaint.p !== p || lastHeroPaint.after !== after || lastHeroPaint.reduced !== reducedMotion.matches) {
-      lastHeroPaint = { p, after, reduced: reducedMotion.matches };
+    if (!lastHeroPaint || lastHeroPaint.p !== p || lastHeroPaint.after !== after || lastHeroPaint.reduced !== reduced) {
+      lastHeroPaint = { p, after, reduced };
       const width = lerp(base.width, target.size, eased);
       const height = lerp(base.height, target.size, eased);
       const x = (base.width - width) / 2;
@@ -338,40 +340,57 @@
       const shade = Math.round(222 * smoother(0, settings.whiteAt, p));
       scene.style.backgroundColor = `rgb(${shade}, ${shade}, ${shade})`;
       const decorationOpacity = 1 - smooth(.02, .6, p);
-      const artworkScale = `scale(${width / base.width}, ${height / base.height})`;
-      if (introFrame) introFrame.style.transform = `translate3d(${x}px, ${y}px, 0) ${artworkScale}`;
+      const scaleX = width / base.width;
+      const scaleY = height / base.height;
+      const artworkScale = `scale(${scaleX}, ${scaleY})`;
+      // Broaden the light from the wordmark early in the white wash. Only
+      // the lettering zooms, around the center of its lower-screen footprint.
+      const bloom = reduced ? 0 : 1 - decorationOpacity ** 2;
+      const zoom = 1 + (reduced ? 0 : wordmarkZoomAmount * smooth(.01, .18, p));
       scenery.style.opacity = '1';
-      for (const layer of [wordmarkScale, decorationScale]) {
-        if (layer) layer.style.transform = artworkScale;
+      if (wordmarkScale) {
+        const zoomX = width * (1 - zoom) * .5;
+        const zoomY = height * (1 - zoom) * .75;
+        wordmarkScale.style.transform = zoom === 1 ? artworkScale
+          : `translate3d(${zoomX}px, ${zoomY}px, 0) scale(${scaleX * zoom}, ${scaleY * zoom})`;
       }
-      if (decorationScale) decorationScale.style.opacity = `${decorationOpacity}`;
+      if (decorationScale) {
+        decorationScale.style.transform = artworkScale;
+        decorationScale.style.opacity = `${decorationOpacity}`;
+      }
       if (wordmarkFrame) {
         // Filter a card-sized surface AFTER scaling the image. Even a 200 px
         // viewport blur therefore stays 200 px instead of expanding to a huge
         // filter on the full-resolution artwork as the card gets smaller.
-        const blurProgress = smooth(.02, .6, p);
-        const blur = settings.wordmarkBlur * blurProgress;
+        const blur = settings.wordmarkBlur * bloom;
         const faded = settings.wordmarkFade && decorationOpacity === 0;
         wordmarkFrame.style.opacity = settings.wordmarkFade ? `${decorationOpacity}` : '1';
-        wordmarkFrame.style.filter = reducedMotion.matches || p === 0 || faded || blur < .001 ? 'none' : `blur(${blur.toFixed(3)}px)`;
+        wordmarkFrame.style.filter = faded || blur < .001 ? 'none' : `blur(${blur.toFixed(3)}px)`;
       }
       const end = { x: -target.size * .15085, y: -target.size * .1, width: target.size * 1.300883, height: target.size * 1.535 };
       for (const layer of [portrait, depth]) {
         place(layer, lerp(base.portrait.x, end.x, eased), lerp(base.portrait.y, end.y, eased), lerp(base.portrait.width, end.width, eased), lerp(base.portrait.height, end.height, eased));
       }
-      const introOpacity = 1 - smooth(.02, .25, p);
-      const welcomeExit = reducedMotion.matches ? (p > 0 ? 1 : 0) : smoother(0, .25, p);
-      const welcomeOpacity = 1 - welcomeExit;
-      const welcomeY = y + height - base.height + welcomeBottom * (1 - height / base.height) - 12 * welcomeExit;
-      intro.style.opacity = `${introOpacity}`;
-      intro.setAttribute('aria-hidden', introOpacity < .01 ? 'true' : 'false');
-      welcome.style.setProperty('--welcome-opacity', welcomeOpacity);
+      // The captions shrink at full opacity until the card starts to separate
+      // from the viewport. Then they lift and soften together.
+      const captionExit = reduced ? eased : smoother(.055, .135, p);
+      const captionOpacity = 1 - smooth(.25, 1, captionExit);
+      const captionLift = reduced ? 0 : 12 * captionExit;
+      const captionBlur = reduced || captionOpacity === 0 || captionExit < .001 ? 'none' : `blur(${(10 * captionExit).toFixed(3)}px)`;
+      const captionsHidden = captionOpacity < .01;
+      const welcomeY = y + height - base.height + welcomeBottom * (1 - scaleY) - captionLift;
+      if (introFrame) introFrame.style.transform = `translate3d(${x}px, ${y - captionLift}px, 0) ${artworkScale}`;
+      intro.style.opacity = `${captionOpacity}`;
+      intro.style.filter = captionBlur;
+      intro.setAttribute('aria-hidden', String(captionsHidden));
+      welcome.style.filter = captionBlur;
+      welcome.style.setProperty('--welcome-opacity', captionOpacity);
       welcome.style.setProperty('--welcome-scroll-y', `${welcomeY.toFixed(3)}px`);
-      welcome.style.setProperty('--welcome-scroll-scale', String(width / base.width));
-      welcome.setAttribute('aria-hidden', welcomeOpacity < .01 ? 'true' : 'false');
-      window.HeroWelcomeStack?.setVisible(welcomeOpacity > .01);
+      welcome.style.setProperty('--welcome-scroll-scale', String(scaleX));
+      welcome.setAttribute('aria-hidden', String(captionsHidden));
+      window.HeroWelcomeStack?.setVisible(!captionsHidden);
       logo.style.opacity = '1';
-      const logoEntry = reducedMotion.matches ? (p > 0 ? 1 : 0) : smoother(.02, .26, p);
+      const logoEntry = reduced ? eased : smoother(.02, .26, p);
       logo.style.transform = `translate3d(0, ${(logoEntryDistance * (1 - logoEntry)).toFixed(3)}px, 0)`;
       hero.dataset.scrollProgress = p.toFixed(4);
       hero.dataset.scrollTarget = clamp(requestedDistance / morphDistance).toFixed(4);

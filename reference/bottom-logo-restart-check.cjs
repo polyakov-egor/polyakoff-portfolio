@@ -131,7 +131,7 @@ fallback.click(staticLogo); assert.equal(fallback.reloads, 1, 'The static/reduce
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'hero-scroll.css'), 'utf8');
 assert.equal((html.match(/<button class="hero__about-logo" data-return-hero/g) || []).length, 2);
-assert(html.indexOf('src="./bottom-logo-restart.js"') < html.indexOf('src="./published-effect-preset.js"'), 'Restart bootstrap precedes every effect owner');
+assert(html.indexOf('src="./bottom-logo-restart.js"') < html.indexOf('src="./published-effect-preset.js'), 'Restart bootstrap precedes every effect owner');
 assert(html.indexOf('src="./bottom-logo-restart.js"') < html.indexOf('rel="stylesheet"'), 'Reload restoration is claimed before stylesheets can delay startup');
 assert(/<script src="\.\/bottom-logo-restart\.js"><\/script>/.test(html), 'The early bootstrap is synchronous');
 assert(/class="welcome-card__logo"/.test(html), 'The welcome drag logo is untouched');

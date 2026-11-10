@@ -12,7 +12,7 @@ const tuneDefaults = {startOffset: 0, wordForce: 1, letterForce: 1, fadeBoundary
 const tuneKeys = Object.keys(tuneDefaults);
 const scrollTuneDefaults = {...Object.fromEntries(tuneKeys.map(key => [`about${key[0].toUpperCase()}${key.slice(1)}`, tuneDefaults[key]])), aboutFadeGuide: false};
 const themeDefaults = {aboutBackgroundStart: .32, aboutBackgroundDuration: .45};
-const fullProfile = profile => ({...scrollTuneDefaults, ...themeDefaults, heroScrollDuration: 1, aboutScrollDuration: 1, inspirationCardDurationMs: 800, aboutFillFeather: .7, musicActivity: 1.35, aboutRevealMode: 'gradient', aboutRevealScrollDuration: 1.8, ...profile});
+const fullProfile = profile => ({...scrollTuneDefaults, ...themeDefaults, heroScrollDuration: 1, aboutScrollDuration: 1, inspirationCardDurationMs: 650, aboutFillFeather: .7, musicActivity: 1.35, aboutRevealMode: 'gradient', aboutRevealScrollDuration: 1.8, ...profile});
 
 function element(className = '', dataset = {}) {
   const listeners = new Map(), values = new Map(), classes = new Set(className.split(' ').filter(Boolean));
@@ -560,23 +560,35 @@ if (require.main === module) (async () => {
     near(Number(wordmarkFrame.style.opacity), 1, 'The default wordmark keeps its full opacity before the exit');
     assertIsolatedFilter();
   }
+  blurPage.scroll(960 * .1);
+  blurPage.frames();
+  assert(blurPage.visibleWordmarkBlur() > 2, 'The wordmark blooms while the opening hero is still mostly full size');
+  assert(Number(wordmarkScale.style.transform.match(/scale\(([^,]+),/)[1]) > 1,
+    'The wordmark grows against the opening hero shrink before following the card');
   blurPage.scroll(960 * .31);
   blurPage.frames();
   const originalExitFilter = wordmarkFrame.style.filter;
   const exitCard = blurPage.card();
   const exitOpacity = decorationScale.style.opacity;
-  near(blurPage.visibleWordmarkBlur(), 12, 'At the exit midpoint the physical filter is exactly 12 viewport pixels');
+  near(blurPage.visibleWordmarkBlur(), 18, 'The earlier bloom reaches 75% strength at the exit midpoint');
   near(Number(exitOpacity), .5, 'Background lines preserve their separate original fade');
   near(Number(wordmarkFrame.style.opacity), 1, 'Blur-only mode does not fade the wordmark at the midpoint');
   assert.equal(wordmarkScale.style.width, '1920px', 'Wordmark artwork keeps its base width inside the small filtered surface');
   assert.equal(wordmarkScale.style.height, '960px', 'Wordmark artwork keeps its base height inside the small filtered surface');
-  assert.equal(decorationScale.style.transform, wordmarkScale.style.transform, 'Wordmark and line artwork use aligned geometry scales');
   assert.equal(decorationScale.style.width, wordmarkScale.style.width, 'Line artwork uses the same base width');
   assert.equal(decorationScale.style.height, wordmarkScale.style.height, 'Line artwork uses the same base height');
-  const scaleValues = /^scale\(([^,]+),\s*([^)]+)\)$/.exec(wordmarkScale.style.transform);
-  assert(scaleValues, 'The artwork scale is explicit on its inner wrapper');
-  near(Number(scaleValues[1]) * 1920, blurPage.position()[0], 'Inner artwork width follows the card');
-  near(Number(scaleValues[2]) * 960, blurPage.position()[1], 'Inner artwork height follows the card');
+  const lineScale = /^scale\(([^,]+),\s*([^)]+)\)$/.exec(decorationScale.style.transform);
+  const wordmarkPose = /^translate3d\(([^,]+)px, ([^,]+)px, 0\) scale\(([^,]+), ([^)]+)\)$/.exec(wordmarkScale.style.transform);
+  assert(lineScale && wordmarkPose, 'Line geometry and independent wordmark zoom are explicit');
+  const [cardWidth, cardHeight] = blurPage.position();
+  const [offsetX, offsetY, wordmarkScaleX, wordmarkScaleY] = wordmarkPose.slice(1).map(Number);
+  const midpointZoom = 1.15;
+  near(Number(lineScale[1]) * 1920, cardWidth, 'Lines keep the width of the card');
+  near(Number(lineScale[2]) * 960, cardHeight, 'Lines keep the height of the card');
+  near(wordmarkScaleX * 1920, cardWidth * midpointZoom, 'The wordmark widens independently');
+  near(wordmarkScaleY * 960, cardHeight * midpointZoom, 'The wordmark grows uniformly');
+  near(offsetX, cardWidth * (1 - midpointZoom) / 2, 'The zoom keeps the wordmark horizontally centered');
+  near(offsetY, cardHeight * (1 - midpointZoom) * .75, 'The zoom stays anchored near the wordmark');
   assertIsolatedFilter();
   blurApi.setSettings({wordmarkFade: true});
   blurPage.frames();
@@ -591,7 +603,7 @@ if (require.main === module) (async () => {
   assert.equal(wordmarkFrame.style.filter, originalExitFilter, 'Blur resumes without clearing or changing strength');
   blurApi.setSettings({wordmarkBlur: 48});
   blurPage.frames();
-  near(blurPage.visibleWordmarkBlur(), 24, 'Changing blur strength live doubles its visible softness without scrolling');
+  near(blurPage.visibleWordmarkBlur(), 36, 'Changing blur strength live doubles its visible softness without scrolling');
   assert.deepEqual(blurPage.card(), exitCard, 'Live blur controls do not change portrait geometry');
   assert.equal(decorationScale.style.opacity, exitOpacity, 'Live blur controls do not change the separate lines fade');
   near(Number(wordmarkFrame.style.opacity), 1, 'Changing strength does not enable wordmark fade');
@@ -605,7 +617,7 @@ if (require.main === module) (async () => {
   blurPage.frames();
   near(blurApi.getSettings().wordmarkBlur, 36.25, 'The API accepts finite fractional blur values independently of the slider step');
   near(blurApi.getSettings().whiteAt, .22, 'An invalid white endpoint does not block a valid blur patch');
-  near(blurPage.visibleWordmarkBlur(), 18.125, 'A fractional blur strength affects the current frame');
+  near(blurPage.visibleWordmarkBlur(), 27.188, 'A fractional blur strength affects the current frame');
   blurApi.setSettings({whiteAt: .45, wordmarkBlur: 'invalid'});
   blurPage.frames();
   near(blurApi.getSettings().whiteAt, .45, 'A valid white patch survives an invalid blur value');
@@ -636,6 +648,8 @@ if (require.main === module) (async () => {
     near(Number(wordmarkFrame.style.opacity), 1, 'Blur-only mode never clears the late wordmark through opacity');
     near(Number(decorationScale.style.opacity), 0, 'Lines still finish their separate original fade');
     assertIsolatedFilter();
+    const scaleX = Number(wordmarkScale.style.transform.match(/scale\(([^,]+),/)[1]);
+    near(scaleX * 1920, blurPage.position()[0] * 1.15, 'The extra wordmark zoom stops at 15%');
     if (progress === .6) {
       blurApi.setSettings({wordmarkFade: true});
       blurPage.frames();
@@ -673,10 +687,12 @@ if (require.main === module) (async () => {
   blurPage.scroll(960 * .31);
   blurPage.frames();
   assert.equal(wordmarkFrame.style.filter, originalExitFilter, 'Reversing the exit restores the same progressive wordmark blur');
+  assert.equal(wordmarkScale.style.transform, wordmarkPose[0], 'Reversing the exit restores the same zoom');
   blurPage.reduced.matches = true;
   blurPage.reduced.dispatchEvent({type: 'change'});
   blurPage.frames();
   assert.equal(wordmarkFrame.style.filter, 'none', 'Reduced motion disables additional wordmark blur during the exit');
+  assert.equal(wordmarkScale.style.transform, decorationScale.style.transform, 'Reduced motion disables extra wordmark zoom');
   near(Number(wordmarkFrame.style.opacity), 1, 'Reduced motion does not silently enable wordmark fade');
   blurPage.reduced.matches = false;
   blurPage.reduced.dispatchEvent({type: 'change'});
@@ -685,6 +701,7 @@ if (require.main === module) (async () => {
   blurPage.scroll(0);
   blurPage.frames();
   assert.equal(wordmarkFrame.style.filter, 'none', 'Reverse scrolling to the hero restores the original filter');
+  assert.equal(wordmarkScale.style.transform, 'scale(1, 1)', 'Reverse scrolling to the hero restores the original wordmark size');
   near(Number(scenery.style.opacity), 1, 'Reverse scrolling preserves the original scenery opacity');
   near(Number(decorationScale.style.opacity), 1, 'Reverse scrolling restores the separate line opacity');
   assertIsolatedFilter();
@@ -694,10 +711,10 @@ if (require.main === module) (async () => {
     await turn();
     scaledBlur.scroll(height * .31);
     scaledBlur.frames();
-    near(scaledBlur.visibleWordmarkBlur(), 12, `${width}: the card-sized filter directly uses viewport pixels`);
+    near(scaledBlur.visibleWordmarkBlur(), 18, `${width}: the card-sized filter directly uses viewport pixels`);
     scaledBlur.window.HeroScrollEffect.setSettings({wordmarkBlur: 200});
     scaledBlur.frames();
-    near(scaledBlur.wordmarkBlur(), 100, `${width}: the maximum strength remains 100 px at the midpoint on every viewport`);
+    near(scaledBlur.wordmarkBlur(), 150, `${width}: the maximum strength yields 150 px at the midpoint on every viewport`);
   }
   const legacyStorage = new Map([[scrollStorageKey, JSON.stringify({whiteAt: .48})]]);
   const legacy = makeUnitDurationPage(1920, 960, 0, legacyStorage);
