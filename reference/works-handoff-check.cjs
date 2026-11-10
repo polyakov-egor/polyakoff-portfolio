@@ -111,9 +111,24 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   const visibleSlice=({left,top,width:boxWidth,height:boxHeight})=>Math.min(
     Math.min(left+boxWidth,width)-Math.max(left,0),Math.min(top+boxHeight,height)-Math.max(top,0));
   assert(before.every(box=>visibleSlice(box)<.15),'The raw helix starts beyond the viewport edge');
-  f.api.update(-2,{titleRollProgress:.86,now:101});
+  const titleRollTiming={started:100,durationMs:550,to:1};
+  const preview=(elapsed,distance=-2)=>f.api.update(distance,{
+    titleRollTiming,titleRollProgress:Math.min(elapsed/titleRollTiming.durationMs,1),now:titleRollTiming.started+elapsed
+  });
+  assert(preview(550).previewAnimating,'The orbit is still moving when the title and backdrop complete');
   const [partial]=screenBounds(f),partialPhase=f.updates.at(-1)[0];
-  f.api.update(-2,{titleRollProgress:1,now:102});
+  assert(preview(800).previewAnimating,'The camera continues on the shared clock without native scroll');
+  const tailPhase=f.updates.at(-1)[0];
+  assert(partialPhase<tailPhase,'The camera advances during the independent tail');
+  preview(800,.001);
+  assert(Math.abs(f.updates.at(-1)[0]-tailPhase)<1e-6,'Native Works starts from the live preview pose');
+  preview(800,height*.01);
+  assert(f.updates.at(-1)[0]>tailPhase,'Native scroll adds to the live preview pose immediately');
+  preview(800,height*.25);
+  const alignedPhase=f.updates.at(-1)[0];
+  assert(Math.abs(alignedPhase-(f.window.WorksGallery.getLayout().entrancePeekPhase+measured.phasePerViewport*.25))<1e-8,
+    'The short spatial blend recovers the regular camera phase before later cues');
+  assert(!preview(1050).previewAnimating,'The preview settles exactly 500ms after the title');
   const [peek]=screenBounds(f),peekPhase=f.updates.at(-1)[0];
   assert(partialPhase<peekPhase&&visibleSlice(partial)>0&&visibleSlice(partial)<visibleSlice(peek),'The late title frames advance the actual camera phase and expose the first card');
   assert(Math.abs(partial.left-peek.left)>3&&Math.abs(partial.width-peek.width)>.1,'The first card moves and turns on the orbit during the preview');
@@ -122,20 +137,20 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   assert.equal(f.viewport.getAttribute('aria-hidden'),'true');
   assert(f.list.children.every(card=>card.getAttribute('tabindex')==='-1'));
   assert(!f.viewport.classList.contains('has-works-title'));
-  f.api.update(.001,{titleRollProgress:1,now:103});
+  f.api.update(.001,{titleRollProgress:1,now:1151});
   assert(Math.abs(f.updates.at(-1)[0]-peekPhase)<1e-6,'The first Works scroll starts from the preview phase');
   for(const fraction of [.01,.05]) {
-    f.api.update(height*fraction,{now:108+fraction*100});
+    f.api.update(height*fraction,{now:1156+fraction*100});
     assert(screenBounds(f).some(box=>box.top<height&&box.top+box.height>0),`Actual project imagery appears after only ${fraction} viewport of the normal exit`);
   }
   const imageTop=()=>Math.min(...screenBounds(f).filter(box=>box.left+box.width>0&&box.left<width).map(box=>box.top));
-  f.api.update(measured.holdDistance-.5,{now:114});
+  f.api.update(measured.holdDistance-.5,{now:1162});
   assert(imageTop()>height*.54,'Heading stays centered until actual artwork reaches its lower edge');
-  f.api.update(measured.holdDistance+.5,{now:115});
+  f.api.update(measured.holdDistance+.5,{now:1163});
   assert(imageTop()<height*.54,'Heading may recede only after the first image reaches its lower edge');
   assert.equal(f.closingUpdates.at(-1).holdDistance,measured.holdDistance,'The callback uses the cached image crossing');
   assert.equal(f.closingUpdates.at(-1).galleryUpdates,f.updates.length,'The closing heading updates after the projected gallery');
-  f.api.update(height*.25,{now:116});
+  f.api.update(height*.25,{now:1164});
   const entering=screenBounds(f);
   assert(f.hero.classList.contains('is-works'),'The next scroll directly starts the Works layer');
   assert.equal(f.hero.style.getPropertyValue('--works-exit-px'),`${height*.25}px`,'The normal Works entrance follows native scroll distance');
@@ -146,18 +161,18 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   f.api.setStart(2850);
   assert.equal(f.updates.length,measuredUpdates,'Boundary rebasing does not update or measure the gallery');
   assert.deepEqual(f.list.children.map(node=>node.style.transform),transforms,'Boundary rebasing retains cached poses');
-  f.api.setStart(NaN);f.api.update(height*.25,{now:124});
+  f.api.setStart(NaN);f.api.update(height*.25,{now:1172});
   assert.equal(f.journey.dataset.chapterStart,'2850.000','Cheap boundary rebasing keeps finite input and ignores invalid values');
-  f.api.update(height*.85,{now:132});
+  f.api.update(height*.85,{now:1180});
   assert(screenBounds(f).some(box=>box.top<height&&box.top+box.height>0),'Real project images enter before the preceding full screen has scrolled out');
-  f.api.update(height,{now:140});
+  f.api.update(height,{now:1188});
   assert.equal(f.hero.style.getPropertyValue('--works-exit-px'),`${height}px`,'The normal Works entrance completes after one viewport');
   assert.equal(f.inspiration.getAttribute('aria-hidden'),'true');
   assert.equal(f.journey.dataset.exitProgress,'1.00000');
   const orbit=[];
   const orbitEnd=galleryTravel/height*.9;
   for(const fraction of [0,.25,.5,orbitEnd*.7,orbitEnd*.85,orbitEnd]){
-    f.api.update(height*fraction,{titleRollProgress:1,now:144+fraction});
+    f.api.update(height*fraction,{titleRollProgress:1,now:1192+fraction});
     const box=screenBounds(f)[0];
     orbit.push({distance:height*fraction,centerX:box.left+box.width/2,top:box.top,offset:f.closingUpdates.at(-1).headingProgress,helix:Number(f.journey.dataset.helixProgress)});
   }
@@ -169,16 +184,16 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
     const step=(orbit[i].helix-orbit[i-1].helix)/((orbit[i].distance-orbit[i-1].distance)/height);
     assert(Math.abs(step-measured.phasePerViewport)<.00005,'Entry and browsing have a constant world-space speed');
   }
-  f.api.update(height*(orbitEnd-.0001),{now:150});
+  f.api.update(height*(orbitEnd-.0001),{now:1198});
   const joinBefore=Number(f.journey.dataset.helixProgress);
-  f.api.update(height*(orbitEnd+.0001),{now:150});
+  f.api.update(height*(orbitEnd+.0001),{now:1198});
   const joinAfter=Number(f.journey.dataset.helixProgress);
   assert(Math.abs((orbit[5].helix-joinBefore)-(joinAfter-orbit[5].helix))<.00002,'No hidden easing splice changes the camera speed');
   for(let i=1;i<orbit.length;i++){
     assert(orbit[i].offset>=orbit[i-1].offset,'Header ascent is monotonic across the early orbit');
     assert.equal(f.journey.dataset.headingOffset,'0.000','The title no longer scrolls upward');
   }
-  let now=checkTitleTiming(f,measured,150);
+  let now=checkTitleTiming(f,measured,1198);
   function settleAt(distance){
     f.api.update(distance,{now:now+=16});
     for(let frame=0;frame<45&&f.window.WorksGallery.isAnimating();frame++)f.api.update(distance,{now:now+=16});

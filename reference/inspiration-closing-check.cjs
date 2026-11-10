@@ -242,24 +242,30 @@ if(require.main===module)(async()=>{
     assert(!page.hero.classList.contains('is-works'),'Works cannot appear halfway through the new message');
     assert(!f.viewport.classList.contains('works-is-preview'),'The title can roll into view before the first project edge enters');
     const hold=Number(f.journey.dataset.headingHoldDistance),worksStart=start+height*3.5;
-    const entrancePhase=Number(f.journey.dataset.helixProgress);
     const peekPhases=[];
     for(let frame=0;frame<11;frame++){
       assert(f.wheel(6,25).prevented,'Residual input cannot leave the timed title transition');
       if(f.viewport.classList.contains('works-is-preview'))peekPhases.push(Number(f.journey.dataset.helixProgress));
     }
     assert(peekPhases.length>=8&&peekPhases[0]<peekPhases.at(-1),'The timed title gives the orbit over 175ms to enter');
-    const [brakeStart,late,almost,end]=peekPhases.slice(-4);
-    assert(end-almost>0&&end-almost<almost-late&&almost-late<late-brakeStart,
-      'The helix decelerates in successive 25ms frames before the hold');
-    assert(end-late>(end-entrancePhase)*.1,'The final 50ms still carry a visible part of the entrance');
-    page.frames();
     near(page.window.scrollY-120,worksStart-2,'A single gesture lands immediately before Works at the completed title');
     assert.equal(f.root.dataset.morphProgress,'1.00000');
+    near(Number(page.hero.style.getPropertyValue('--works-black-progress')),1,'The backdrop still finishes with the title at 550ms');
     assert(f.viewport.classList.contains('works-is-preview'),'The completed title lets the first project edge peek in');
     assert(!page.hero.classList.contains('is-works'),'The peek consumes no Works scroll distance');
     assert.equal(f.viewport.getAttribute('aria-hidden'),'true','The preview does not introduce focusable projects');
     assert(f.wheel(2,40).prevented,'The triggering gesture tail cannot enter Works after completion');
+    advance(page,385);
+    const tailPhases=[Number(f.journey.dataset.helixProgress)];
+    for(let frame=0;frame<3;frame++){
+      page.frame(25);tailPhases.push(Number(f.journey.dataset.helixProgress));
+    }
+    assert(tailPhases[0]>peekPhases.at(-1),'The projected spiral keeps moving after the title has settled');
+    const [brakeStart,late,almost,end]=tailPhases;
+    assert(end-almost>0&&end-almost<almost-late&&almost-late<late-brakeStart,
+      'The helix eases to a stop across the final frames of the 500ms tail');
+    near(end,page.window.WorksGallery.getLayout().entrancePeekPhase,'The independent tail ends at the original orbit pose');
+    assert.equal(page.raf.size,0,'The shared clock sleeps at the completed preview');
     assert.equal(f.wheel(120,230).prevented,false,'A fresh forward gesture leaves the completed title for Works');
     page.scroll(worksStart+2);page.frames();
     assert(page.hero.classList.contains('is-works'),'Actual Works enters immediately after the new-title interval');
@@ -280,6 +286,34 @@ if(require.main===module)(async()=>{
     assert(!f.viewport.classList.contains('works-is-preview'),'The first project edge clears when the previous title returns');
     assert.equal(f.root.dataset.progress,'1.00000','Reverse lands at the centered old headline');
     near(Number(page.hero.style.getPropertyValue('--works-black-progress')),0,'Reverse restores light before the title roll');
+    if(width===1920){
+      const phase=()=>Number(f.journey.dataset.helixProgress);
+      const peek=page.window.WorksGallery.getLayout().entrancePeekPhase;
+      assert(f.wheel(60,230).prevented,'A fresh gesture restarts the title and preview');
+      advance(page,550);
+      const beforeReverse=phase();
+      assert(beforeReverse<peek&&page.raf.size===1,'The live preview has room to move after the title');
+      assert(f.wheel(-60,0).prevented,'A fresh reverse can start while the preview is still moving');
+      page.frame(0);
+      near(phase(),beforeReverse,'Starting reverse latches the live camera pose without jumping ahead');
+      advance(page,275);
+      assert(phase()<beforeReverse,'The camera retraces the same entrance during the reverse roll');
+      advance(page,275);
+      assert(!f.viewport.classList.contains('works-is-preview'));
+      assert.equal(f.root.dataset.morphProgress,'0.00000');
+
+      assert(f.wheel(60,230).prevented);
+      advance(page,550);
+      const beforeAdvance=phase();
+      assert.equal(f.wheel(30,0).prevented,false,'The preview tail leaves the next forward gesture native');
+      page.frame(50);
+      assert(page.hero.classList.contains('is-works')&&phase()>beforeAdvance&&phase()<peek,
+        `Native Works advances the live pose while blending the preview (class=${page.hero.className}, phase=${phase()}, before=${beforeAdvance}, peek=${peek})`);
+      advance(page,450);
+      assert(phase()>peek,'The native movement is fully added to the original peek after the tail');
+      f.wheel(-height,230);page.frames();
+      assert.equal(f.root.dataset.morphProgress,'0.00000');
+    }
     assert.equal(f.wheel(-120,230).prevented,false,'Fresh reverse input resumes the native merge');
     page.scroll(start+height*2+height*.4);page.frames();
     assert(Number(f.root.dataset.progress)<1,'Reverse traverses the merge');

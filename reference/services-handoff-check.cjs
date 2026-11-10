@@ -277,10 +277,13 @@ function send(f,type,properties={}){
     const entryPose=[cardOffset(),cardOpacity()];
     roundedNear(cardY(),cardRestY,'The card reveals from inside the viewport at its final height');
     assert(cardOpacity()>0&&cardOffset()>.5,'The card is visible while it still has more than half of the starting tilt');
-    roundedNear(cardOffset(),.88**5,'Card tilt and scale follow the form entrance easing');
-    roundedNear(cardOpacity(),.12**2*(3-2*.12),'The card fades across the full entrance');
+    roundedNear(cardOffset(),1-.12**2*(3-2*.12),'The turn eases across the full entrance');
+    roundedNear(cardOpacity(),.8**2*(3-2*.8),'The fade is confined to the first 15% of the entrance');
     assert.equal(footer.style.getPropertyValue('--site-footer-card-filter'),'','The reveal never applies a foreground filter to the card');
-    advance(page,483);
+    advance(page,16.5);
+    near(cardOpacity(),1,'The card reaches full opacity at the end of the short fade');
+    assert(cardOffset()>.9,'Most of the turn remains after the fade');
+    advance(page,466.5);
     assert(page.raf.size>0,'The opening timeline runs for 550 ms');
     advance(page,2);
     near(cardOffset(),0,'The card opens fully without further scrolling');
@@ -306,7 +309,9 @@ function send(f,type,properties={}){
     near(cardOpacity(),1,'The card stays open above its new exit threshold');
     page.scroll(cardExit-1);page.frame(0);
     assert(wordmarkOpacity()>.75,'The card begins closing while most of the wordmark is visible');
-    advance(page,484);
+    advance(page,467.5);
+    near(cardOpacity(),1,'The card stays opaque through the first 85% of the reverse turn');
+    advance(page,16.5);
     assert.deepEqual([cardOffset(),cardOpacity()],entryPose,'The exit plays the tilt and fade backward');
     roundedNear(cardY(),cardRestY,'The reverse card stays at its settled height');
     advance(page,67);

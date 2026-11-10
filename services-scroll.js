@@ -22,7 +22,7 @@
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
   const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
   const smooth=value=>value*value*(3-2*value);
-  const footerCardDuration=550, footerCardHysteresis=4;
+  const footerCardDuration=550, footerCardFade=.15, footerCardHysteresis=4;
   let layout=null,enhanced=false,visibility=null,deckVisibility=null,footerVisibility=null,footerY=null;
   let footerCardTarget=null,footerCardMotion=null,footerCardPhase=null,footerCardEdge=0;
 
@@ -83,9 +83,10 @@
     }
     footerCardTarget=target;
     if(phase!==footerCardPhase){
-      // Keep the form's quintic tilt while opacity eases across the full motion.
-      footer.style.setProperty('--site-footer-card-offset',((1-phase)**5).toFixed(4));
-      footer.style.setProperty('--site-footer-card-opacity',smooth(phase).toFixed(4));
+      const turn=smooth(phase);
+      const opacity=smooth(clamp(phase/footerCardFade,0,1));
+      footer.style.setProperty('--site-footer-card-offset',(1-turn).toFixed(4));
+      footer.style.setProperty('--site-footer-card-opacity',opacity.toFixed(4));
       footerCardPhase=phase;
     }
     return Boolean(footerCardMotion);

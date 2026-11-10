@@ -37,7 +37,7 @@
   let pose={leftX:0,leftY:0,rightX:0,rightY:0,gap:16,wordX:0,ghostOpacity:0,ghostY:0};
   const originalAria=[view.headingLeft,view.headingRight].map(element=>element.getAttribute('aria-hidden'));
   const checkpoint={side:null,departing:null,allowRestore:true};
-  let roll=null;
+  let roll=null, rollTiming=null;
   let context={height:1};
   let wheelId=0,wheelAmount=0,wheelDirection=0,wheelArmed=false;
   let touch=null;
@@ -54,9 +54,12 @@
     if(checkpoint.side===side)return;
     checkpoint.side=side;checkpoint.departing=null;clearInput();
   }
+  function beginRoll(to,started){
+    roll=rollTiming={to,started,durationMs:rollMs};
+  }
   function navigate(direction,now){
     if(direction===(checkpoint.side==='light'?1:-1)){
-      roll={started:now,to:direction>0?1:0};
+      beginRoll(direction>0?1:0,now);
       clearInput();wake();return true;
     }
     checkpoint.departing=checkpoint.side;checkpoint.side=null;wake();return false;
@@ -75,6 +78,7 @@
   function reset(){
     if(!active&&root.hidden)return;
     active=false;worksProgress=0;worksReduced=false;morph=0;root.hidden=true;root.setAttribute('aria-hidden','true');
+    rollTiming=null;
     lastRender=null;lastExitOffset=null;
     restoreHeadings();cards.style.transform='';
     view.eyebrow.style.transform='';view.counter.style.transform='';
@@ -182,14 +186,14 @@
     // Native history and Home/End can land inside the reserved interval.
     // Restore an endpoint without starting a transition or rebasing history.
     if(restore||checkpoint.allowRestore||reducedMotion){
-      checkpoint.side=null;checkpoint.departing=null;roll=null;
+      checkpoint.side=null;checkpoint.departing=null;roll=rollTiming=null;
       morph=Number(distance>=height*1.25);
     }else{
       if((checkpoint.departing==='light'&&rawDistance<height-8)||
          (checkpoint.departing==='dark'&&rawDistance>end+8))checkpoint.departing=null;
       if(!roll&&!checkpoint.side){
         if(morph===1&&!checkpoint.departing&&rawDistance<end-2&&distance<=end+2){
-          lock('dark');roll={started:now,to:0};
+          lock('dark');beginRoll(0,now);
         }else if(morph===0&&!checkpoint.departing&&distance>=height-2&&rawDistance>=height-2){
           lock('light');
         }
@@ -316,7 +320,7 @@
   window.addEventListener('keydown',event=>{
     if(event.ctrlKey||event.metaKey||event.altKey||ignored(event.target))return;
     if(event.key==='Home'||event.key==='End'){
-      checkpoint.allowRestore=true;checkpoint.side=null;roll=null;clearInput();wake();return;
+      checkpoint.allowRestore=true;checkpoint.side=null;roll=rollTiming=null;clearInput();wake();return;
     }
     const direction=event.key==='ArrowDown'||event.key==='PageDown'||(event.key===' '&&!event.shiftKey)?1:
       event.key==='ArrowUp'||event.key==='PageUp'||(event.key===' '&&event.shiftKey)?-1:0;
@@ -328,8 +332,8 @@
   });
   // Browsers may restore native scroll after pageshow and font measurement.
   // Keep that late restore free until the first actual navigation gesture.
-  window.addEventListener('pageshow',()=>{checkpoint.allowRestore=true;});
+  window.addEventListener('pageshow',()=>{checkpoint.allowRestore=true;rollTiming=null;});
   window.addEventListener('blur',()=>{touch=null;clearInput();});
   window.InspirationClosing=Object.freeze({measure,update,updateWorks,getCreationBounds,updateTheme,
-    getRollProgress:()=>morph,getBlackProgress:()=>smooth(morph)});
+    getRollProgress:()=>morph,getRollTiming:()=>rollTiming,getBlackProgress:()=>smooth(morph)});
 })();
