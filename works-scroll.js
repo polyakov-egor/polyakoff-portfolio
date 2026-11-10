@@ -18,44 +18,10 @@
   // pace matches the previous two-screen final exit, without its acceleration.
   const paceReferenceProgress = 43.2 / 56.592;
   const titleRevealPhase = window.WorksGallery.leadFrontalPhase - .01;
-  const previewStart = .62, previewTailMs = 500;
-  let previewMotion = null, previewHandoffDistance = 1;
   let titleHidePhase = Infinity;
 
   function helixProgress(distance) {
     return Math.min(clearProgress,entrancePeek+Math.max(0,distance)/height*phasePerViewport);
-  }
-
-  function easePreview(progress) {
-    const t=clamp(progress);
-    return t*t*(3-2*t);
-  }
-
-  function samplePreview(motion, now) {
-    const t=now>=motion.end-.000001?1:clamp((now-motion.start)/(motion.end-motion.start));
-    // Forward motion peaks early and loses speed quadratically near the hold.
-    const progress=motion.timing.to?t*t*(6+t*(-8+3*t)):easePreview(t);
-    return motion.from+(motion.timing.to-motion.from)*progress;
-  }
-
-  function updatePreview(timing, now) {
-    if (!timing) {
-      previewMotion=null;
-      return;
-    }
-    if (previewMotion?.timing!==timing) {
-      // A reverse can start while the forward tail is still moving. Use the
-      // phase at that instant instead of jumping to the fully revealed edge.
-      let from=0;
-      if (timing.to===0) {
-        from=previewMotion?samplePreview(previewMotion,Math.max(timing.started,previewMotion.sampledAt)):1;
-      }
-      const start=timing.started+(timing.to?timing.durationMs*previewStart:0);
-      const end=timing.started+timing.durationMs+(timing.to?previewTailMs:0);
-      previewMotion={timing,from,start,end,sampledAt:now};
-    }
-    previewMotion.sampledAt=Math.max(previewMotion.sampledAt,now);
-    return samplePreview(previewMotion,previewMotion.sampledAt);
   }
 
   function measureHeadingHold() {
@@ -165,9 +131,6 @@
     const servicesRevealDistance=reduced.matches?0:distanceAt(measureLastWorkCrossing(titleHidePhase,clearProgress,height*.15,'maxY'));
     travel=galleryTravel+exitTravel+emptyHold;
     holdDistance=reduced.matches?0:measureHeadingHold();
-    // A strong scroll can cover the remaining preview distance early. Finish
-    // blending before either title cue so the rest of the timeline stays fixed.
-    previewHandoffDistance=Math.max(1,Math.min(height*.25,holdDistance,distanceAt(titleRevealPhase)));
     measureHeadingAscent();
     journey.dataset.headingHoldDistance=holdDistance.toFixed(3);
     journey.dataset.totalTravel=travel.toFixed(3);
@@ -176,7 +139,6 @@
     journey.dataset.phasePerViewport=phasePerViewport.toFixed(6);
     // Keep the static accessibility grid independent of the pinned timeline.
     if (reduced.matches) {
-      previewMotion=null;
       window.WorksGallery.setVisible?.(true);
       hero.classList.remove('is-works');
       viewport.classList.remove('has-works-title');
@@ -188,22 +150,20 @@
     return { travel, galleryTravel, exitTravel, emptyHold, holdDistance, phasePerViewport, servicesHeadingDistance, servicesRevealDistance };
   }
 
-  function update(localDistance, { reducedMotion = reduced.matches, titleRollProgress = 0, titleRollTiming = null, now = 0 } = {}) {
+  function update(localDistance, { reducedMotion = reduced.matches, entryProgress = 0, now = 0 } = {}) {
     if (!enhanced || reducedMotion) {
-      previewMotion=null;
       window.InspirationClosing?.updateWorks(localDistance,{holdDistance,height,headingProgress:0,reducedMotion:true});
       return {finished:false};
     }
     const active = localDistance > 0;
-    const previewProgress=updatePreview(titleRollTiming,now)??Number(active||titleRollProgress>=1);
-    const preview = !active && previewProgress > 0;
+    const preview = !active && entryProgress > 0;
     const galleryVisible = preview || (active && localDistance < galleryTravel + exitTravel);
     window.WorksGallery.setVisible?.(galleryVisible,{interactive:active&&galleryVisible});
     const progress = clamp(Math.max(0, localDistance) / Math.max(1, travel));
     const exit=Math.min(height,Math.max(0,localDistance));
-    const scrollBlend=active?easePreview(localDistance/previewHandoffDistance):0;
-    const previewDeficit=(entrancePeek-entranceStart)*(1-previewProgress);
-    const helix=helixProgress(localDistance)-previewDeficit*(1-scrollBlend);
+    // The closing scroll covers the first stretch of the same orbit. At the
+    // Works boundary, both paths project the measured entrance pose.
+    const helix=active?helixProgress(localDistance):entranceStart+(entrancePeek-entranceStart)*entryProgress;
     hero.classList.toggle('is-works', active);
     const titleVisible=active&&galleryVisible&&helix>=titleRevealPhase&&helix<titleHidePhase;
     viewport.classList.toggle('has-works-title',titleVisible);
@@ -223,9 +183,7 @@
     journey.dataset.headingOffset='0.000';
     journey.dataset.headingProgress=headingProgress.toFixed(5);
     journey.dataset.galleryFinished=String(localDistance>=galleryTravel+exitTravel);
-    const previewAnimating=Boolean(previewMotion&&scrollBlend<1&&previewMotion.from!==previewMotion.timing.to&&
-      previewMotion.sampledAt<previewMotion.end-.000001);
-    return {finished:localDistance>=galleryTravel+exitTravel,previewAnimating};
+    return {finished:localDistance>=galleryTravel+exitTravel};
   }
 
   // A triggered entrance can consume a gesture while it finishes. Its owner

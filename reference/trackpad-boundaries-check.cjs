@@ -61,13 +61,18 @@ async function returned(width=1920,height=960,{newBurstDuringReturn=false}={}){
     const events=burst(f.wheel,direction);
     assert(events[0].prevented,'A single rising sample is still quarantined');
     if(direction>0){
-      assert(events.every(event=>event.prevented),'Forward acceleration is consumed by the separate title roll');
+      assert(events.slice(1).some(event=>!event.prevented),'Confirmed forward intent releases the same trackpad burst');
       f.page.frame(100);
-      assert(Number(f.root.dataset.morphProgress)>0,'Two confirmed rising samples start the title roll before 220ms');
+      assert(Number(f.root.dataset.morphProgress)>0&&Number(f.root.dataset.morphProgress)<1,
+        'The released burst starts the timed title before 220ms');
+      assert(local(f)>height*3,'The gesture that starts the title also moves native scroll');
+      assert(f.viewport.classList.contains('works-is-preview')||f.page.hero.classList.contains('is-works'),
+        'Works starts moving during the same title change');
+      assert(!f.wheel(height*.5,16).prevented,'The remaining burst can continue into Works');
       f.page.frames();
       assert.equal(f.root.dataset.morphProgress,'1.00000');
-      assert.equal(f.root.dataset.locked,'true','The creation title retains its own settled checkpoint');
-      assert(!f.page.hero.classList.contains('is-works'),'The first renewed burst cannot skip directly into Works');
+      assert.equal(f.root.dataset.locked,'false','The creation title adds no second scroll checkpoint');
+      assert(f.page.hero.classList.contains('is-works'),'The same renewed burst advances into Works');
     }else{
       assert(events.some(event=>!event.prevented),'A deliberate reverse releases native scroll');
       f.page.frames();
@@ -84,9 +89,10 @@ async function returned(width=1920,height=960,{newBurstDuringReturn=false}={}){
     assert(f.wheel(-.1,16).prevented);
     assert(f.wheel(8,16).prevented);
     assert(f.wheel(8,16).prevented);
-    assert(f.wheel(8,16).prevented,'A clean 24px of confirmed intent starts the roll without native scrolling');
+    assert(!f.wheel(8,16).prevented,'The event completing the clean 24px intent starts the title and scrolls natively');
     f.page.frame(100);
     assert(Number(f.root.dataset.morphProgress)>0);
+    assert(local(f)>960*3,'Small confirmed trackpad movement reaches the shared entrance');
   }
 
   // About and Inspiration are separate consumers. A newly recognized gesture
@@ -112,5 +118,5 @@ async function returned(width=1920,height=960,{newBurstDuringReturn=false}={}){
     }
     assert(f.worksUpdates.every(distance=>distance<0),'Return/entry intent never reaches Works');
   }
-  console.log('Trackpad boundary checks passed: renewed sub220ms bursts in both directions, tiny reverse/rogue spike rejection, visible-checkpoint ownership, return quarantine and no queued hidden-About/category progress.');
+  console.log('Trackpad boundary checks passed: renewed sub220ms bursts, shared title/Works entrance, tiny reverse/rogue spike rejection and About return quarantine.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

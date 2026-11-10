@@ -32,41 +32,61 @@
   left.append(lead,detail);oldLayer.append(left,right,...ghosts);newLayer.append(creation);stage.append(oldLayer,newLayer);root.append(stage);
   root.hidden=true;root.setAttribute('aria-hidden','true');hero.append(root);
 
-  let layout=null, active=false, worksProgress=0, worksReduced=false, morph=0;
+  let layout=null, active=false, worksProgress=0, worksReduced=false, morph=0, entryProgress=0;
   let lastRender=null, lastExitOffset=null;
   let pose={leftX:0,leftY:0,rightX:0,rightY:0,gap:16,wordX:0,ghostOpacity:0,ghostY:0};
   const originalAria=[view.headingLeft,view.headingRight].map(element=>element.getAttribute('aria-hidden'));
-  const checkpoint={side:null,departing:null,allowRestore:true};
-  let roll=null, rollTiming=null;
-  let context={height:1};
+  const checkpoint={locked:false,departing:null,allowRestore:true};
+  let roll=null,lastDistance=null,rollEdge=null;
   let wheelId=0,wheelAmount=0,wheelDirection=0,wheelArmed=false;
   let touch=null;
   const threshold=24,rollMs=550;
 
   function wake(){window.dispatchEvent(new CustomEvent('inspiration:ready'));}
   function ignored(target){return Boolean(target?.closest?.('input, textarea, select, button, a, [contenteditable="true"], [role="slider"], [role="dialog"], .effect-controls, #hero-effect-panel'));}
-  function eligible(){return Boolean(checkpoint.side)&&!document.hidden;}
+  function eligible(){return checkpoint.locked&&!document.hidden;}
   function clearInput(){
     wheelAmount=0;wheelDirection=0;wheelArmed=false;
     if(touch)touch.canRelease=false;
   }
-  function lock(side){
-    if(checkpoint.side===side)return;
-    checkpoint.side=side;checkpoint.departing=null;clearInput();
+  function lock(){
+    checkpoint.locked=true;checkpoint.departing=null;clearInput();
   }
-  function beginRoll(to,started){
-    roll=rollTiming={to,started,durationMs:rollMs};
+  function sampleRoll(now){
+    if(!roll)return;
+    const elapsed=now-roll.started;
+    const phase=elapsed>=rollMs-.000001?1:clamp(elapsed/rollMs);
+    morph=lerp(roll.from,roll.to,phase);
+    if(phase===1)roll=null;
+  }
+  function beginRoll(to,now,distance=lastDistance){
+    sampleRoll(now);
+    if(to===(roll?.to??morph))return;
+    roll=morph===to?null:{from:morph,to,started:now};
+    rollEdge=distance;
+  }
+  function updateRollDirection(distance,height,end,now){
+    const overlap=distance>height&&distance<end;
+    const edge=rollEdge??lastDistance;
+    if((roll?.to??morph)===1){
+      const leavingWorks=lastDistance>=end&&distance<end;
+      const leavingOverlap=lastDistance>height&&distance<=height;
+      if(leavingWorks||leavingOverlap||(overlap&&edge-distance>=threshold))beginRoll(0,now,distance);
+      else rollEdge=Math.max(edge,distance);
+    }else{
+      const enteringWorks=lastDistance<end&&distance>=end;
+      if(enteringWorks||(overlap&&distance-edge>=threshold))beginRoll(1,now,distance);
+      else rollEdge=Math.min(edge,distance);
+    }
   }
   function navigate(direction,now){
-    if(direction===(checkpoint.side==='light'?1:-1)){
-      beginRoll(direction>0?1:0,now);
-      clearInput();wake();return true;
-    }
-    checkpoint.departing=checkpoint.side;checkpoint.side=null;wake();return false;
+    checkpoint.locked=false;
+    checkpoint.departing=direction>0?'works':'merge';
+    if(direction>0)beginRoll(1,now);
+    clearInput();wake();
   }
   function reclaim(direction){
-    if(checkpoint.departing==='dark'&&direction<0)lock('dark');
-    if(checkpoint.departing==='light'&&direction>0)lock('light');
+    if(checkpoint.departing==='merge'&&direction>0)lock();
   }
   function restoreHeadings(){
     for(const [i,element] of [view.headingLeft,view.headingRight].entries()){
@@ -76,9 +96,9 @@
     }
   }
   function reset(){
+    roll=null;lastDistance=null;rollEdge=null;entryProgress=0;
     if(!active&&root.hidden)return;
     active=false;worksProgress=0;worksReduced=false;morph=0;root.hidden=true;root.setAttribute('aria-hidden','true');
-    rollTiming=null;
     lastRender=null;lastExitOffset=null;
     restoreHeadings();cards.style.transform='';
     view.eyebrow.style.transform='';view.counter.style.transform='';
@@ -167,7 +187,6 @@
     const sourceRight=stacked?number(source.right,finalRight):width-number(source.right,24)-rightWidth;
     layout={width,height,font,stacked,leadWidth,detailWidth,rightWidth,leftWidth,targetGap,rowStep,finalY,finalLeft,finalRight,creationWidth:creationRect.width,creationHeight:creationRect.height,
       sourceLeft,sourceHead,sourceWord,sourceRight,sourceRightY:number(source.rightY,sourceHead),sourceGap:Math.max(0,number(source.gap,Math.max(8,sourceWord-sourceLeft-font*5)))};
-    context.height=height;
     root.dataset.layout=stacked?'stacked':'desktop';
     root.dataset.finalLeft=finalLeft.toFixed(4);root.dataset.finalRight=finalRight.toFixed(4);
     root.dataset.finalY=finalY.toFixed(4);root.dataset.rowStep=rowStep.toFixed(4);
@@ -178,44 +197,33 @@
     if(!layout)return {progress:0,scrollAdjustment:0,locked:false};
     distance=number(distance,-1);rawDistance=number(rawDistance,distance);
     const {height,stacked}=layout;
-    context.height=height;
     const end=height*1.5;
-    if(distance<0&&!checkpoint.side&&!roll){
+    if(distance<0&&!checkpoint.locked){
       checkpoint.departing=null;reset();return {progress:0,scrollAdjustment:0,locked:false};
     }
     // Native history and Home/End can land inside the reserved interval.
     // Restore an endpoint without starting a transition or rebasing history.
     if(restore||checkpoint.allowRestore||reducedMotion){
-      checkpoint.side=null;checkpoint.departing=null;roll=rollTiming=null;
+      checkpoint.locked=false;checkpoint.departing=null;roll=null;
       morph=Number(distance>=height*1.25);
+      rollEdge=distance;
     }else{
-      if((checkpoint.departing==='light'&&rawDistance<height-8)||
-         (checkpoint.departing==='dark'&&rawDistance>end+8))checkpoint.departing=null;
-      if(!roll&&!checkpoint.side){
-        if(morph===1&&!checkpoint.departing&&rawDistance<end-2&&distance<=end+2){
-          lock('dark');beginRoll(0,now);
-        }else if(morph===0&&!checkpoint.departing&&distance>=height-2&&rawDistance>=height-2){
-          lock('light');
-        }
-      }
-      if(roll){
-        const elapsed=now-roll.started;
-        const phase=elapsed>=rollMs-.000001?1:clamp(elapsed/rollMs);
-        morph=roll.to?phase:1-phase;
-        if(phase===1){
-          lock(roll.to?'dark':'light');
-          roll=null;
-        }
-      }
+      sampleRoll(now);
+      if(checkpoint.departing&&rawDistance<height-8)checkpoint.departing=null;
+      // Only the merged Inspiration heading holds. Its release starts the
+      // title roll while the same input keeps moving the document and works.
+      if(!roll&&!checkpoint.locked&&!checkpoint.departing&&morph===0&&distance>=height-2&&rawDistance>=height-2&&
+         (lastDistance===null||(lastDistance<=height&&distance>lastDistance)))lock();
+      if(!checkpoint.locked&&lastDistance!==null)updateRollDirection(distance,height,end,now);
     }
-    if(checkpoint.side)distance=checkpoint.side==='light'?height:end-2;
+    if(checkpoint.locked)distance=height;
     if(distance<0){reset();return {progress:0,scrollAdjustment:0,locked:false};}
+    lastDistance=distance;
+    entryProgress=clamp((distance-height)/(end-height));
 
     let scrollAdjustment=0,settleDistance;
-    // Both sides stay inside the title chapter while the common clock rolls
-    // the title and backdrop. Works can only advance after a fresh gesture.
-    if(checkpoint.side){
-      scrollAdjustment=(checkpoint.side==='light'?height-2:end-2)-rawDistance;
+    if(checkpoint.locked){
+      scrollAdjustment=height-2-rawDistance;
       settleDistance=distance;
     }
     // Fractional chapter starts can leave a sub-pixel arithmetic remainder
@@ -240,9 +248,9 @@
     const rightY=stacked?Math.max(layout.finalY+layout.rowStep,layout.sourceRightY-offset):lerp(layout.sourceRightY,layout.finalY,merge);
     pose={leftX,leftY,rightX:lerp(layout.sourceRight,layout.finalRight,merge),rightY,gap,wordX:leftX+layout.leadWidth+gap,
       ghostOpacity:stacked?0:.2*(1-smooth(progress/.2)),ghostY:leftY-40*smooth(progress/.2)};
-    root.dataset.progress=progress.toFixed(5);root.dataset.locked=String(Boolean(checkpoint.side));
+    root.dataset.progress=progress.toFixed(5);root.dataset.locked=String(checkpoint.locked);
     root.dataset.reducedMotion=String(Boolean(reducedMotion));render();
-    return {progress,scrollAdjustment,locked:Boolean(checkpoint.side),settleDistance,animating:Boolean(roll)};
+    return {progress,scrollAdjustment,locked:checkpoint.locked,settleDistance,animating:Boolean(roll)};
   }
 
   function updateWorks(localDistance,{headingProgress=0,reducedMotion=false}={}){
@@ -272,21 +280,21 @@
   window.addEventListener('wheel',event=>{
     if(ignored(event.target))return;
     const now=performance.now();
-    const intent=window.SiteWheelIntent?.sample(event,now,context.height);
+    const intent=window.SiteWheelIntent?.sample(event,now,layout?.height||1);
     if(!intent)return;
     checkpoint.allowRestore=false;
     if(intent.id!==wheelId){
       if(!event.defaultPrevented)reclaim(intent.direction);
-      wheelId=intent.id;wheelAmount=0;wheelDirection=0;wheelArmed=eligible()&&!roll&&!event.defaultPrevented;
+      wheelId=intent.id;wheelAmount=0;wheelDirection=0;wheelArmed=eligible()&&!event.defaultPrevented;
     }
     if(!eligible()||event.defaultPrevented)return;
     // A tiny reversed momentum sample cannot unlock the checkpoint and let
     // its following forward tail enter the title roll. Both directions need
     // a new deliberate intent, accumulated only while the heading is ready.
-    if(wheelArmed&&!roll){
+    if(wheelArmed){
       if(wheelDirection!==intent.direction){wheelAmount=0;wheelDirection=intent.direction;}
       wheelAmount+=Math.abs(intent.delta);
-      if(wheelAmount>=threshold&&!navigate(intent.direction,now))return;
+      if(wheelAmount>=threshold){navigate(intent.direction,now);return;}
     }
     // Momentum from the gesture that centered the heading cannot enter Works.
     event.preventDefault();
@@ -295,7 +303,7 @@
     if(event.touches.length!==1||ignored(event.target)){touch=null;return;}
     checkpoint.allowRestore=false;
     const point=event.touches[0];
-    touch={x:point.clientX,y:point.clientY,canRelease:eligible()&&!roll,canReclaim:Boolean(checkpoint.departing),horizontal:false};
+    touch={x:point.clientX,y:point.clientY,canRelease:eligible(),canReclaim:checkpoint.departing==='merge',horizontal:false};
   },{passive:true});
   window.addEventListener('touchmove',event=>{
     if(!touch||event.touches.length!==1||ignored(event.target)||event.defaultPrevented)return;
@@ -304,14 +312,10 @@
     if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>8){touch.horizontal=true;return;}
     if(Math.abs(dy)<.01||Math.abs(dx)>Math.abs(dy))return;
     const direction=Math.sign(dy);
-    if(!checkpoint.side&&touch.canReclaim){reclaim(direction);touch.canRelease=eligible();}
+    if(!checkpoint.locked&&touch.canReclaim){reclaim(direction);touch.canRelease=eligible();}
     touch.canReclaim=false;
     if(!eligible())return;
-    const timed=direction===(checkpoint.side==='light'?1:-1);
-    if(!roll&&touch.canRelease&&(!timed||Math.abs(dy)>=8)){
-      touch.canRelease=false;
-      if(!navigate(direction,performance.now()))return;
-    }
+    if(touch.canRelease){navigate(direction,performance.now());return;}
     event.preventDefault();
   },{passive:false});
   const endTouch=()=>{touch=null;};
@@ -320,7 +324,7 @@
   window.addEventListener('keydown',event=>{
     if(event.ctrlKey||event.metaKey||event.altKey||ignored(event.target))return;
     if(event.key==='Home'||event.key==='End'){
-      checkpoint.allowRestore=true;checkpoint.side=null;roll=rollTiming=null;clearInput();wake();return;
+      checkpoint.allowRestore=true;checkpoint.locked=false;roll=null;clearInput();wake();return;
     }
     const direction=event.key==='ArrowDown'||event.key==='PageDown'||(event.key===' '&&!event.shiftKey)?1:
       event.key==='ArrowUp'||event.key==='PageUp'||(event.key===' '&&event.shiftKey)?-1:0;
@@ -328,12 +332,13 @@
     checkpoint.allowRestore=false;
     if(!event.repeat&&!event.defaultPrevented)reclaim(direction);
     if(!eligible()||event.defaultPrevented)return;
-    if(roll||event.repeat||navigate(direction,performance.now()))event.preventDefault();
+    if(event.repeat)event.preventDefault();
+    else navigate(direction,performance.now());
   });
   // Browsers may restore native scroll after pageshow and font measurement.
   // Keep that late restore free until the first actual navigation gesture.
-  window.addEventListener('pageshow',()=>{checkpoint.allowRestore=true;rollTiming=null;});
+  window.addEventListener('pageshow',()=>{checkpoint.allowRestore=true;});
   window.addEventListener('blur',()=>{touch=null;clearInput();});
   window.InspirationClosing=Object.freeze({measure,update,updateWorks,getCreationBounds,updateTheme,
-    getRollProgress:()=>morph,getRollTiming:()=>rollTiming,getBlackProgress:()=>smooth(morph)});
+    getEntryProgress:()=>entryProgress,getBlackProgress:()=>smooth(morph)});
 })();

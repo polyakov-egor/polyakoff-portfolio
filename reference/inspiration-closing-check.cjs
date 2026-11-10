@@ -126,8 +126,7 @@ if(require.main===module)(async()=>{
     assert.equal(f.reads,reads,'All scroll, reverse and Works frames perform zero layout reads');
   }
 
-  // The new message rolls through the centered band for 550ms on the shared
-  // clock. Native overshoot cannot change either plane or the backdrop pose.
+  // The title and backdrop run for 550ms while native scroll advances Works.
   for(const [width,height,font,stacked,source] of [
     [375,812,32,true,{left:63,word:231,head:563,right:69,rightY:603,gap:8}],
     [768,1024,48,true,{left:194,word:446,head:749,right:204,rightY:814,gap:12}],
@@ -146,15 +145,15 @@ if(require.main===module)(async()=>{
     near(f.api.getBlackProgress(),0,'The background stays light until the title starts to turn');
     assert.equal(f.oldLayer.style.visibility,'visible');assert.equal(f.newLayer.style.visibility,'hidden');
     const time=f.clock;
-    assert(input(f,'keydown',{key:'PageDown'}).defaultPrevented);
+    assert(!input(f,'keydown',{key:'PageDown'}).defaultPrevented);
     const forward=(elapsed,raw=height)=>f.api.update(raw,{rawDistance:raw,now:time+elapsed});
-    forward(137.5,height*2);
+    forward(137.5,height*1.2);
     near(Number(f.root.dataset.morphProgress),.25,'A quarter of the title roll is reached at 137.5ms');
     near(f.api.getBlackProgress(),.103515625,'The bottom-up reveal uses the same quintic progress as the title');
     const quarter=pose();
     assert(position(f.oldLayer).y<0&&position(f.newLayer).y>0,'Outgoing and incoming titles pass through opposite sides of the reading band');
     assert(/rotateX\((?!0\.0000)[\d.]+deg\)/.test(f.oldLayer.style.transform),'Both full-line planes tilt during the roll');
-    forward(275,height*.9);
+    forward(275,height*2);
     near(Number(f.root.dataset.morphProgress),.5);
     f.api.updateTheme((_, y)=>y<height/2?1:0);
     assert.equal(f.oldLayer.style.color,'#1d1d1d','The upper face stays dark over the remaining light');
@@ -168,20 +167,21 @@ if(require.main===module)(async()=>{
     near(Number(f.oldLayer.style.opacity),1,'The outgoing readable face stays solid');
     near(Number(f.newLayer.style.opacity),1,'The incoming readable face stays solid');
     assert.equal(f.oldLayer.getAttribute('aria-hidden'),'true');assert.equal(f.newLayer.getAttribute('aria-hidden'),'false','Only the incoming readable message is announced after halfway');
-    forward(550);
+    forward(550,height*2);
     assert.equal(f.root.dataset.morphProgress,'1.00000');assert.equal(f.oldLayer.style.visibility,'hidden');assert.equal(f.newLayer.style.visibility,'visible');
-    near(f.api.getBlackProgress(),1,'The background is dark before Works can enter');
+    near(f.api.getBlackProgress(),1,'The background finishes with the new title');
     assert(f.oldLayer.style.transform.includes('rotateX(90.0000deg)')&&f.newLayer.style.transform.includes('rotateX(0.0000deg)'),
       'The outgoing title becomes edge-on while the new title settles flat');
     near(Number(f.oldLayer.style.opacity),0,'The old edge darkens out before Works');
     assert.equal(f.root.classList.contains('is-morphing'),false,'The completed new title leaves the temporary center mask');
     assert.equal(f.creation.getAttribute('aria-label'),'From inspiration to creation');
     f.clock=time+600;
-    assert(input(f,'keydown',{key:'PageUp'}).defaultPrevented);
-    f.api.update(height*2,{rawDistance:height*2,now:f.clock+412.5});
+    assert(!input(f,'keydown',{key:'PageUp'}).defaultPrevented);
+    f.api.update(height*1.4,{now:f.clock});
+    f.api.update(height*1.4,{now:f.clock+412.5});
     assert.equal(pose(),quarter,'The reverse animation reconstructs the exact same intermediate roll');
     near(f.api.getBlackProgress(),.103515625,'Reverse restores the identical matte position');
-    f.api.update(height*1.5,{rawDistance:height*1.5,now:f.clock+550});
+    f.api.update(height*1.4,{now:f.clock+550});
     assert.equal(f.root.dataset.morphProgress,'0.00000');
     f.api.update(height*1.5,{rawDistance:height*1.5,restore:true});
     const titleWidth=font*(stacked?7.3:11.7),titleHeight=stacked?font*2+8:font;
@@ -232,42 +232,31 @@ if(require.main===module)(async()=>{
     const held=[f.left.style.transform,f.right.style.transform];
     const tail=f.wheel(80,40);assert.equal(tail.prevented,true,'Momentum from the closing gesture is absorbed');page.frames();
     assert.deepEqual([f.left.style.transform,f.right.style.transform],held);
-    const next=f.wheel(60,230);assert.equal(next.prevented,true,'A fresh gesture is consumed to start the complete title roll');
-    advance(page,275);
-    assert(!page.hero.classList.contains('is-works'),'Works stays hidden while the next gesture begins the title roll');
-    assert(Number(f.root.dataset.morphProgress)>0&&Number(f.root.dataset.morphProgress)<1);
-    page.scroll(start+height*4);page.frame(0);
-    near(Number(f.root.dataset.morphProgress),.5,'The title roll follows elapsed time even when native input overshoots Works');
-    near(Number(page.hero.style.getPropertyValue('--works-black-progress')),.5,'The actual hero clock starts the dark return at the closing title');
-    assert(!page.hero.classList.contains('is-works'),'Works cannot appear halfway through the new message');
-    assert(!f.viewport.classList.contains('works-is-preview'),'The title can roll into view before the first project edge enters');
     const hold=Number(f.journey.dataset.headingHoldDistance),worksStart=start+height*3.5;
-    const peekPhases=[];
-    for(let frame=0;frame<11;frame++){
-      assert(f.wheel(6,25).prevented,'Residual input cannot leave the timed title transition');
-      if(f.viewport.classList.contains('works-is-preview'))peekPhases.push(Number(f.journey.dataset.helixProgress));
-    }
-    assert(peekPhases.length>=8&&peekPhases[0]<peekPhases.at(-1),'The timed title gives the orbit over 175ms to enter');
-    near(page.window.scrollY-120,worksStart-2,'A single gesture lands immediately before Works at the completed title');
-    assert.equal(f.root.dataset.morphProgress,'1.00000');
-    near(Number(page.hero.style.getPropertyValue('--works-black-progress')),1,'The backdrop still finishes with the title at 550ms');
-    assert(f.viewport.classList.contains('works-is-preview'),'The completed title lets the first project edge peek in');
-    assert(!page.hero.classList.contains('is-works'),'The peek consumes no Works scroll distance');
+    let cancellations=0;
+    page.window.SiteSmoothScroll={cancel(){cancellations++;}};
+    const next=f.wheel(height*.13,230);
+    assert(!next.prevented,'The release gesture starts the title and contributes its own native displacement');
+    const beforeRelease=cancellations;
+    advance(page,125);
+    const phase=()=>Number(f.journey.dataset.helixProgress);
+    const initialOrbit=phase();
+    near(Number(f.root.dataset.morphProgress),125/550,'The title follows its own clock while the orbit follows scroll');
+    assert(initialOrbit>page.window.WorksGallery.getLayout().entranceStartPhase,'The same gesture moves the first works into view');
+    assert(f.viewport.classList.contains('works-is-preview'),'The gallery is visible during the shared entry scroll');
     assert.equal(f.viewport.getAttribute('aria-hidden'),'true','The preview does not introduce focusable projects');
-    assert(f.wheel(2,40).prevented,'The triggering gesture tail cannot enter Works after completion');
-    const tailPhases=[peekPhases.at(-1)];
-    for(const interval of [60,100,100,100,100]){
-      advance(page,interval);
-      tailPhases.push(Number(f.journey.dataset.helixProgress));
-    }
-    const steps=tailPhases.slice(1).map((phase,index)=>phase-tailPhases[index]);
-    assert(steps.every((step,index)=>step>0&&(index===0||step<steps[index-1])),
-      'The helix progressively slows during the 500ms after the title settles');
-    assert(steps.at(-1)<steps.at(-2)/5,'The final 100ms cover less than a fifth of the preceding interval');
-    const end=tailPhases.at(-1);
-    near(end,page.window.WorksGallery.getLayout().entrancePeekPhase,'The independent tail ends at the preview hold');
-    assert.equal(page.raf.size,0,'The shared clock sleeps at the completed preview');
-    assert.equal(f.wheel(120,230).prevented,false,'A fresh forward gesture leaves the completed title for Works');
+    assert(!f.wheel(height*1.2,20).prevented,'Momentum from the triggering gesture continues into Works');
+    advance(page,130);
+    assert(page.hero.classList.contains('is-works')&&phase()>initialOrbit,`The same gesture passes into Works before the title finishes (${width}, phase ${phase()})`);
+    near(Number(f.root.dataset.morphProgress),.5,'A fast scroll through the boundary cannot jump the title clock');
+    near(Number(page.hero.style.getPropertyValue('--works-black-progress')),.5,'Fast scroll cannot force the background to black');
+    assert.equal(cancellations,beforeRelease,'Title-only frames leave the smooth-scroll destination intact');
+    const native=page.window.scrollY;
+    page.frames();
+    near(page.window.scrollY,native,'The completed title never rebases native scroll');
+    assert.equal(f.root.dataset.morphProgress,'1.00000');
+    near(Number(page.hero.style.getPropertyValue('--works-black-progress')),1,'The backdrop finishes with the title');
+    assert.equal(f.root.dataset.locked,'false','There is no hold at the completed title');
     page.scroll(worksStart+2);page.frames();
     assert(page.hero.classList.contains('is-works'),'Actual Works enters immediately after the new-title interval');
     assert(!f.viewport.classList.contains('works-is-preview'),'Actual Works takes over the same visible layer');
@@ -282,40 +271,22 @@ if(require.main===module)(async()=>{
     assert(/scale\(0\./.test(f.creation.style.transform),'The title recedes after the actual gallery collision');
     page.scroll(worksStart+2);page.frames();
     assert.equal(f.creation.style.transform,creationHeld,'Works reverse restores the completed new title');
-    f.wheel(-height,230);page.frames();
-    assert.equal(f.root.dataset.morphProgress,'0.00000','Crossing back from Works completes the reverse animation');
-    assert(!f.viewport.classList.contains('works-is-preview'),'The first project edge clears when the previous title returns');
-    assert.equal(f.root.dataset.progress,'1.00000','Reverse lands at the centered old headline');
-    near(Number(page.hero.style.getPropertyValue('--works-black-progress')),0,'Reverse restores light before the title roll');
-    if(width===1920){
-      const phase=()=>Number(f.journey.dataset.helixProgress);
-      const peek=page.window.WorksGallery.getLayout().entrancePeekPhase;
-      assert(f.wheel(60,230).prevented,'A fresh gesture restarts the title and preview');
-      advance(page,550);
-      const beforeReverse=phase();
-      assert(beforeReverse<peek&&page.raf.size===1,'The live preview has room to move after the title');
-      assert(f.wheel(-60,0).prevented,'A fresh reverse can start while the preview is still moving');
-      page.frame(0);
-      near(phase(),beforeReverse,'Starting reverse latches the live camera pose without jumping ahead');
-      advance(page,275);
-      assert(phase()<beforeReverse,'The camera retraces the same entrance during the reverse roll');
-      advance(page,275);
-      assert(!f.viewport.classList.contains('works-is-preview'));
-      assert.equal(f.root.dataset.morphProgress,'0.00000');
-
-      assert(f.wheel(60,230).prevented);
-      advance(page,550);
-      const beforeAdvance=phase();
-      assert.equal(f.wheel(30,0).prevented,false,'The preview tail leaves the next forward gesture native');
-      page.frame(50);
-      assert(page.hero.classList.contains('is-works')&&phase()>beforeAdvance&&phase()<peek,
-        `Native Works advances the live pose while blending the preview (class=${page.hero.className}, phase=${phase()}, before=${beforeAdvance}, peek=${peek})`);
-      advance(page,450);
-      assert(phase()>peek,'The native movement is fully added to the original peek after the tail');
-      f.wheel(-height,230);page.frames();
-      assert.equal(f.root.dataset.morphProgress,'0.00000');
-    }
-    assert.equal(f.wheel(-120,230).prevented,false,'Fresh reverse input resumes the native merge');
+    const peek=page.window.WorksGallery.getLayout().entrancePeekPhase;
+    assert(!f.wheel(-height*.25,230).prevented,'Reverse input also remains native across the handoff');
+    advance(page,180);
+    assert(phase()<peek&&f.viewport.classList.contains('works-is-preview'),'Works retraces its entry from native scroll');
+    assert(Number(f.root.dataset.morphProgress)<1&&Number(f.root.dataset.morphProgress)>0,'Reverse scroll starts the timed return of the title');
+    page.frames();
+    const reversePhase=phase();
+    assert.equal(f.root.dataset.morphProgress,'0.00000');
+    near(Number(page.hero.style.getPropertyValue('--works-black-progress')),0,'The title and backdrop return together');
+    assert.equal(f.root.dataset.locked,'false','Reversing into the overlap does not restore the centered lock');
+    page.frame(650);
+    near(phase(),reversePhase,'Finishing either timed transition cannot move the stopped scroll');
+    assert(!f.wheel(height*.08,230).prevented,'Forward input inside the overlap still scrolls');
+    advance(page,300);
+    assert(phase()>reversePhase&&phase()<peek&&Number(f.root.dataset.morphProgress)>0,
+      'A forward reversal inside the overlap restarts the title before reaching Works');
     page.scroll(start+height*2+height*.4);page.frames();
     assert(Number(f.root.dataset.progress)<1,'Reverse traverses the merge');
     page.scroll(start+height*2-10);page.frames();assert.equal(f.root.hidden,true,'Reverse restores the original category headline');
@@ -382,28 +353,28 @@ if(require.main===module)(async()=>{
     wheel(120,230);lock();assert(wheel(8,20).defaultPrevented,'The current tiny trackpad tail remains consumed');
     assert(wheel(6,230).defaultPrevented,'A new small gesture waits for deliberate displacement');
     assert(wheel(10,12).defaultPrevented);
-    assert(wheel(10,12).defaultPrevented,'Cumulative small deltas are consumed by the timed roll');
-    assert(f.api.update(958,{now:f.clock+275}).animating,'Cumulative displacement starts a real transition');
-    f.api.update(958,{now:f.clock+550});
+    assert(!wheel(10,12).defaultPrevented,'The threshold-crossing delta starts the timed roll and remains native');
+    assert(f.api.update(968,{now:f.clock+275}).animating,'Cumulative displacement starts a real transition');
+    f.api.update(968,{now:f.clock+550});
     assert.equal(f.root.dataset.morphProgress,'1.00000');
-    assert(!wheel(120,800).defaultPrevented,'A fresh forward gesture exits the dark title');
-    assert(!f.api.update(1437.75,{now:f.clock+16}).animating,'A fractional departure landing cannot start an accidental reverse');
-    assert(wheel(-120,230).defaultPrevented,'A genuinely opposite gesture can reclaim the dark checkpoint');
-    assert(f.api.update(1437.75,{now:f.clock+275}).animating);
+    assert(!wheel(120,800).defaultPrevented,'Further input continues without a dark checkpoint');
+    assert(!f.api.update(1441,{now:f.clock+16}).animating);
+    assert(!wheel(-120,230).defaultPrevented,'The opposite gesture remains native through Works');
+    assert(f.api.update(1321,{now:f.clock+16}).animating,'Crossing back from Works starts the return on its own clock');
     assert(!send('keydown',{key:'End'}).defaultPrevented,'An explicit End can bypass a running title transition');
     assert(!f.api.update(5000,{now:f.clock+300}).animating);
     wheel(120,230);lock();
     assert(!send('wheel',{deltaX:0,deltaY:120,deltaMode:0,target:{closest:()=>({})}}).defaultPrevented,'Control-panel scrolling is left native');
     assert.equal(f.api.update(960,{rawDistance:958}).locked,true,'Scrolling a control does not release the page checkpoint');
     assert(send('keydown',{key:'PageDown',repeat:true}).defaultPrevented,'Held key repeat cannot skip the centered composition');
-    assert(send('keydown',{key:'PageDown',repeat:false}).defaultPrevented,'A new keypress starts the title roll');
+    assert(!send('keydown',{key:'PageDown',repeat:false}).defaultPrevented,'A new keypress starts the title roll and stays native');
     assert(f.api.update(958,{now:f.clock+275}).animating);
     f.api.update(600,{restore:true});
     send('touchstart',{touches:[{clientX:200,clientY:500}]});lock();
     assert(send('touchmove',{touches:[{clientX:200,clientY:430}]}).defaultPrevented,'The swipe that reached the center cannot skip it');
     send('touchend',{touches:[]});
     send('touchstart',{touches:[{clientX:200,clientY:500}]});
-    assert(send('touchmove',{touches:[{clientX:200,clientY:470}]}).defaultPrevented,'A distinct next swipe starts the title roll');
+    assert(!send('touchmove',{touches:[{clientX:200,clientY:470}]}).defaultPrevented,'A distinct next swipe starts the title roll and scrolls');
     assert(f.api.update(958,{now:f.clock+275}).animating);
     f.api.update(958,{now:f.clock+550});
     send('touchend',{touches:[]});

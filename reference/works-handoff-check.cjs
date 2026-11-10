@@ -111,24 +111,15 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1913,936],[1920,96
   const visibleSlice=({left,top,width:boxWidth,height:boxHeight})=>Math.min(
     Math.min(left+boxWidth,width)-Math.max(left,0),Math.min(top+boxHeight,height)-Math.max(top,0));
   assert(before.every(box=>visibleSlice(box)<.15),'The raw helix starts beyond the viewport edge');
-  const titleRollTiming={started:100,durationMs:550,to:1};
-  const preview=(elapsed,distance=-2)=>f.api.update(distance,{
-    titleRollTiming,titleRollProgress:Math.min(elapsed/titleRollTiming.durationMs,1),now:titleRollTiming.started+elapsed
-  });
-  assert(preview(550).previewAnimating,'The orbit is still moving when the title and backdrop complete');
+  f.api.update(-height*.25,{entryProgress:.5,now:650});
   const [partial]=screenBounds(f),partialPhase=f.updates.at(-1)[0];
-  assert(preview(800).previewAnimating,'The camera continues on the shared clock without native scroll');
-  const tailPhase=f.updates.at(-1)[0];
-  assert(partialPhase<tailPhase,'The camera advances during the independent tail');
-  preview(800,.001);
-  assert(Math.abs(f.updates.at(-1)[0]-tailPhase)<1e-6,'Native Works starts from the live preview pose');
-  preview(800,height*.01);
-  assert(f.updates.at(-1)[0]>tailPhase,'Native scroll adds to the live preview pose immediately');
-  preview(800,height*.25);
-  const alignedPhase=f.updates.at(-1)[0];
-  assert(Math.abs(alignedPhase-(f.window.WorksGallery.getLayout().entrancePeekPhase+measured.phasePerViewport*.25))<1e-8,
-    'The short spatial blend recovers the regular camera phase before later cues');
-  assert(!preview(1050).previewAnimating,'The preview settles exactly 500ms after the title');
+  f.api.update(-height*.25,{entryProgress:.5,now:900});
+  assert.equal(f.updates.at(-1)[0],partialPhase,'Elapsed title time cannot move the orbit at a fixed scroll coordinate');
+  f.api.update(-height*.125,{entryProgress:.75,now:900});
+  assert(f.updates.at(-1)[0]>partialPhase,'Scroll advances the camera independently of elapsed title time');
+  f.api.update(-height*.25,{entryProgress:.5,now:910});
+  assert.equal(f.updates.at(-1)[0],partialPhase,'Reversing the scroll restores the same arrival pose');
+  f.api.update(0,{entryProgress:1,now:1050});
   const [peek,nextPeek]=screenBounds(f),peekPhase=f.updates.at(-1)[0];
   assert(partialPhase<peekPhase&&visibleSlice(partial)>0,'The late title frames expose the first card before the camera reaches the hold');
   assert(Math.abs(partial.left-peek.left)>3&&Math.abs(partial.width-peek.width)>.1,'The first card moves and turns on the orbit during the preview');
@@ -143,7 +134,7 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1913,936],[1920,96
   assert.equal(f.viewport.getAttribute('aria-hidden'),'true');
   assert(f.list.children.every(card=>card.getAttribute('tabindex')==='-1'));
   assert(!f.viewport.classList.contains('has-works-title'));
-  f.api.update(.001,{titleRollProgress:1,now:1151});
+  f.api.update(.001,{entryProgress:1,now:1151});
   assert(Math.abs(f.updates.at(-1)[0]-peekPhase)<1e-6,'The first Works scroll starts from the preview phase');
   for(const fraction of [.01,.05]) {
     f.api.update(height*fraction,{now:1156+fraction*100});
@@ -178,7 +169,7 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1913,936],[1920,96
   const orbit=[];
   const orbitEnd=galleryTravel/height*.9;
   for(const fraction of [0,.25,.5,orbitEnd*.7,orbitEnd*.85,orbitEnd]){
-    f.api.update(height*fraction,{titleRollProgress:1,now:1192+fraction});
+    f.api.update(height*fraction,{entryProgress:1,now:1192+fraction});
     const box=screenBounds(f)[0];
     orbit.push({distance:height*fraction,centerX:box.left+box.width/2,top:box.top,offset:f.closingUpdates.at(-1).headingProgress,helix:Number(f.journey.dataset.helixProgress)});
   }
@@ -256,7 +247,7 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1913,936],[1920,96
     canvas.dispatchEvent({type:'pointerup',pointerType:'touch',clientX:center.x,clientY:center.y+50});
     assert.equal(projectPill.getAttribute('aria-hidden'),'true','A scrolling swipe does not accidentally reveal project details');
   }
-  f.api.update(0,{titleRollProgress:1,now:now+=16});
+  f.api.update(0,{entryProgress:1,now:now+=16});
   assert.equal(f.closingUpdates.at(-1).distance,0,'Reverse returns the heading to its centered checkpoint');
   assert.deepEqual(screenBounds(f)[0],peek,'Reverse restores the same small preview at the title checkpoint');
   assert.equal(f.hero.style.getPropertyValue('--works-exit-px'),'0px');
@@ -295,13 +286,13 @@ const shortPhone=fixture(414,700);
 checkTitleTiming(shortPhone,shortPhone.api.measure({width:414,height:700}),150);
 const portraitTablet=fixture(820,1180);
 portraitTablet.api.measure({width:820,height:1180});
-portraitTablet.api.update(-2,{titleRollProgress:1});
+portraitTablet.api.update(0,{entryProgress:1});
 const [tabletPeek,tabletNext]=screenBounds(portraitTablet);
 assert(tabletPeek.left+tabletPeek.width>=36&&tabletPeek.top>1180*.55&&tabletNext.top<1180,
   'Tall tablets settle at an earlier point on the orbit with both cards visible below the headline');
 const narrowTablet=fixture(1024,768);
 narrowTablet.api.measure({width:1024,height:768});
-narrowTablet.api.update(-2,{titleRollProgress:1});
+narrowTablet.api.update(0,{entryProgress:1});
 const [narrowPeek]=screenBounds(narrowTablet);
 assert(narrowPeek.left>=0&&narrowPeek.width>150&&narrowPeek.top<768-40,
   'When the second card cannot enter in time, the leading card stays recognizable');

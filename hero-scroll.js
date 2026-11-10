@@ -417,10 +417,9 @@
     // A timed flip or a category/headline checkpoint owns this gesture. Even
     // an already exact anchor must discard a retained destination beyond it.
     if (animating || chapter?.blockSmooth || settledDistance !== null || scrollAdjustment) window.SiteSmoothScroll?.cancel?.();
-    const worksBlack=sceneDistance>=worksStart&&!reducedMotion.matches?1:window.InspirationClosing?.getBlackProgress?.()??0;
-    const titleRollProgress=window.InspirationClosing?.getRollProgress?.()??0;
-    const titleRollTiming=window.InspirationClosing?.getRollTiming?.()??null;
-    const works=window.WorksScrollChapter?.update(sceneDistance-worksStart,{reducedMotion:reducedMotion.matches,titleRollProgress,titleRollTiming,now});
+    const worksBlack=window.InspirationClosing?.getBlackProgress?.()??Number(sceneDistance>=worksStart&&!reducedMotion.matches);
+    const entryProgress=window.InspirationClosing?.getEntryProgress?.()??0;
+    window.WorksScrollChapter?.update(sceneDistance-worksStart,{reducedMotion:reducedMotion.matches,entryProgress,now});
     hero.style.setProperty('--works-black-progress',String(worksBlack));
     window.HeroAboutReveal?.update({ progress: lightProgress, width: base.width, height: base.height,
       mode: settings.aboutRevealMode, feather: settings.aboutFillFeather, reducedMotion: reducedMotion.matches, blackProgress:worksBlack });
@@ -439,7 +438,7 @@
     // Chapter anchor corrections happen after the outer hero/theme was painted.
     // Paint that corrected pose once before sleeping, even if native scroll
     // already equals the newly settled visual distance.
-    if (releasedScene || displayedDistance !== requestedDistance || Math.abs(distance - displayedDistance) > .25 || animating || works?.previewAnimating || services?.footerAnimating || lightTransitionStart !== null || (scrollAdjustment && !nativeCorrectionAccepted) || window.WorksGallery?.isAnimating?.() || window.SiteSmoothScroll?.isAnimating?.()) schedule();
+    if (releasedScene || displayedDistance !== requestedDistance || Math.abs(distance - displayedDistance) > .25 || animating || chapter?.closingAnimating || services?.footerAnimating || lightTransitionStart !== null || (scrollAdjustment && !nativeCorrectionAccepted) || window.WorksGallery?.isAnimating?.() || window.SiteSmoothScroll?.isAnimating?.()) schedule();
     else lastTime = 0;
   }
 
