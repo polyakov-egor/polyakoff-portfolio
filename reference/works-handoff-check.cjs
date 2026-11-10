@@ -59,18 +59,25 @@ function checkTitleTiming(f, measured, now){
   const titleDistance=(leadPhase-.01-entrancePeekPhase)/measured.phasePerViewport*f.height;
   const last=f.window.WorksGallery.getProjectedCards(lastPhase).at(-1);
   assert(Math.abs(last.angle)<1e-8&&last.visible,'The exit cue is the last work facing the viewer');
-  const hideTitleDistance=(lastPhase-entrancePeekPhase)/measured.phasePerViewport*f.height;
-  assert(Math.abs(measured.servicesHeadingDistance-hideTitleDistance)<.002,
+  const frontalDistance=(lastPhase-entrancePeekPhase)/measured.phasePerViewport*f.height;
+  assert(Math.abs(measured.servicesHeadingDistance-frontalDistance)<.002,
     'The Services heading starts behind the frontal final work as it begins to leave');
-  assert(measured.servicesRevealDistance>hideTitleDistance&&measured.servicesRevealDistance<measured.galleryTravel+measured.exitTravel,
+  assert(measured.servicesRevealDistance>frontalDistance&&measured.servicesRevealDistance<measured.galleryTravel+measured.exitTravel,
     'The Services deck starts between the last frontal work and the complete exit');
-  const servicesRevealPhase=entrancePeekPhase+measured.servicesRevealDistance/f.height*measured.phasePerViewport;
-  const lastBottom=f.window.WorksGallery.getProjectedMotionBounds(servicesRevealPhase).at(-1).maxY;
-  assert(Math.abs(lastBottom-f.height*.15)<.002,'The last work still occupies the top 15% at the Services reveal cue');
-  for(const [distance,visible] of [[titleDistance-1,false],[titleDistance+1,true],[hideTitleDistance-1,true],
-    [hideTitleDistance+1,false],[hideTitleDistance-1,true],[titleDistance-1,false]]){
+  const lastBottomAt=distance=>f.window.WorksGallery.getProjectedMotionBounds(
+    entrancePeekPhase+distance/f.height*measured.phasePerViewport).at(-1).maxY;
+  assert(Math.abs(lastBottomAt(measured.servicesRevealDistance)-f.height*.15)<.002,
+    'The last work still occupies the top 15% at the Services reveal cue');
+  let beforeHide=frontalDistance,afterHide=measured.servicesRevealDistance;
+  while(afterHide-beforeHide>1){
+    const middle=(beforeHide+afterHide)/2;
+    if(lastBottomAt(middle)>f.height*.4)beforeHide=middle;
+    else afterHide=middle;
+  }
+  for(const [distance,visible] of [[titleDistance-1,false],[titleDistance+1,true],[frontalDistance,true],
+    [beforeHide-1,true],[afterHide+1,false],[beforeHide-1,true],[titleDistance-1,false]]){
     f.api.update(distance,{now:now+=16});
-    assert.equal(f.viewport.classList.contains('has-works-title'),visible,'Last Works follows the first and last works in both scroll directions');
+    assert.equal(f.viewport.classList.contains('has-works-title'),visible,'Last Works follows the departing final card in both scroll directions');
   }
   return now;
 }

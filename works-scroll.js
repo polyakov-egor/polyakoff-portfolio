@@ -120,8 +120,9 @@
     entranceStart=galleryLayout?.entranceStartPhase??0;
     entrancePeek=galleryLayout?.entrancePeekPhase??entranceStart;
     const finalProgress=galleryLayout?.lastFrontalPhase??paceReferenceProgress;
-    titleHidePhase=finalProgress;
     clearProgress=measureClearProgress(window.WorksGallery.getProjectedMotionBounds,finalProgress);
+    // Keep Last Works until the departing final card reaches the upper part of the viewport.
+    titleHidePhase=reduced.matches?finalProgress:measureLastWorkExit(finalProgress,clearProgress,height*.4);
     const paceClearProgress=measureClearProgress(window.WorksGallery.getPaceReferenceBounds,paceReferenceProgress);
     phasePerViewport=Math.max(.001,(paceClearProgress-paceReferenceProgress)/2);
     const distanceAt=progress=>Math.max(0,(progress-entrancePeek)/phasePerViewport*height);
