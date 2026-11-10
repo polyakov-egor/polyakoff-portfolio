@@ -255,15 +255,16 @@ if(require.main===module)(async()=>{
     assert(!page.hero.classList.contains('is-works'),'The peek consumes no Works scroll distance');
     assert.equal(f.viewport.getAttribute('aria-hidden'),'true','The preview does not introduce focusable projects');
     assert(f.wheel(2,40).prevented,'The triggering gesture tail cannot enter Works after completion');
-    advance(page,385);
-    const tailPhases=[Number(f.journey.dataset.helixProgress)];
-    for(let frame=0;frame<3;frame++){
-      page.frame(25);tailPhases.push(Number(f.journey.dataset.helixProgress));
+    const tailPhases=[peekPhases.at(-1)];
+    for(const interval of [60,100,100,100,100]){
+      advance(page,interval);
+      tailPhases.push(Number(f.journey.dataset.helixProgress));
     }
-    assert(tailPhases[0]>peekPhases.at(-1),'The projected spiral keeps moving after the title has settled');
-    const [brakeStart,late,almost,end]=tailPhases;
-    assert(end-almost>0&&end-almost<almost-late&&almost-late<late-brakeStart,
-      'The helix eases to a stop across the final frames of the 500ms tail');
+    const steps=tailPhases.slice(1).map((phase,index)=>phase-tailPhases[index]);
+    assert(steps.every((step,index)=>step>0&&(index===0||step<steps[index-1])),
+      'The helix progressively slows during the 500ms after the title settles');
+    assert(steps.at(-1)<steps.at(-2)/5,'The final 100ms cover less than a fifth of the preceding interval');
+    const end=tailPhases.at(-1);
     near(end,page.window.WorksGallery.getLayout().entrancePeekPhase,'The independent tail ends at the preview hold');
     assert.equal(page.raf.size,0,'The shared clock sleeps at the completed preview');
     assert.equal(f.wheel(120,230).prevented,false,'A fresh forward gesture leaves the completed title for Works');

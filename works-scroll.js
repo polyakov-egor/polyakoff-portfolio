@@ -32,7 +32,9 @@
   }
 
   function samplePreview(motion, now) {
-    const progress=now>=motion.end-.000001?1:easePreview((now-motion.start)/(motion.end-motion.start));
+    const t=now>=motion.end-.000001?1:clamp((now-motion.start)/(motion.end-motion.start));
+    // Forward motion peaks early and loses speed quadratically near the hold.
+    const progress=motion.timing.to?t*t*(6+t*(-8+3*t)):easePreview(t);
     return motion.from+(motion.timing.to-motion.from)*progress;
   }
 
