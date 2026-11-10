@@ -81,13 +81,13 @@
     return 2;
   }
 
-  function measureLastWorkCrossing(low, high, edge, bound) {
+  function measureLastWorkExit(low, high, edge) {
     const getBounds=window.WorksGallery.getProjectedMotionBounds;
     if(!getBounds||!Number.isFinite(low))return high;
     for(let i=0;i<22;i++){
       const middle=(low+high)/2;
       const bounds=getBounds(middle);
-      if(bounds[bounds.length-1]?.[bound]<=edge)high=middle;else low=middle;
+      if(bounds[bounds.length-1]?.maxY<=edge)high=middle;else low=middle;
     }
     return high;
   }
@@ -127,8 +127,10 @@
     const distanceAt=progress=>Math.max(0,(progress-entrancePeek)/phasePerViewport*height);
     galleryTravel=reduced.matches?0:distanceAt(finalProgress);
     exitTravel=reduced.matches?0:Math.max(0,(clearProgress-finalProgress)/phasePerViewport*height);
-    const servicesHeadingDistance=reduced.matches?0:distanceAt(measureLastWorkCrossing(titleHidePhase-.055,titleHidePhase,height*.42,'minY'));
-    const servicesRevealDistance=reduced.matches?0:distanceAt(measureLastWorkCrossing(titleHidePhase,clearProgress,height*.15,'maxY'));
+    // Start the heading under the frontal card so its fade continues as
+    // the card peels away. The deck still waits for the card to rise higher.
+    const servicesHeadingDistance=galleryTravel;
+    const servicesRevealDistance=reduced.matches?0:distanceAt(measureLastWorkExit(finalProgress,clearProgress,height*.15));
     travel=galleryTravel+exitTravel+emptyHold;
     holdDistance=reduced.matches?0:measureHeadingHold();
     measureHeadingAscent();

@@ -61,7 +61,8 @@
   const state = {initialized:false,position:0,target:0,from:0,started:0,duration:defaultDuration,running:false,pending:null,queued:0};
   let context = {height:1,rawDistance:-1,now:0,enabled:false,entering:false,reducedMotion:false,origin:0};
   let wheelAmount = 0, wheelUsed = true, wheelRelease = 0;
-  let wheelTravel = null;
+  let wheelTravel = null, wheelDirection = 0;
+  let reverseDistance = 0, reverseSamples = 0;
   let touch = null, touchSerial = 0, keyRelease = '';
   let owned = false, awaitingPeople = false, released = 0, reentry = false, externalRestore = false;
   let releasedTouch = -1;
@@ -89,9 +90,36 @@
   }
   function continueGesture(travel,time){
     const {target,direction}=travel;
-    if((state.pending??state.target)!==target||state.queued||target+direction<0||target+direction>2)return;
+    // A deliberate reversal can be waiting for the current card to land.
+    if((state.pending??state.target)!==target)return target!==state.target+state.queued;
+    if(state.queued||target+direction<0||target+direction>2)return true;
     if(busy()){state.queued=direction;wake();}
     else navigate(direction,time);
+    return true;
+  }
+  function resetWheelTracking(){
+    wheelTravel=null;wheelDirection=0;reverseDistance=reverseSamples=0;
+  }
+  function trackWheelTravel(direction,target,distance,samples=1){
+    wheelDirection=direction;wheelTravel={direction,target,distance,samples};
+  }
+  function commitWheelTravel(time){
+    const threshold=clamp(context.height*.60,400,550);
+    if(wheelTravel&&wheelTravel.samples>=3&&wheelTravel.distance>=threshold&&continueGesture(wheelTravel,time))wheelTravel=null;
+  }
+  function reverseWheel(direction,magnitude,time){
+    // A few consistent opposite samples can identify a reversal within one
+    // continuous trackpad stream. Isolated rebounds leave its travel intact.
+    if(magnitude<3)return;
+    reverseDistance+=magnitude;reverseSamples++;
+    if(reverseSamples<3||reverseDistance<36)return;
+    const distance=reverseDistance,samples=reverseSamples,target=state.target+direction;
+    resetWheelTracking();
+    if(state.pending!==null||target<0||target>2)return;
+    trackWheelTravel(direction,target,distance,samples);
+    if(state.running){state.queued=direction;wake();}
+    else navigate(direction,time);
+    commitWheelTravel(time);
   }
   function targetReady(target){return typeof context.targetReady!=='function'||context.targetReady(target);}
   function acquire(stage){
@@ -157,26 +185,26 @@
     const time=now(),intent=window.SiteWheelIntent.sample(event,time,context.height);
     if(!intent)return;
     const {delta:dy,direction,fresh}=intent;
-    if(fresh){wheelAmount=0;wheelUsed=false;wheelRelease=0;wheelTravel=null;}
+    if(fresh){wheelAmount=0;wheelUsed=false;wheelRelease=0;resetWheelTracking();}
     noteReentry(direction,fresh);
     if(!eligible()){
       // Input while the portrait flips or headings reveal is spent on that
       // entrance. It cannot reserve the first category switch behind it.
       if(context.entering&&!document.hidden)event.preventDefault();
-      wheelUsed=true;wheelAmount=0;wheelTravel=null;return;
+      wheelUsed=true;wheelAmount=0;resetWheelTracking();return;
     }
     if(wheelRelease===direction)return;
     const longThreshold=clamp(context.height*.60,400,550);
+    const magnitude=Math.abs(dy);
+    if(wheelDirection&&wheelDirection!==direction){
+      reverseWheel(direction,Math.min(magnitude,longThreshold/2),time);
+      event.preventDefault();return;
+    }
+    if(magnitude>=3)reverseDistance=reverseSamples=0;
     if(wheelTravel){
-      if(wheelTravel.direction!==direction)wheelTravel=null;
-      else {
-        wheelTravel.distance+=Math.min(Math.abs(dy),longThreshold/2);
-        wheelTravel.samples++;
-        if(wheelTravel.samples>=3&&wheelTravel.distance>=longThreshold){
-          continueGesture(wheelTravel,time);
-          wheelTravel=null;
-        }
-      }
+      wheelTravel.distance+=Math.min(magnitude,longThreshold/2);
+      wheelTravel.samples++;
+      commitWheelTravel(time);
       event.preventDefault();
       return;
     }
@@ -185,7 +213,8 @@
       if(!wheelUsed&&canBuffer(time)){
         wheelAmount+=dy;
         if(Math.abs(wheelAmount)<wheelThreshold)return;
-        buffer(Math.sign(wheelAmount),time);
+        const step=Math.sign(wheelAmount);
+        if(buffer(step,time))trackWheelTravel(step,state.target+step,Math.min(Math.abs(wheelAmount),longThreshold/2));
       }
       wheelUsed=true;return;
     }
@@ -199,7 +228,7 @@
     // remainder together; sub-pixel sign noise cannot return/exit a chapter.
     if(result==='native'){wheelRelease=step;return;}
     if(result==='changed'){
-      wheelTravel={direction:step,target:state.pending??state.target,distance:Math.min(Math.abs(wheelAmount),longThreshold/2),samples:1};
+      trackWheelTravel(step,state.pending??state.target,Math.min(Math.abs(wheelAmount),longThreshold/2));
     }
     event.preventDefault();
   },{passive:false});
@@ -273,14 +302,14 @@
     context={...previous,...options,height,rawDistance,
       origin:Number.isFinite(options.origin)?options.origin:window.scrollY-rawDistance};
     if(options.restore||!context.enabled||document.hidden){
-      state.queued=0;wheelTravel=null;
+      state.queued=0;resetWheelTracking();
       if(touch)touch.travel=null;
     }
     if(context.entering){awaitingPeople=true;owned=false;released=0;reentry=false;}
     if(state.initialized&&context.enabled&&!previous.enabled){
       // A completed People screen is a new input boundary. Discard an old
       // wheel accumulator and require a quiet/new burst after this reveal.
-      wheelAmount=0;wheelUsed=true;wheelRelease=0;wheelTravel=null;
+      wheelAmount=0;wheelUsed=true;wheelRelease=0;resetWheelTracking();
       state.queued=0;
       if(touch)touch.used=true;
     }
@@ -313,6 +342,7 @@
       // Start the reserved adjacent move on this same shared-clock frame.
       const queued=state.queued;state.queued=0;
       navigate(queued,context.now,false);
+      commitWheelTravel(context.now);
     }
     if(root){
       root.dataset.gestureStage=String(Math.round(state.position)+1);
@@ -324,8 +354,8 @@
     }
     return {position:state.position,busy:state.running,pending:state.pending!==null,active:clamp(Math.round(state.position),0,2),target:state.target,queued:state.queued};
   }
-  document.addEventListener('visibilitychange',()=>{if(document.hidden){settle();endTouch();wheelUsed=true;wheelTravel=null;}else wake();});
-  window.addEventListener('blur',()=>{endTouch();wheelUsed=true;wheelTravel=null;keyRelease='';state.queued=0;});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){settle();endTouch();wheelUsed=true;resetWheelTracking();}else wake();});
+  window.addEventListener('blur',()=>{endTouch();wheelUsed=true;resetWheelTracking();keyRelease='';state.queued=0;});
   window.addEventListener('popstate',externalNavigation);
   window.addEventListener('hashchange',externalNavigation);
   window.InspirationGestures=Object.freeze({update,hold});

@@ -25,7 +25,7 @@
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const responseMs = 180;
   const aboutResponseMs = 260;
-  const wordmarkZoomAmount = .15;
+  const wordmarkZoomAmount = .3;
   const aboutTransitionMs = Math.max(0, Number(hero.dataset.aboutTransitionMs) || 0);
   const frames = [
     { width: 375, height: 812, size: 160, y: 210, radius: 32, textY: 450, blurStart: 651.5, blurEnd: 756.5 },
@@ -343,10 +343,10 @@
       const scaleX = width / base.width;
       const scaleY = height / base.height;
       const artworkScale = `scale(${scaleX}, ${scaleY})`;
-      // Broaden the light from the wordmark early in the white wash. Only
-      // the lettering zooms, around the center of its lower-screen footprint.
+      // The zoom settles early, while blur keeps spreading the light from
+      // the lettering as the card continues to shrink.
       const bloom = reduced ? 0 : 1 - decorationOpacity ** 2;
-      const zoom = 1 + (reduced ? 0 : wordmarkZoomAmount * smooth(.01, .18, p));
+      const zoom = 1 + (reduced ? 0 : wordmarkZoomAmount * smooth(.01, .135, p));
       scenery.style.opacity = '1';
       if (wordmarkScale) {
         const zoomX = width * (1 - zoom) * .5;

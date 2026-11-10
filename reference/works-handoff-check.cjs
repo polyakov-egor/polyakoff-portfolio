@@ -60,11 +60,8 @@ function checkTitleTiming(f, measured, now){
   const last=f.window.WorksGallery.getProjectedCards(lastPhase).at(-1);
   assert(Math.abs(last.angle)<1e-8&&last.visible,'The exit cue is the last work facing the viewer');
   const hideTitleDistance=(lastPhase-entrancePeekPhase)/measured.phasePerViewport*f.height;
-  assert(measured.servicesHeadingDistance>titleDistance&&measured.servicesHeadingDistance<hideTitleDistance,
-    'The Services heading starts behind the approaching final work');
-  const servicesHeadingPhase=entrancePeekPhase+measured.servicesHeadingDistance/f.height*measured.phasePerViewport;
-  const lastTop=f.window.WorksGallery.getProjectedMotionBounds(servicesHeadingPhase).at(-1).minY;
-  assert(Math.abs(lastTop-f.height*.42)<.002,'The final work reaches the heading before it fades in');
+  assert(Math.abs(measured.servicesHeadingDistance-hideTitleDistance)<.002,
+    'The Services heading starts behind the frontal final work as it begins to leave');
   assert(measured.servicesRevealDistance>hideTitleDistance&&measured.servicesRevealDistance<measured.galleryTravel+measured.exitTravel,
     'The Services deck starts between the last frontal work and the complete exit');
   const servicesRevealPhase=entrancePeekPhase+measured.servicesRevealDistance/f.height*measured.phasePerViewport;

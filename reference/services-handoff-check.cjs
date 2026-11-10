@@ -108,13 +108,19 @@ function send(f,type,properties={}){
     near(opacity(),0,'The title is hidden before its reveal begins');
     page.scroll(headingFrom-1);page.frames();
     near(opacity(),0,'The title stays hidden until the last work reaches the later cue');
-    const headingWork=page.window.WorksGallery.getProjectedMotionBounds(Number(f.journey.dataset.helixProgress)).at(-1);
-    assert(Math.abs(headingWork.minY-height*.42)<3,'The title starts as the final Works card approaches center');
+    const frontal=page.window.WorksGallery.getLayout().lastFrontalPhase;
+    const headingPhase=Number(f.journey.dataset.helixProgress);
+    assert(Math.abs(headingPhase-frontal)<.001,'The fade begins under the final card at the front of the helix');
     let previousOpacity=0;
     for(const fraction of[.2,.5,.8,.99]){
       page.scroll(headingFrom+fade*fraction);page.frames();
       near(y(services)+headingCenter,height/2,'The fading heading stays at the viewport center');
       assert(opacity()>previousOpacity,'The centered title becomes progressively visible');
+      if(fraction===.5){
+        const departing=page.window.WorksGallery.getProjectedMotionBounds(Number(f.journey.dataset.helixProgress)).at(-1);
+        assert(departing.minX<width&&departing.maxX>0&&departing.maxY>height*.4,
+          'The title is already partially visible while the final card is departing through the middle of the screen');
+      }
       near(reveal(),0,'Pagination and glow remain hidden before the deck reveal');
       near(glow(),0,'The plain heading has no glow before the deck reveal');
       previousOpacity=opacity();

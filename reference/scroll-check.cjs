@@ -543,6 +543,8 @@ if (require.main === module) (async () => {
   const wordmarkScale = blurPage.nodes['.hero__wordmark-scale'];
   const decorationScale = blurPage.nodes['.hero__decoration-scale'];
   const scenery = blurPage.nodes['.hero__scenery'];
+  const zoomLimit = 1.3;
+  const readWordmarkScaleX = () => Number(wordmarkScale.style.transform.match(/scale\(([^,]+),/)[1]);
   const assertIsolatedFilter = () => {
     for (const selector of ['.hero__scene', '.hero__scenery', '.hero__wordmark-scale', '.hero__decoration-scale', '[data-layer="wordmark"]', '[data-layer="portrait"]', '[data-layer="depth"]', '[data-layer="scanlines"]', '.about-backdrop__lines']) {
       assert.equal(blurPage.nodes[selector].style.filter, undefined, `Wordmark blur must not filter ${selector}`);
@@ -563,8 +565,18 @@ if (require.main === module) (async () => {
   blurPage.scroll(960 * .1);
   blurPage.frames();
   assert(blurPage.visibleWordmarkBlur() > 2, 'The wordmark blooms while the opening hero is still mostly full size');
-  assert(Number(wordmarkScale.style.transform.match(/scale\(([^,]+),/)[1]) > 1,
+  assert(readWordmarkScaleX() > 1,
     'The wordmark grows against the opening hero shrink before following the card');
+  assert(readWordmarkScaleX() * 1920 < blurPage.position()[0] * zoomLimit,
+    'The zoom has not reached the reference pose yet');
+  blurPage.scroll(960 * .135);
+  blurPage.frames();
+  near(readWordmarkScaleX() * 1920, blurPage.position()[0] * zoomLimit, 'The wordmark reaches +30% by the reference pose');
+  const blurAtZoomLimit = blurPage.visibleWordmarkBlur();
+  blurPage.scroll(960 * .18);
+  blurPage.frames();
+  near(readWordmarkScaleX() * 1920, blurPage.position()[0] * zoomLimit, 'Relative zoom holds after the reference pose');
+  assert(blurPage.visibleWordmarkBlur() > blurAtZoomLimit, 'Blur continues to grow once the zoom has settled');
   blurPage.scroll(960 * .31);
   blurPage.frames();
   const originalExitFilter = wordmarkFrame.style.filter;
@@ -582,13 +594,12 @@ if (require.main === module) (async () => {
   assert(lineScale && wordmarkPose, 'Line geometry and independent wordmark zoom are explicit');
   const [cardWidth, cardHeight] = blurPage.position();
   const [offsetX, offsetY, wordmarkScaleX, wordmarkScaleY] = wordmarkPose.slice(1).map(Number);
-  const midpointZoom = 1.15;
   near(Number(lineScale[1]) * 1920, cardWidth, 'Lines keep the width of the card');
   near(Number(lineScale[2]) * 960, cardHeight, 'Lines keep the height of the card');
-  near(wordmarkScaleX * 1920, cardWidth * midpointZoom, 'The wordmark widens independently');
-  near(wordmarkScaleY * 960, cardHeight * midpointZoom, 'The wordmark grows uniformly');
-  near(offsetX, cardWidth * (1 - midpointZoom) / 2, 'The zoom keeps the wordmark horizontally centered');
-  near(offsetY, cardHeight * (1 - midpointZoom) * .75, 'The zoom stays anchored near the wordmark');
+  near(wordmarkScaleX * 1920, cardWidth * zoomLimit, 'The wordmark widens independently');
+  near(wordmarkScaleY * 960, cardHeight * zoomLimit, 'The wordmark grows uniformly');
+  near(offsetX, cardWidth * (1 - zoomLimit) / 2, 'The zoom keeps the wordmark horizontally centered');
+  near(offsetY, cardHeight * (1 - zoomLimit) * .75, 'The zoom stays anchored near the wordmark');
   assertIsolatedFilter();
   blurApi.setSettings({wordmarkFade: true});
   blurPage.frames();
@@ -648,8 +659,7 @@ if (require.main === module) (async () => {
     near(Number(wordmarkFrame.style.opacity), 1, 'Blur-only mode never clears the late wordmark through opacity');
     near(Number(decorationScale.style.opacity), 0, 'Lines still finish their separate original fade');
     assertIsolatedFilter();
-    const scaleX = Number(wordmarkScale.style.transform.match(/scale\(([^,]+),/)[1]);
-    near(scaleX * 1920, blurPage.position()[0] * 1.15, 'The extra wordmark zoom stops at 15%');
+    near(readWordmarkScaleX() * 1920, blurPage.position()[0] * zoomLimit, 'The extra wordmark zoom stays at 30%');
     if (progress === .6) {
       blurApi.setSettings({wordmarkFade: true});
       blurPage.frames();

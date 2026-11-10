@@ -106,7 +106,7 @@ for(const kind of['wheel','touch'])for(const direction of[1,-1])for(const assets
   const f=fixture({raw:direction>0?2:1598,targetReady:()=>ready});
   if(kind==='wheel'){
     const first=f.wheel(80*direction,230);
-    const continued=[95,100,110,130,140].map(delta=>f.wheel(delta*direction,16));
+    const continued=[95,100,-.8,110,-12,130,140].map(delta=>f.wheel(delta*direction,16));
     assert(continued.every(({event,intent})=>event.prevented&&intent.id===first.intent.id),
       'A long wheel burst is consumed as the original gesture');
   }else{
@@ -134,6 +134,42 @@ for(const kind of['wheel','touch'])for(const direction of[1,-1])for(const assets
   result=f.advance(800);
   assert.equal(result.position,direction>0?2:0);
   assert.equal(f.scrolls.length,2,'No third anchor or boundary release is queued');
+}
+
+// A trackpad can reverse before the old tail has gone quiet. Equal reverse
+// deltas are deliberate even if the shared wheel classifier keeps its old id.
+for(const direction of[1,-1])for(const reverseDuringAnimation of[false,true]){
+  const f=fixture({raw:direction>0?2:1598});
+  const first=f.wheel(80*direction,230);
+  for(const delta of[95,100,110,130,140])f.wheel(delta*direction,16);
+  for(let i=0;i<(reverseDuringAnimation?48:105);i++)f.wheel(.2*direction,16);
+  const startingTarget=direction>0?2:0;
+  assert.equal(f.update().target,startingTarget);
+  assert.equal(f.update().busy,reverseDuringAnimation);
+  const reverse=Array.from({length:7},()=>f.wheel(-90*direction,16));
+  assert(reverse.every(({event,intent})=>event.prevented&&intent.id===first.intent.id),
+    'The shared classifier sees one continuous wheel stream across the reversal');
+  assert.equal(f.update().target,reverseDuringAnimation?startingTarget:1,
+    'The sustained reversal lets any current animation reach its endpoint first');
+  assert.equal(f.update().queued,-direction,'The new long direction reserves an adjacent card');
+  assert.equal(f.advance(2400).position,direction>0?0:2);
+  assert.equal(f.scrolls.length,4,'The two directions each move exactly two cards');
+}
+
+// A fresh long wheel gesture accepted late in the current animation still
+// owns its remaining distance while the buffered adjacent move is waiting.
+for(const direction of[1,-1]){
+  const f=fixture({raw:800});
+  f.wheel(-120*direction);
+  f.advance(650);
+  const first=f.wheel(80*direction,0);
+  assert(first.intent.fresh);
+  assert.equal(first.state.queued,direction);
+  for(const delta of[95,100,110,130,140])f.wheel(delta*direction,16);
+  assert.equal(f.update().target,direction>0?0:2);
+  assert.equal(f.scrolls.length,1,'The first movement still holds its own anchor');
+  assert.equal(f.advance(1800).position,direction>0?2:0);
+  assert.equal(f.scrolls.length,3,'The buffered long gesture completes both adjacent moves');
 }
 
 {
