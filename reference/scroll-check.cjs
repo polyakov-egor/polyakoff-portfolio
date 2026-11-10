@@ -567,7 +567,7 @@ if (require.main === module) (async () => {
   blurPage.frames();
   assert(blurPage.visibleWordmarkBlur() > 2, 'The wordmark blooms while the opening hero is still mostly full size');
   const openingScale = readWordmarkScaleX();
-  assert(openingScale > 1, 'The wordmark grows while the opening card shrinks');
+  assert(openingScale > 1 && openingScale < 1.05, 'The wordmark grows gently while the opening card shrinks');
   let earlierZoom = relativeZoom(), earlierBlur = blurPage.visibleWordmarkBlur();
   for (const progress of [.135, .18, .255, .31, .35]) {
     blurPage.scroll(960 * progress);
@@ -586,7 +586,7 @@ if (require.main === module) (async () => {
   const originalExitFilter = wordmarkFrame.style.filter;
   const exitCard = blurPage.card();
   const exitOpacity = decorationScale.style.opacity;
-  near(blurPage.visibleWordmarkBlur(), 18, 'The earlier bloom reaches 75% strength at the exit midpoint');
+  near(blurPage.visibleWordmarkBlur(), 19.453, 'The stronger bloom reaches about 81% at the exit midpoint');
   near(Number(exitOpacity), .5, 'Background lines preserve their separate original fade');
   near(Number(wordmarkFrame.style.opacity), 1, 'Blur-only mode does not fade the wordmark at the midpoint');
   assert.equal(wordmarkScale.style.width, '1920px', 'Wordmark artwork keeps its base width inside the small filtered surface');
@@ -619,7 +619,7 @@ if (require.main === module) (async () => {
   assert.equal(wordmarkFrame.style.filter, originalExitFilter, 'Blur resumes without clearing or changing strength');
   blurApi.setSettings({wordmarkBlur: 48});
   blurPage.frames();
-  near(blurPage.visibleWordmarkBlur(), 36, 'Changing blur strength live doubles its visible softness without scrolling');
+  near(blurPage.visibleWordmarkBlur(), 38.906, 'Changing blur strength live doubles its visible softness without scrolling');
   assert.deepEqual(blurPage.card(), exitCard, 'Live blur controls do not change portrait geometry');
   assert.equal(decorationScale.style.opacity, exitOpacity, 'Live blur controls do not change the separate lines fade');
   near(Number(wordmarkFrame.style.opacity), 1, 'Changing strength does not enable wordmark fade');
@@ -633,7 +633,7 @@ if (require.main === module) (async () => {
   blurPage.frames();
   near(blurApi.getSettings().wordmarkBlur, 36.25, 'The API accepts finite fractional blur values independently of the slider step');
   near(blurApi.getSettings().whiteAt, .22, 'An invalid white endpoint does not block a valid blur patch');
-  near(blurPage.visibleWordmarkBlur(), 27.188, 'A fractional blur strength affects the current frame');
+  near(blurPage.visibleWordmarkBlur(), 29.382, 'A fractional blur strength affects the current frame');
   blurApi.setSettings({whiteAt: .45, wordmarkBlur: 'invalid'});
   blurPage.frames();
   near(blurApi.getSettings().whiteAt, .45, 'A valid white patch survives an invalid blur value');
@@ -726,10 +726,10 @@ if (require.main === module) (async () => {
     await turn();
     scaledBlur.scroll(height * .31);
     scaledBlur.frames();
-    near(scaledBlur.visibleWordmarkBlur(), 18, `${width}: the card-sized filter directly uses viewport pixels`);
+    near(scaledBlur.visibleWordmarkBlur(), 19.453, `${width}: the card-sized filter directly uses viewport pixels`);
     scaledBlur.window.HeroScrollEffect.setSettings({wordmarkBlur: 200});
     scaledBlur.frames();
-    near(scaledBlur.wordmarkBlur(), 150, `${width}: the maximum strength yields 150 px at the midpoint on every viewport`);
+    near(scaledBlur.wordmarkBlur(), 162.107, `${width}: the maximum strength yields the same midpoint blur on every viewport`);
   }
   const legacyStorage = new Map([[scrollStorageKey, JSON.stringify({whiteAt: .48})]]);
   const legacy = makeUnitDurationPage(1920, 960, 0, legacyStorage);

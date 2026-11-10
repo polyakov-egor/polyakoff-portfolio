@@ -25,7 +25,7 @@
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const responseMs = 180;
   const aboutResponseMs = 260;
-  const wordmarkLeadZoom = .24, wordmarkZoomAmount = .35;
+  const wordmarkZoomAmount = .35;
   const aboutTransitionMs = Math.max(0, Number(hero.dataset.aboutTransitionMs) || 0);
   const frames = [
     { width: 375, height: 812, size: 160, y: 210, radius: 32, textY: 450, blurStart: 651.5, blurEnd: 756.5 },
@@ -343,11 +343,11 @@
       const scaleX = width / base.width;
       const scaleY = height / base.height;
       const artworkScale = `scale(${scaleX}, ${scaleY})`;
-      // Build zoom while the lettering is readable, then keep it growing
-      // through the white wash with an overlapping, slower tail.
-      const bloom = reduced ? 0 : 1 - decorationOpacity ** 2;
-      const zoom = reduced ? 1 : 1 + wordmarkLeadZoom * smooth(.01, .18, p)
-        + (wordmarkZoomAmount - wordmarkLeadZoom) * smooth(.12, .36, p);
+      // Use one gradual zoom through the light frame and build a little
+      // more blur during the transition within the selected blur limit.
+      const zoomProgress = smooth(.01, .36, p);
+      const zoom = reduced ? 1 : 1 + wordmarkZoomAmount * (1 - (1 - zoomProgress) ** 1.4);
+      const bloom = reduced ? 0 : 1 - decorationOpacity ** 2.4;
       scenery.style.opacity = '1';
       if (wordmarkScale) {
         const zoomX = width * (1 - zoom) * .5;
