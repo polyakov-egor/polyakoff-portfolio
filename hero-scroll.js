@@ -25,7 +25,7 @@
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const responseMs = 180;
   const aboutResponseMs = 260;
-  const wordmarkZoomAmount = .35;
+  const wordmarkZoomAmount = .45;
   const aboutTransitionMs = Math.max(0, Number(hero.dataset.aboutTransitionMs) || 0);
   const frames = [
     { width: 375, height: 812, size: 160, y: 210, radius: 32, textY: 450, blurStart: 651.5, blurEnd: 756.5 },

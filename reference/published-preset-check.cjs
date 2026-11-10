@@ -11,7 +11,7 @@ const keys = {depth:'ff.hero.depth.settings.v1',scroll:'ff.hero.scroll.settings.
 const expected = {
   depth:{enabled:true,strength:2.5,smoothingMs:240,depthAmount:1.2,lighting:.7},
   scroll:{inspirationCardDurationMs:650,aboutRevealMode:'gradient',aboutRevealScrollDuration:1.8,aboutFillFeather:1.5,musicActivity:2.1,
-    aboutBackgroundStart:.13,aboutBackgroundDuration:.16,heroScrollDuration:2.2,whiteAt:.52,wordmarkBlur:57,wordmarkFade:false,
+    aboutBackgroundStart:.13,aboutBackgroundDuration:.16,heroScrollDuration:2.2,whiteAt:.52,wordmarkBlur:80,wordmarkFade:false,
     aboutScrollDuration:2.5,aboutTopBlur:22,aboutFlightVariant:'second',aboutFadeSpeed:1.35,aboutTriggerMode:'portrait',aboutTriggerGapPx:140,
     aboutStartOffset:0,aboutWordForce:3,aboutLetterForce:3,aboutDetach:.23,aboutRotation:.8,aboutFadeShape:'distance',aboutFadeOrigin:'screen'},
   background:{enabled:false,mode:'distortion',ambientEnabled:true,ambientDirection:'up',ambientStrength:.3,ambientSpeed:.35,hoverStrength:.35,rippleStrength:.4,radius:150},
@@ -91,6 +91,17 @@ for (const [duration, result] of [[800, 650], [950, 950]]) {
   assert.equal(origin.data.get(libraryKey),oldCatalog,'Timing refresh preserves saved named presets');
   origin.data.set(keys.scroll,JSON.stringify(oldScroll));origin.run();
   assert.deepEqual(origin.read(keys.scroll),oldScroll,'Later tuning can still use the previous duration');
+}
+
+for (const [blur, result] of [[57, 80], [42, 42], [0, 0]]) {
+  const oldScroll = {...expected.scroll, wordmarkBlur:blur, aboutFadeBoundary:.66};
+  const oldCatalog = JSON.stringify({version:1,presets:[untouched,original]});
+  const origin = page(new Map([[marker,'1'], ['ff.hero.inspiration-timing.v1','1'],
+    [keys.scroll,JSON.stringify(oldScroll)], [libraryKey,oldCatalog]]));
+  assert.deepEqual(origin.read(keys.scroll), {...oldScroll,wordmarkBlur:result}, 'Existing origins refresh only the former default blur');
+  assert.equal(origin.data.get(libraryKey),oldCatalog,'Blur refresh preserves saved named presets');
+  origin.data.set(keys.scroll,JSON.stringify(oldScroll));origin.run();
+  assert.deepEqual(origin.read(keys.scroll),oldScroll,'Later tuning can still use the previous blur');
 }
 
 const unavailable=page(new Map(),{read:true,write:true});

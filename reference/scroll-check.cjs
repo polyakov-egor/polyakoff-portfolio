@@ -543,7 +543,7 @@ if (require.main === module) (async () => {
   const wordmarkScale = blurPage.nodes['.hero__wordmark-scale'];
   const decorationScale = blurPage.nodes['.hero__decoration-scale'];
   const scenery = blurPage.nodes['.hero__scenery'];
-  const zoomLimit = 1.35;
+  const zoomLimit = 1.45;
   const readWordmarkScaleX = () => Number(wordmarkScale.style.transform.match(/scale\(([^,]+),/)[1]);
   const relativeZoom = () => readWordmarkScaleX() * 1920 / blurPage.position()[0];
   const assertIsolatedFilter = () => {
@@ -567,7 +567,8 @@ if (require.main === module) (async () => {
   blurPage.frames();
   assert(blurPage.visibleWordmarkBlur() > 2, 'The wordmark blooms while the opening hero is still mostly full size');
   const openingScale = readWordmarkScaleX();
-  assert(openingScale > 1 && openingScale < 1.05, 'The wordmark grows gently while the opening card shrinks');
+  assert(openingScale > 1 && relativeZoom() < 1 + (zoomLimit - 1) / 4,
+    'The wordmark grows gently while the opening card shrinks');
   let earlierZoom = relativeZoom(), earlierBlur = blurPage.visibleWordmarkBlur();
   for (const progress of [.135, .18, .255, .31, .35]) {
     blurPage.scroll(960 * progress);
@@ -580,7 +581,7 @@ if (require.main === module) (async () => {
   }
   blurPage.scroll(960 * .36);
   blurPage.frames();
-  near(relativeZoom(), zoomLimit, 'The wordmark reaches +35% at the pale reference frame');
+  near(relativeZoom(), zoomLimit, 'The wordmark reaches +45% at the pale reference frame');
   blurPage.scroll(960 * .31);
   blurPage.frames();
   const originalExitFilter = wordmarkFrame.style.filter;
@@ -664,7 +665,7 @@ if (require.main === module) (async () => {
     near(Number(wordmarkFrame.style.opacity), 1, 'Blur-only mode never clears the late wordmark through opacity');
     near(Number(decorationScale.style.opacity), 0, 'Lines still finish their separate original fade');
     assertIsolatedFilter();
-    near(relativeZoom(), zoomLimit, 'The extra wordmark zoom holds at 35% after the light frame');
+    near(relativeZoom(), zoomLimit, 'The extra wordmark zoom holds at 45% after the light frame');
     if (progress === .6) {
       blurApi.setSettings({wordmarkFade: true});
       blurPage.frames();

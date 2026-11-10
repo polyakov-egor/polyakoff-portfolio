@@ -12,7 +12,7 @@
       inspirationCardDurationMs: 650, aboutRevealMode: 'gradient',
       aboutRevealScrollDuration: 1.8, aboutFillFeather: 1.5, musicActivity: 2.1,
       aboutBackgroundStart: .13, aboutBackgroundDuration: .16,
-      heroScrollDuration: 2.2, whiteAt: .52, wordmarkBlur: 57, wordmarkFade: false,
+      heroScrollDuration: 2.2, whiteAt: .52, wordmarkBlur: 80, wordmarkFade: false,
       aboutScrollDuration: 2.5, aboutTopBlur: 22, aboutFlightVariant: 'second',
       aboutFadeSpeed: 1.35, aboutTriggerMode: 'portrait', aboutTriggerGapPx: 140,
       aboutStartOffset: 0, aboutWordForce: 3, aboutLetterForce: 3,
@@ -28,6 +28,7 @@
 
   const migrationKey = 'ff.hero.published-preset.123123123.v1';
   const inspirationTimingKey = 'ff.hero.inspiration-timing.v1';
+  const wordmarkBlurKey = 'ff.hero.wordmark-blur.v1';
   const presetKey = 'ff.hero.effect.presets.v1';
   const ownerKeys = {
     depth: 'ff.hero.depth.settings.v1',
@@ -42,12 +43,20 @@
     };
     if (storage.getItem(migrationKey) === '1') {
       window.PublishedEffectPresetNeedsMigration = false;
-      if (storage.getItem(inspirationTimingKey) !== '1') {
+      const updateInspirationTiming = storage.getItem(inspirationTimingKey) !== '1';
+      const updateWordmarkBlur = storage.getItem(wordmarkBlurKey) !== '1';
+      if (updateInspirationTiming || updateWordmarkBlur) {
         const scroll = record(read(ownerKeys.scroll));
-        if (scroll.inspirationCardDurationMs === 800) {
-          storage.setItem(ownerKeys.scroll, JSON.stringify({ ...scroll, inspirationCardDurationMs: preset.scroll.inspirationCardDurationMs }));
+        const updates = {};
+        if (updateInspirationTiming && scroll.inspirationCardDurationMs === 800) {
+          updates.inspirationCardDurationMs = preset.scroll.inspirationCardDurationMs;
         }
-        storage.setItem(inspirationTimingKey, '1');
+        if (updateWordmarkBlur && scroll.wordmarkBlur === 57) {
+          updates.wordmarkBlur = preset.scroll.wordmarkBlur;
+        }
+        if (Object.keys(updates).length) storage.setItem(ownerKeys.scroll, JSON.stringify({ ...scroll, ...updates }));
+        if (updateInspirationTiming) storage.setItem(inspirationTimingKey, '1');
+        if (updateWordmarkBlur) storage.setItem(wordmarkBlurKey, '1');
       }
       return;
     }
@@ -66,6 +75,7 @@
     storage.setItem(presetKey, JSON.stringify({ ...catalog, version: 1, presets: nextEntries }));
     storage.setItem('ff.hero.scroll.gradient-default.v1', '1');
     storage.setItem(inspirationTimingKey, '1');
+    storage.setItem(wordmarkBlurKey, '1');
     storage.setItem(migrationKey, '1');
     window.PublishedEffectPresetNeedsMigration = false;
   } catch {
