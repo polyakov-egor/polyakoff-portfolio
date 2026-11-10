@@ -179,7 +179,7 @@
     const lastCardPitchFactor=(cards.length-1)*layout.pitchFactor;
     layout.lastFrontalPhase=(pitchStart*lastCardPitchFactor-worldStart)/(worldTravel+pitchTaper*lastCardPitchFactor);
     layout.entranceStartPhase=measureEntrancePhase(0);
-    layout.entrancePeekPhase=measureEntrancePhase(clamp(height*.04,24,44));
+    layout.entrancePeekPhase=measureEntranceHold();
     const dpr=Math.min(1.5,window.devicePixelRatio||1),pixelWidth=Math.round(width*dpr),pixelHeight=Math.round(height*dpr);
     if(canvas.width!==pixelWidth)canvas.width=pixelWidth;
     if(canvas.height!==pixelHeight)canvas.height=pixelHeight;
@@ -287,6 +287,31 @@
       return high;
     }
     return .3;
+  }
+  function measureEntranceHold(){
+    const {width,height,entranceStartPhase:from}=layout;
+    // Match the reference frame, then choose an earlier pose where narrow
+    // viewports would otherwise clip the leading card out of the picture.
+    const referencePhase=.25325;
+    if(from>=referencePhase)return from;
+    const visible=({minX,maxX,minY,maxY})=>({
+      width:Math.max(0,Math.min(maxX,width)-Math.max(0,minX)),
+      height:Math.max(0,Math.min(maxY,height)-Math.max(0,minY))
+    });
+    const samples=64;
+    const secondHeight=Math.min(36,height*.05);
+    let bestPhase=from,bestArea=0;
+    for(let i=samples;i>=0;i--){
+      const phase=from+(referencePhase-from)*(i/samples);
+      const [lead,next]=projectCardBounds(phase,false,1);
+      const first=visible(lead),second=visible(next);
+      const area=first.width*first.height;
+      const total=(lead.maxX-lead.minX)*(lead.maxY-lead.minY);
+      const leadVisible=area>=total*.45&&first.width>=36&&first.height>=40;
+      if(leadVisible&&second.width>=25&&second.height>=secondHeight)return phase;
+      if(area>bestArea){bestPhase=phase;bestArea=area;}
+    }
+    return bestPhase;
   }
   function getProjectedBounds(progress){
     if(!layout)return null;const projected=projectCardBounds(Number.isFinite(progress)?progress:0,false,1),visibleX=projected.filter(pose=>pose.maxX>0&&pose.minX<layout.width);

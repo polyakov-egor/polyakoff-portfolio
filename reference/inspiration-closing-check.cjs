@@ -264,7 +264,7 @@ if(require.main===module)(async()=>{
     const [brakeStart,late,almost,end]=tailPhases;
     assert(end-almost>0&&end-almost<almost-late&&almost-late<late-brakeStart,
       'The helix eases to a stop across the final frames of the 500ms tail');
-    near(end,page.window.WorksGallery.getLayout().entrancePeekPhase,'The independent tail ends at the original orbit pose');
+    near(end,page.window.WorksGallery.getLayout().entrancePeekPhase,'The independent tail ends at the preview hold');
     assert.equal(page.raf.size,0,'The shared clock sleeps at the completed preview');
     assert.equal(f.wheel(120,230).prevented,false,'A fresh forward gesture leaves the completed title for Works');
     page.scroll(worksStart+2);page.frames();

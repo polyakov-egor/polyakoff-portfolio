@@ -22,9 +22,9 @@
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
   const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
   const smooth=value=>value*value*(3-2*value);
-  const footerCardDuration=550, footerCardFade=.15, footerCardHysteresis=4;
+  const footerCardTrigger=.6,footerCardDelay=110,footerCardDuration=1300,footerCardFadeDuration=585;
   let layout=null,enhanced=false,visibility=null,deckVisibility=null,footerVisibility=null,footerY=null;
-  let footerCardTarget=null,footerCardMotion=null,footerCardPhase=null,footerCardEdge=0;
+  let footerCardStartTime=null,footerCardPhase=null;
 
   if(footerWordmarkImage){
     window.ChapterAssets?.register('services',()=>{
@@ -35,8 +35,6 @@
   }
 
   function wake(){window.dispatchEvent(new CustomEvent('services:ready'));}
-  function wakeMotion(){window.dispatchEvent(new CustomEvent('services:motion'));}
-  function resetFooterCard(){footerCardTarget=null;footerCardMotion=null;footerCardPhase=null;}
   function measureHeight(element,height){return element?Math.max(height,element.offsetHeight||height):0;}
   function setVisible(visible,deckVisible=visible){
     if(visibility!==visible){
@@ -49,47 +47,26 @@
       window.ServicesScreens?.get(root)?.setVisible(deckVisible);
     }
   }
-  function setFooterVisible(visible,cardAnimating=false){
+  function setFooterVisible(visible){
     if(!footer)return;
-    footer.classList.toggle('site-footer-is-visible',enhanced&&(visible||cardAnimating));
+    footer.classList.toggle('site-footer-is-visible',enhanced&&visible);
     if(footerVisibility===visible)return;
     footerVisibility=visible;
     footer.inert=!visible;
     footer.setAttribute('aria-hidden',String(!visible));
   }
-  function updateFooterCard(entered,visible,now){
-    let target=footerCardTarget;
-    if(target===null){
-      target=visible&&entered>=layout.footerCardStart;
-    }else if(target){
-      footerCardEdge=Math.max(footerCardEdge,entered);
-      if(!visible||(entered<=layout.footerCardExit&&footerCardEdge-entered>=footerCardHysteresis))target=false;
-    }else{
-      footerCardEdge=Math.min(footerCardEdge,entered);
-      if(visible&&entered>=layout.footerCardStart&&entered-footerCardEdge>=footerCardHysteresis)target=true;
-    }
-    // Remember the last turn so a small change in direction cannot reopen the card.
-    if(target!==footerCardTarget)footerCardEdge=entered;
-    let phase=Number(footerCardTarget);
-    if(footerCardMotion){
-      const progress=clamp((now-footerCardMotion.started)/footerCardDuration,0,1);
-      phase=footerCardMotion.from+(phase-footerCardMotion.from)*progress;
-      if(progress===1)footerCardMotion=null;
-    }
-    if(footerCardTarget===null){
-      phase=Number(target);
-    }else if(target!==footerCardTarget){
-      footerCardMotion=phase===Number(target)?null:{from:phase,started:now};
-    }
-    footerCardTarget=target;
+  function updateFooterCard(top,now){
+    // The Winline office reveal runs once, even if the user scrolls back while it plays.
+    if(footerCardStartTime===null&&top<=layout.height*footerCardTrigger)footerCardStartTime=now+footerCardDelay;
+    const elapsed=footerCardStartTime===null?0:Math.max(0,now-footerCardStartTime);
+    const phase=clamp(elapsed/footerCardDuration,0,1);
     if(phase!==footerCardPhase){
-      const turn=smooth(phase);
-      const opacity=smooth(clamp(phase/footerCardFade,0,1));
-      footer.style.setProperty('--site-footer-card-offset',(1-turn).toFixed(4));
+      const opacity=1-(1-clamp(elapsed/footerCardFadeDuration,0,1))**5;
+      footer.style.setProperty('--site-footer-card-offset',((1-phase)**5).toFixed(4));
       footer.style.setProperty('--site-footer-card-opacity',opacity.toFixed(4));
       footerCardPhase=phase;
     }
-    return Boolean(footerCardMotion);
+    return footerCardStartTime!==null&&phase<1;
   }
   function setEnhanced(enabled){
     if(enhanced===enabled)return;
@@ -125,7 +102,7 @@
       if(works)works.inert=false;
       setVisible(true);
       setFooterVisible(true);
-      resetFooterCard();
+      footerCardPhase=null;
     }
   }
   function measure({width=hero.clientWidth,height=hero.clientHeight,worksStart=0,worksTravel=0,
@@ -139,11 +116,6 @@
     const sectionHeight=measureHeight(root,viewportHeight);
     const footerHeight=measureHeight(footer,viewportHeight);
     const footerWordmarkTop=footerWordmark?.offsetTop||0;
-    const footerWordmarkTravel=footerHeight-footerWordmarkTop;
-    const footerCardStart=Math.min(footerHeight-1,footerWordmarkTop+.9*footerWordmarkTravel);
-    const footerCardExit=footerWordmarkTop+.7*footerWordmarkTravel;
-    if(oldLayout&&(oldLayout.height!==viewportHeight||oldLayout.footerHeight!==footerHeight||
-      oldLayout.footerCardStart!==footerCardStart||oldLayout.footerCardExit!==footerCardExit))resetFooterCard();
     const footerWordmarkBlur=clamp(width*.03,24,42);
     const totalHeight=sectionHeight+footerHeight;
     const headingCenter=(heading?.offsetTop||0)+(heading?.offsetHeight||0)/2;
@@ -166,7 +138,7 @@
     const travel=enhanced?totalHeight+centeredY-viewportHeight:0;
     layout={height:viewportHeight,sectionHeight,footerHeight,totalHeight,start,centeredY,
       deckTop,deckHeight,deckEntryY,introTravel,openingTravel,revealStart,revealEnd,headingStart,headingFade,travel,
-      footerCardStart,footerCardExit,footerWordmarkTop,footerWordmarkBlur};
+      footerWordmarkTop,footerWordmarkBlur};
     let rebaseDistance=null;
     if(enhanced&&oldLayout&&Number.isFinite(oldLocal)&&oldLocal>=0&&oldLocal<=oldLayout.introTravel+oldLayout.travel+.5){
       if(oldLocal<oldLayout.revealStart){
@@ -194,19 +166,13 @@
     root.dataset.servicesHeadingFade=headingFade.toFixed(3);
     return {...layout,rebaseDistance};
   }
-  const restoreNavigation=()=>{resetFooterCard();wakeMotion();};
-  window.addEventListener('keydown',event=>{
-    if((event.key!=='Home'&&event.key!=='End')||event.defaultPrevented||event.ctrlKey||event.metaKey||event.altKey)return;
-    if(!event.target?.closest?.('input, textarea, select, [contenteditable="true"], [role="slider"], [role="dialog"], [data-lenis-prevent], .effect-controls, #hero-effect-panel'))restoreNavigation();
-  });
-  window.addEventListener('popstate',restoreNavigation);
-  window.addEventListener('hashchange',restoreNavigation);
-
   function update(distance,{now=performance.now(),reducedMotion=reduced.matches}={}){
     if(!layout)return {active:false,covered:false};
     if(!enhanced||reducedMotion){
       setVisible(true);
       setFooterVisible(true);
+      // Like Winline, disabling motion reveals the card for this visit.
+      footerCardStartTime=Number.NEGATIVE_INFINITY;
       return {active:false,covered:false};
     }
     const {height,introTravel,centeredY,deckTop,deckHeight,deckEntryY,openingTravel,revealStart,revealEnd,headingStart,headingFade}=layout;
@@ -229,16 +195,18 @@
         footerY=top;
         footer.style.setProperty('--site-footer-scroll-y',`${top.toFixed(3)}px`);
         backdrop?.style.setProperty('--site-footer-reveal',clamp(1-top/layout.height,0,1).toFixed(4));
-        // Counter the footer's translation so the card reveals at its settled viewport position.
-        const cardShift=entered-layout.footerHeight;
+        // Keep the reveal in view, then taper that compensation as the footer leaves.
+        const triggerTop=height*footerCardTrigger;
+        const cardExit=smooth(clamp((top-triggerTop)/(height-triggerTop),0,1));
+        const cardShift=entered-layout.footerHeight*(1-cardExit);
         const wordmarkProgress=smooth(clamp((entered-layout.footerWordmarkTop)/Math.max(1,layout.footerHeight-layout.footerWordmarkTop),0,1));
         const wordmarkBlur=layout.footerWordmarkBlur*(1-wordmarkProgress);
         footer.style.setProperty('--site-footer-card-shift',`${cardShift.toFixed(3)}px`);
         footer.style.setProperty('--site-footer-wordmark-opacity',wordmarkProgress.toFixed(4));
         footer.style.setProperty('--site-footer-wordmark-filter',wordmarkProgress>0&&wordmarkBlur>=.01?`blur(${wordmarkBlur.toFixed(2)}px)`:'none');
       }
-      if(footerCard)footerAnimating=updateFooterCard(entered,footerActive,now);
-      setFooterVisible(footerActive,footerAnimating);
+      if(footerCard)footerAnimating=updateFooterCard(top,now);
+      setFooterVisible(footerActive);
     }
     const covered=!intro;
     root.style.setProperty('--services-scroll-y',`${y.toFixed(3)}px`);
@@ -271,7 +239,7 @@
     if(footer)resize.observe(footer);
   }
   function setStart(start){if(layout&&Number.isFinite(start)){layout.start=start;root.dataset.servicesStart=start.toFixed(3);}}
-  window.ServicesScrollChapter=Object.freeze({measure,update,setStart,restore:resetFooterCard});
+  window.ServicesScrollChapter=Object.freeze({measure,update,setStart});
   reduced.addEventListener('change',wake);
   wake();
 })();

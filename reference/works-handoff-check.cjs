@@ -77,7 +77,7 @@ function checkTitleTiming(f, measured, now){
   }
   return now;
 }
-for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,1305]]){
+for(const [width,height] of [[375,812],[768,1024],[1440,800],[1913,936],[1920,960],[2560,1305]]){
   const f=fixture(width,height);
   assert.equal(f.ready.length,1,'Works announces readiness once to the story owner');
   const measured=f.api.measure({width,height,start:2700});
@@ -129,10 +129,16 @@ for(const [width,height] of [[375,812],[768,1024],[1440,800],[1920,960],[2560,13
   assert(Math.abs(alignedPhase-(f.window.WorksGallery.getLayout().entrancePeekPhase+measured.phasePerViewport*.25))<1e-8,
     'The short spatial blend recovers the regular camera phase before later cues');
   assert(!preview(1050).previewAnimating,'The preview settles exactly 500ms after the title');
-  const [peek]=screenBounds(f),peekPhase=f.updates.at(-1)[0];
-  assert(partialPhase<peekPhase&&visibleSlice(partial)>0&&visibleSlice(partial)<visibleSlice(peek),'The late title frames advance the actual camera phase and expose the first card');
+  const [peek,nextPeek]=screenBounds(f),peekPhase=f.updates.at(-1)[0];
+  assert(partialPhase<peekPhase&&visibleSlice(partial)>0,'The late title frames expose the first card before the camera reaches the hold');
   assert(Math.abs(partial.left-peek.left)>3&&Math.abs(partial.width-peek.width)>.1,'The first card moves and turns on the orbit during the preview');
-  assert(visibleSlice(peek)>=24-.15&&visibleSlice(peek)<=44+.15,'The finished title exposes a small edge even if the orbit enters from the right on a tall tablet');
+  assert(visibleSlice(peek)>=35.85,'The resting preview keeps the leading card recognizable at every breakpoint');
+  assert(visibleSlice(nextPeek)>=24,'The second card is already entering at the preview hold');
+  if(width===1913){
+    assert(Math.abs(peek.left-100)<6&&Math.abs(peek.top-664)<6&&Math.abs(peek.left+peek.width-250)<6&&Math.abs(peek.top+peek.height-895)<6,
+      'The leading card lands in the reference silhouette');
+    assert(Math.abs(nextPeek.top-825)<6&&nextPeek.top+nextPeek.height>height,'Only the upper part of the second card is visible in the reference pose');
+  }
   assert(f.viewport.classList.contains('works-is-preview')&&!f.hero.classList.contains('is-works'));
   assert.equal(f.viewport.getAttribute('aria-hidden'),'true');
   assert(f.list.children.every(card=>card.getAttribute('tabindex')==='-1'));
@@ -290,9 +296,15 @@ checkTitleTiming(shortPhone,shortPhone.api.measure({width:414,height:700}),150);
 const portraitTablet=fixture(820,1180);
 portraitTablet.api.measure({width:820,height:1180});
 portraitTablet.api.update(-2,{titleRollProgress:1});
-const [tabletPeek]=screenBounds(portraitTablet);
-assert(Math.abs(820-tabletPeek.left-44)<.15&&tabletPeek.top<1180-44,
-  'On tall tablets the orbit reveals a narrow right edge without moving down artificially');
+const [tabletPeek,tabletNext]=screenBounds(portraitTablet);
+assert(tabletPeek.left+tabletPeek.width>=36&&tabletPeek.top>1180*.55&&tabletNext.top<1180,
+  'Tall tablets settle at an earlier point on the orbit with both cards visible below the headline');
+const narrowTablet=fixture(1024,768);
+narrowTablet.api.measure({width:1024,height:768});
+narrowTablet.api.update(-2,{titleRollProgress:1});
+const [narrowPeek]=screenBounds(narrowTablet);
+assert(narrowPeek.left>=0&&narrowPeek.width>150&&narrowPeek.top<768-40,
+  'When the second card cannot enter in time, the leading card stays recognizable');
 const css=fs.readFileSync(path.join(root,'works-scroll.css'),'utf8');
 assert(/\.works-journey\.works-is-shared\s*\{[^}]*height:\s*0/.test(css),'Enhanced marker has zero height');
 assert(/\.hero\s*>\s*\.works-viewport\.works-is-enhanced\s*\{[^}]*position:\s*absolute/.test(css),'Works occupies the hero viewport instead of another scrolling screen');

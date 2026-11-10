@@ -485,14 +485,12 @@
   window.addEventListener('pageshow', () => {
     lightTarget = null;
     window.InspirationChapter?.restore?.();
-    window.ServicesScrollChapter?.restore?.();
     measure();
   });
   window.addEventListener('inspiration:ready', schedule);
   window.addEventListener('works:ready', () => measure());
   window.addEventListener('works:interaction', schedule);
   window.addEventListener('services:ready', () => measure());
-  window.addEventListener('services:motion', schedule);
   window.addEventListener('chapter-assets:ready', schedule);
   reducedMotion.addEventListener('change', schedule);
   if (document.fonts?.ready) document.fonts.ready.then(() => measure());
