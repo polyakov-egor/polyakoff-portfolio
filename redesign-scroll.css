@@ -1,0 +1,140 @@
+@font-face {
+  font-family: "Bebas Neue";
+  src: url("./assets/fonts/BebasNeue-Bold.otf") format("opentype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+/* The texture is shared by every chapter. The moving Hero owns its dark copy. */
+.about-backdrop__light {
+  -webkit-mask-image: none;
+  mask-image: none;
+  opacity: var(--redesign-light, 0);
+}
+.about-backdrop__lines,
+.about-backdrop__light-lines {
+  top: 50%;
+  left: 50%;
+  width: max(2560px, 100vw, calc(100svh * 2560 / 1305));
+  height: auto;
+  transform: translate(-50%, -50%);
+}
+.hero > .hero__footer,
+.hero > .hero__about-logo {
+  z-index: 1000;
+  --about-light-progress: var(--redesign-ink, 0);
+}
+.contact-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  background: currentColor;
+  -webkit-mask: url("./assets/icons/contact-plane.svg") center / 16px 16px no-repeat;
+  mask: url("./assets/icons/contact-plane.svg") center / 16px 16px no-repeat;
+}
+
+.redesign-hero-plane {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  pointer-events: none;
+  perspective: 1450px;
+}
+.redesign-hero-plane > .hero__scene {
+  color: #fff;
+  --glass-background: rgb(255 255 255 / 10%);
+  clip-path: inset(0 0 var(--redesign-hero-trim, 0px));
+  transform: var(--redesign-hero-transform, none);
+  will-change: auto;
+}
+.redesign-hero-plane.is-moving > .hero__scene { will-change: transform; }
+.redesign-hero-plane[aria-hidden="true"] { visibility: hidden; }
+
+.redesign-about {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 100svh;
+  color: #1d1d1d;
+  pointer-events: none;
+}
+.hero-journey > .redesign-about {
+  background: #eceff1 url('./assets/images/backgrounds/light.webp') center / cover;
+}
+.redesign-about__plane {
+  --about-type: 48px;
+  --about-label-gap: 38px;
+  width: min(calc(100% - 32px), 344px);
+  text-align: center;
+  transform: var(--redesign-about-transform, none);
+}
+.redesign-about__label { margin: 0 0 var(--about-label-gap); }
+.redesign-about__statements { display: grid; gap: 1em; }
+.redesign-about__statement {
+  color: inherit;
+  font-family: "Bebas Neue", "Arial Narrow", sans-serif;
+  font-size: var(--about-type);
+  font-weight: 700;
+  line-height: .9;
+  text-transform: uppercase;
+}
+.redesign-about__desktop-break,
+.redesign-about__desktop-space { display: none; }
+
+.has-scroll-story .hero > .redesign-about {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  min-height: 0;
+  padding-inline: 0;
+  perspective: 1150px;
+  opacity: var(--redesign-about-opacity, 0);
+}
+.has-scroll-story .redesign-about[aria-hidden="true"] { visibility: hidden; }
+.has-scroll-story .redesign-about__plane {
+  /* Center the copy itself, with its label above it. */
+  translate: 0 calc((12px + var(--about-label-gap)) / -2);
+}
+.has-scroll-story .redesign-about__statements { gap: 0; }
+.has-scroll-story .redesign-about__statement { grid-area: 1 / 1; align-self: center; }
+.has-scroll-story [data-about-statement="1"] { opacity: calc(1 - var(--redesign-about-swap, 0)); }
+.has-scroll-story [data-about-statement="2"] { opacity: var(--redesign-about-swap, 0); }
+
+@media (max-width: 599px) {
+  .hero__intro { top: max(75px, env(safe-area-inset-top, 0px)); }
+  .hero__intro p:first-child { height: auto; }
+  .hero__footer, .hero__about-logo { bottom: calc(54px + env(safe-area-inset-bottom, 0px)); }
+  .hero > .hero__motion { top: max(120px, calc(env(safe-area-inset-top, 0px) + 52px)); }
+  .redesign-about__plane { --about-type: min(48px, 12.8vw); }
+}
+@media (min-width: 600px) {
+  .redesign-about__plane {
+    --about-type: clamp(52px, 8.333vw, 64px);
+    --about-label-gap: 55px;
+    width: min(calc(100% - 48px), 720px);
+  }
+  .redesign-about__mobile-break,
+  .redesign-about__mobile-space { display: none; }
+  .redesign-about__desktop-break,
+  .redesign-about__desktop-space { display: initial; }
+}
+@media (min-width: 1024px) {
+  .redesign-about__plane {
+    --about-type: clamp(64px, calc(6.25vw - 10px), 110px);
+    --about-label-gap: 64px;
+    width: min(74vw, 1248px);
+  }
+}
+@media (min-width: 2240px) {
+  .redesign-about__plane {
+    --about-type: clamp(110px, 5.78vw, 148px);
+    --about-label-gap: 72px;
+    width: min(74vw, 1346px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-journey > .redesign-about { padding-block: 72px; }
+  .redesign-about__statements { gap: 40px; }
+}

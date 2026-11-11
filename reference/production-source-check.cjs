@@ -38,7 +38,7 @@ function audit(directory,{staged=false}={}){
   for(const url of links)resolve(url);
   const runtime=[...new Set(links.filter(url=>/\.(?:js|css)(?:[?#]|$)/.test(url)))];
   assert(runtime.includes('./chapter-assets.js'),'Pinned chapter prefetch must be included');
-  assert(html.indexOf('./chapter-assets.js')<html.indexOf('./inspiration-view.js'),'Prefetch owner loads before deferred Inspiration images');
+  assert(!runtime.some(url=>/^\.\/inspiration[.-]/.test(url)),'The removed Inspiration chapter has no runtime entrypoints');
   assert(html.indexOf('./chapter-assets.js')<html.indexOf('./works-gallery.js'),'Prefetch owner loads before the deferred Works renderer');
   assert(html.indexOf('./chapter-assets.js')<html.indexOf('./services.js'),'Prefetch owner loads before Services');
   assert(html.indexOf('./services.js')<html.indexOf('./services-scroll.js'),'Services mounts before its scroll owner');
@@ -61,15 +61,14 @@ function audit(directory,{staged=false}={}){
   const backgroundSlots=[...html.matchAll(/<img\b[^>]*class=["'][^"']*(?:about-backdrop__(?:light-)?lines|works-backdrop__lines)[^"']*["'][^>]*>/g)].map(match=>match[0]);
   for(const slot of backgroundSlots)assert(/src=["'][^"']+\.webp["']/.test(slot),'Background slots use the updated raster artwork');
   assert(/data-layer=["']scanlines["'][^>]*src=["'][^"']+\.webp["']|src=["'][^"']+\.webp["'][^>]*data-layer=["']scanlines["']/.test(html),'Hero background uses the updated raster artwork');
-  for(const file of ['hero-layout.js','inspiration-view.js','inspiration.js']){
-    const text=fs.readFileSync(path.join(root,file),'utf8');
-    assert(!/(?:scanlines(?:-2k)?|about-lines[^'"`\s]*|inspiration\/lines-[^'"`\s]*)\.svg/.test(text),`Old background SVG active reference in ${file}`);
+  for(const file of loaded){
+    assert(!/(?:scanlines(?:-2k)?|about-lines[^'"`\s]*|inspiration\/lines-[^'"`\s]*)\.svg/.test(file.text),`Old background SVG active reference in ${file.name}`);
   }
   const expected=[
     ['assets/images/backgrounds/dark.webp',2560,1305],['assets/images/backgrounds/light.webp',2560,1305],
     ['assets/images/hero/portrait-1280.webp',1280,null],['assets/images/hero/portrait-2456.webp',2456,null],
     ['assets/images/hero/depth-1280.webp',1280,null],['assets/images/hero/depth-2456.webp',2456,null],
-    ...['people','music-base','music-overlay','detail'].flatMap(key=>[768,1280].map(width=>[`assets/images/optimized/${key}-${width}.webp`,width,null])),
+    ...['music-base','music-overlay'].flatMap(key=>[768,1280].map(width=>[`assets/images/optimized/${key}-${width}.webp`,width,null])),
     ...['work-amonra','work-hermes','work-suborbia','work-skynews','work-youtube-music','work-itsme'].flatMap(key=>[1024,2048].map(width=>[`assets/images/optimized/${key}-${width}.webp`,key==='work-suborbia'&&width===2048?1600:width,null])),
     ...[768,1280].map(width=>[`assets/images/optimized/services-app-${width}.webp`,width,null]),
   ];
@@ -81,7 +80,6 @@ function audit(directory,{staged=false}={}){
   // Original photos intentionally remain addressable for a WebP decode error.
   // They have no eager src in the staged path and cost no transfer until used.
   const fallbackPhotos=[
-    ...['people.png','music-base.png','music-overlay.png','detail.png'].map(name=>`assets/images/inspiration/${name}`),
     ...['01-amonra.png','02-hermes.png','03-suborbia.png','04-skynews.png','05-youtube-music.png','06-itsme.png'].map(name=>`assets/images/works/${name}`),
   ];
   for(const file of fallbackPhotos)resolve(file);

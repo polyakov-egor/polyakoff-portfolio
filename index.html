@@ -22,23 +22,12 @@
     <link rel="stylesheet" href="./assets/vendor/lenis-1.3.27/lenis.css" />
     <link rel="stylesheet" href="./site-preloader.css" />
     <link rel="stylesheet" href="./hero-welcome-stack.css" />
-    <link rel="stylesheet" href="./hero-effect-controls.css" />
-    <link rel="stylesheet" href="./hero-effect-presets.css" />
-    <link rel="stylesheet" href="./about-copy.css" />
-    <link rel="stylesheet" href="./about-flight.css" />
     <link rel="stylesheet" href="./hero-scroll.css?v=2" />
-    <link rel="stylesheet" href="./about-reveal.css" />
     <link rel="stylesheet" href="./music-equalizer.css" />
-    <link rel="stylesheet" href="./inspiration.css" />
-    <link rel="stylesheet" href="./inspiration-flip-thickness.css" />
-    <link rel="stylesheet" href="./inspiration-headings.css" />
-    <link rel="stylesheet" href="./inspiration-hover.css" />
-    <link rel="stylesheet" href="./inspiration-glass.css" />
-    <link rel="stylesheet" href="./inspiration-card-flip.css" />
-    <link rel="stylesheet" href="./inspiration-closing.css" />
     <link rel="stylesheet" href="./works-gallery.css?v=2" />
     <link rel="stylesheet" href="./works-scroll.css?v=4" />
     <link rel="stylesheet" href="./background-raster.css" />
+    <link rel="stylesheet" href="./redesign-scroll.css" />
     <link rel="stylesheet" href="./services.css" />
     <link rel="stylesheet" href="./services-scroll.css?v=4" />
     <link rel="stylesheet" href="./site-footer.css?v=9" />
@@ -46,28 +35,17 @@
     <script src="./hero-layout.js" defer></script>
     <script src="./hero-status.js" defer></script>
     <script src="./music-equalizer.js" defer></script>
-  <script src="./hero-depth.js" defer></script>
+    <script src="./hero-depth.js" defer></script>
     <script src="./squircle.js" defer></script>
-    <script src="./about-copy.js" defer></script>
-    <script src="./about-flight.js?v=2" defer></script>
     <script src="./hero-welcome-stack.js" defer></script>
     <script src="./chapter-assets.js" defer></script>
     <script src="./services.js" defer></script>
     <script src="./services-scroll.js?v=13" defer></script>
-    <script src="./inspiration-view.js" defer></script>
-    <script src="./inspiration-headings.js" defer></script>
-    <script src="./inspiration-hover.js" defer></script>
-    <script src="./inspiration-gestures.js?v=3" defer></script>
-    <script src="./inspiration-closing.js?v=4" defer></script>
-    <script src="./inspiration-flip-thickness.js" defer></script>
-    <script src="./inspiration-card-flip.js" defer></script>
-    <script src="./inspiration.js?v=5" defer></script>
-    <script src="./about-reveal.js" defer></script>
-    <script src="./hero-scroll.js?v=15" defer></script>
+    <script src="./site-wheel-intent.js" defer></script>
+    <script src="./hero-plane-bend.js" defer></script>
+    <script src="./redesign-scroll.js" defer></script>
     <script src="./works-gallery.js?v=8" defer></script>
     <script src="./works-scroll.js?v=12" defer></script>
-    <script src="./hero-effect-controls.js?v=2" defer></script>
-    <script src="./hero-effect-presets.js" defer></script>
     <script src="./assets/vendor/lenis-1.3.27/lenis.min.js" defer></script>
     <script src="./site-smooth-scroll.js" defer></script>
     <script src="./cursor.js" defer></script>
@@ -98,73 +76,59 @@
     </div>
     <main>
       <div class="hero-journey">
-      <section class="hero" id="hero" data-about-transition-ms="550" aria-labelledby="hero-title">
+      <section class="hero" id="hero" aria-labelledby="hero-title">
         <h1 class="visually-hidden" id="hero-title">Egor Polyakoff — Designer</h1>
 
-        <div class="hero__scene" aria-hidden="true">
-          <div class="hero__scenery">
-            <div class="hero__wordmark-frame">
-              <div class="hero__wordmark-scale">
-                <picture class="hero__wordmark-source">
-                  <source media="(max-width: 599px)" srcset="./assets/images/wordmark-mobile-render.png" />
-                  <source media="(max-width: 1023px)" srcset="./assets/images/figma-refresh/wordmark-tablet.svg" />
-                  <source media="(min-width: 2240px)" srcset="./assets/images/wordmark-2k-render.png" />
-                  <source media="(min-width: 1650px)" srcset="./assets/images/wordmark-wide-render.png" />
-                  <img class="scene-layer scene-layer--wordmark" data-layer="wordmark" src="./assets/images/wordmark-desktop-render.png" alt="" draggable="false" />
-                </picture>
+        <div class="redesign-hero-plane">
+          <div class="hero__scene">
+            <div class="hero__scenery">
+              <div class="hero__wordmark-frame">
+                <div class="hero__wordmark-scale">
+                  <picture class="hero__wordmark-source">
+                    <source media="(max-width: 599px)" srcset="./assets/images/wordmark-mobile-render.png" />
+                    <source media="(max-width: 1023px)" srcset="./assets/images/figma-refresh/wordmark-tablet.svg" />
+                    <source media="(min-width: 2240px)" srcset="./assets/images/wordmark-2k-render.png" />
+                    <source media="(min-width: 1650px)" srcset="./assets/images/wordmark-wide-render.png" />
+                    <img class="scene-layer scene-layer--wordmark" data-layer="wordmark" src="./assets/images/wordmark-desktop-render.png" alt="" draggable="false" />
+                  </picture>
+                </div>
+              </div>
+              <div class="hero__decoration-scale">
+                <div class="hero__scanlines">
+                  <img class="scene-layer" data-layer="scanlines" src="./assets/images/backgrounds/dark.webp" width="2560" height="1305" alt="" draggable="false" />
+                </div>
               </div>
             </div>
-            <div class="hero__decoration-scale">
-              <div class="hero__scanlines">
-                <img class="scene-layer" data-layer="scanlines" src="./assets/images/backgrounds/dark.webp" width="2560" height="1305" alt="" draggable="false" />
+            <picture class="hero__portrait-source">
+              <source media="(max-width: 1099px)" srcset="./assets/images/hero/portrait-1280.webp" />
+              <img class="scene-layer scene-layer--portrait" data-layer="portrait" src="./assets/images/hero/portrait-2456.webp" data-color-small="./assets/images/hero/portrait-1280.webp" data-color-large="./assets/images/hero/portrait-2456.webp" data-depth-small="./assets/images/hero/depth-1280.webp" data-depth-large="./assets/images/hero/depth-2456.webp" width="2456" height="2904" alt="" draggable="false" fetchpriority="high" />
+            </picture>
+            <canvas class="scene-layer scene-layer--depth" data-layer="depth" data-state="loading" aria-hidden="true"></canvas>
+            <div class="hero__intro-frame">
+              <div class="hero__intro mono">
+                <p>I’m Egor</p>
+                <p>And I’m a designer</p>
               </div>
             </div>
-          </div>
-          <picture class="hero__portrait-source">
-            <source media="(max-width: 1099px)" srcset="./assets/images/hero/portrait-1280.webp" />
-            <img class="scene-layer scene-layer--portrait" data-layer="portrait" src="./assets/images/hero/portrait-2456.webp" data-color-small="./assets/images/hero/portrait-1280.webp" data-color-large="./assets/images/hero/portrait-2456.webp" data-depth-small="./assets/images/hero/depth-1280.webp" data-depth-large="./assets/images/hero/depth-2456.webp" width="2456" height="2904" alt="" draggable="false" fetchpriority="high" />
-          </picture>
-          <canvas class="scene-layer scene-layer--depth" data-layer="depth" data-state="loading" aria-hidden="true"></canvas>
-        </div>
-
-        <section class="about-copy" aria-labelledby="about-title" aria-hidden="true">
-          <div class="about-copy__content">
-            <h2 class="visually-hidden" id="about-title">About me</h2>
-            <p>I’m a designer</p>
-            <p>specializing in websites,</p>
-            <p>branding and redesigns.</p>
-            <p>I’m passionate about</p>
-            <p>my work and always</p>
-            <p class="about-copy__last">aim to deliver fresh ideas,<br class="about-copy__desktop-break" /> clarity, and high-quality<br class="about-copy__desktop-break" /> results</p>
-          </div>
-        </section>
-
-        <div class="hero__intro-frame">
-          <div class="hero__intro mono">
-            <p>I’m Egor</p>
-            <p>And I’m a designer</p>
+            <div class="hero__welcome">
+              <div class="welcome-card">
+                <img class="welcome-card__pagination" src="./assets/icons/pagination.svg" width="20" height="36" alt="" />
+                <p class="welcome-card__text" lang="zh-Hans">欢迎加入俱乐部，伙计！<br />我是叶戈尔。</p>
+                <img class="welcome-card__logo" src="./assets/icons/logo.svg" width="24" height="24" alt="" />
+              </div>
+              <div class="welcome-card__back" aria-hidden="true"></div>
+            </div>
           </div>
         </div>
 
-        <div class="hero__datetime mono" aria-label="Moscow time">
-          <div class="hero__date"><span data-live-date></span><span class="hero__date-dot" aria-hidden="true"></span><span data-live-weekday></span></div>
-          <time></time>
-        </div>
+
         <button class="glass-button hero__motion mono" data-motion-enable type="button" aria-label="Enable portrait motion with device tilt" hidden><span>Motion</span><img src="./assets/icons/plus.svg" width="16" height="16" alt="" /></button>
 
-        <div class="hero__welcome">
-          <div class="welcome-card">
-            <img class="welcome-card__pagination" src="./assets/icons/pagination.svg" width="20" height="36" alt="" />
-            <p class="welcome-card__text" lang="zh-Hans">欢迎加入俱乐部，伙计！<br />我是叶戈尔。</p>
-            <img class="welcome-card__logo" src="./assets/icons/logo.svg" width="24" height="24" alt="" />
-          </div>
-          <div class="welcome-card__back" aria-hidden="true"></div>
-        </div>
         <button class="hero__about-logo" data-return-hero type="button" aria-label="Reload site and return to hero" disabled tabindex="-1"><span class="theme-icon theme-icon--logo" aria-hidden="true"><img src="./assets/icons/about-logo.svg" width="20" height="20" alt="" /><img class="theme-icon__light" src="./assets/icons/about-logo-dark.svg" width="20" height="20" alt="" /></span></button>
 
         <footer class="hero__footer mono">
           <nav class="hero__navigation" aria-label="Main navigation">
-            <button class="glass-button" type="button" aria-disabled="true"><span>Contact</span><span class="theme-icon" aria-hidden="true"><img src="./assets/icons/plus.svg" width="16" height="16" alt="" /><img class="theme-icon__light" src="./assets/icons/plus-dark.svg" width="16" height="16" alt="" /></span></button>
+            <button class="glass-button" type="button" aria-disabled="true"><span>Contact</span><span class="contact-icon" aria-hidden="true"></span></button>
             <button class="glass-button glass-button--menu" type="button" aria-disabled="true"><span>Menu</span><span class="theme-icon" aria-hidden="true"><img src="./assets/icons/plus.svg" width="16" height="16" alt="" /><img class="theme-icon__light" src="./assets/icons/plus-dark.svg" width="16" height="16" alt="" /></span></button>
           </nav>
           <div class="hero__utilities">
@@ -178,8 +142,17 @@
           </div>
         </footer>
       </section>
+
+      <section class="redesign-about" aria-labelledby="about-title">
+        <div class="redesign-about__plane">
+          <h2 class="redesign-about__label mono" id="about-title">About me</h2>
+          <div class="redesign-about__statements">
+            <p class="redesign-about__statement" data-about-statement="1">I&rsquo;m a designer<br /> specializing in websites, branding, and redesigns</p>
+            <p class="redesign-about__statement" data-about-statement="2">And I bring<span class="redesign-about__desktop-space"> </span><br class="redesign-about__mobile-break" />fresh ideas,<br class="redesign-about__desktop-break" /><span class="redesign-about__mobile-space"> </span>a clear direction, and care<br />to every project</p>
+          </div>
+        </div>
+      </section>
       </div>
-      <!-- The next content screen can be inserted here without changing either scroll story. -->
       <section class="works-journey" id="works" aria-labelledby="works-title">
         <div class="works-viewport" data-works-gallery>
           <h2 class="works__title mono" id="works-title">Last Works</h2>
@@ -189,14 +162,10 @@
             </div>
           </div>
           <div class="works-cards" data-works-cards></div>
-          <div class="hero__datetime mono" aria-label="Moscow time">
-            <div class="hero__date"><span data-live-date></span><span class="hero__date-dot" aria-hidden="true"></span><span data-live-weekday></span></div>
-            <time></time>
-          </div>
           <button class="hero__about-logo" data-return-hero type="button" aria-label="Reload site and return to hero"><span class="theme-icon theme-icon--logo" aria-hidden="true"><img class="theme-icon__light" src="./assets/icons/about-logo-dark.svg" width="20" height="20" alt="" /></span></button>
           <footer class="hero__footer mono">
             <nav class="hero__navigation" aria-label="Project navigation">
-              <button class="glass-button" type="button" aria-disabled="true"><span>Contact</span><span class="theme-icon" aria-hidden="true"><img class="theme-icon__light" src="./assets/icons/plus-dark.svg" width="16" height="16" alt="" /></span></button>
+              <button class="glass-button" type="button" aria-disabled="true"><span>Contact</span><span class="contact-icon" aria-hidden="true"></span></button>
               <button class="glass-button glass-button--menu" type="button" aria-disabled="true"><span>Menu</span><span class="theme-icon" aria-hidden="true"><img class="theme-icon__light" src="./assets/icons/plus-dark.svg" width="16" height="16" alt="" /></span></button>
             </nav>
             <div class="hero__utilities">

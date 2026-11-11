@@ -13,7 +13,7 @@
   ]);
   const clamp=(value,min=0,max=1)=>Math.max(min,Math.min(max,value));
   const frontThreshold=.2,foregroundBoost=1,maxBow=.118;
-  const cardAspect=960/500,cornerRadius=.05;
+  const cardAspect=960/500;
   const worldStart=-16.8,worldTravel=54.744,pitchStart=2.4,pitchTaper=.168;
   // This old terminal slot calibrates scroll speed without rendering another card.
   const paceReferenceCards=[{index:11}];
@@ -116,10 +116,8 @@
         vec4 backColor(vec2 uv){vec2 o=vec2(.01171875)/uCrop.zw;vec4 c=texture2D(uImage,uv)*4.;
           c+=(texture2D(uImage,uv+vec2(o.x,0.))+texture2D(uImage,uv-vec2(o.x,0.))+texture2D(uImage,uv+vec2(0.,o.y))+texture2D(uImage,uv-vec2(0.,o.y)))*2.;
           c+=texture2D(uImage,uv+o)+texture2D(uImage,uv-o)+texture2D(uImage,uv+vec2(-o.x,o.y))+texture2D(uImage,uv+vec2(o.x,-o.y));return c/16.;}
-        void main(){vec2 aspect=vec2(${cardAspect},1.);float radius=${cornerRadius};
-          vec2 d=abs(vUv-.5)*aspect-(.5*aspect-radius);
-          float sdf=length(max(d,0.))+min(max(d.x,d.y),0.)-radius;
-          float alpha=1.-smoothstep(-uEdge,uEdge,sdf);if(alpha<.005)discard;
+        void main(){vec2 edge=(.5-abs(vUv-.5))*vec2(${cardAspect},1.);
+          float alpha=smoothstep(-uEdge,uEdge,min(edge.x,edge.y));
           vec2 uv=(vUv+uCrop.xy)/uCrop.zw;vec4 sharp=texture2D(uImage,uv);vec4 color=gl_FrontFacing?sharp:mix(sharp,backColor(uv),uBackAmount);gl_FragColor=vec4(color.rgb*uBrightness*alpha,alpha);}`);
       const program=gl.createProgram();gl.attachShader(program,vertex);gl.attachShader(program,fragment);gl.linkProgram(program);
       if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error('Works link failed');gl.useProgram(program);
@@ -405,10 +403,7 @@
       for(let i=0;i<indices.length;i+=3){
         const a=pose.vertices[indices[i]],b=pose.vertices[indices[i+1]],c=pose.vertices[indices[i+2]],den=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);if(Math.abs(den)<1e-8)continue;
         const aa=((b.y-c.y)*(x-c.x)+(c.x-b.x)*(y-c.y))/den,bb=((c.y-a.y)*(x-c.x)+(a.x-c.x)*(y-c.y))/den,cc=1-aa-bb;if(aa<0||bb<0||cc<0)continue;
-        const reciprocal=aa/a.distance+bb/b.distance+cc/c.distance,u=(aa*a.u/a.distance+bb*b.u/b.distance+cc*c.u/c.distance)/reciprocal,v=(aa*a.v/a.distance+bb*b.v/b.distance+cc*c.v/c.distance)/reciprocal;
-        const cornerX=Math.max(0,(Math.abs(u-.5)-.5)*cardAspect+cornerRadius);
-        const cornerY=Math.max(0,Math.abs(v-.5)-.5+cornerRadius);
-        if(Math.hypot(cornerX,cornerY)>cornerRadius)continue;
+        const reciprocal=aa/a.distance+bb/b.distance+cc/c.distance;
         const distance=1/reciprocal;if(distance<nearestDistance){nearestDistance=distance;nearest=pose;eligible=pose.front&&den<0;}
       }
     }

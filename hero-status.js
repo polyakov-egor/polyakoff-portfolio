@@ -10,7 +10,7 @@
   const elapsedLabels = document.querySelectorAll('[data-music-elapsed]');
   if (!clocks.length && !elapsedLabels.length) return;
 
-  const formatter = new Intl.DateTimeFormat('en-GB', {
+  const formatter = clocks.length ? new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Europe/Moscow',
     day: 'numeric',
     month: 'long',
@@ -19,7 +19,7 @@
     minute: '2-digit',
     second: '2-digit',
     hourCycle: 'h23',
-  });
+  }) : null;
   const pad = value => String(value).padStart(2, '0');
   const write = (element, value) => {
     if (element && element.textContent !== value) element.textContent = value;
@@ -28,7 +28,7 @@
 
   function render() {
     const now = new Date();
-    if (clocks.length) {
+    if (formatter) {
       const parts = Object.fromEntries(formatter.formatToParts(now).map(part => [part.type, part.value]));
       const date = `${parts.day} ${parts.month}`;
       const time = `${parts.hour}:${parts.minute}:${parts.second}`;
@@ -50,7 +50,7 @@
     render();
     if (document.hidden) return;
     // Wall-clock seconds and navigation seconds need not start together.
-    const untilClockTick = 1000 - Date.now() % 1000;
+    const untilClockTick = formatter ? 1000 - Date.now() % 1000 : Infinity;
     const untilElapsedTick = 1000 - performance.now() % 1000;
     timeout = setTimeout(refresh, Math.max(16, Math.min(untilClockTick, untilElapsedTick) + 8));
   }

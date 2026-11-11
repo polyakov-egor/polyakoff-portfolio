@@ -3,10 +3,6 @@
   'use strict';
   if (window.ChapterAssets) return;
   const assets = Object.freeze({
-    people: ['inspiration', 'inspiration/people.png', 768, 1280],
-    'music-base': ['inspiration', 'inspiration/music-base.png', 768, 1280],
-    'music-overlay': ['inspiration', 'inspiration/music-overlay.png', 768, 1280],
-    detail: ['inspiration', 'inspiration/detail.png', 768, 1280],
     'work-amonra': ['works', 'works/01-amonra.png', 1024, 2048],
     'work-hermes': ['works', 'works/02-hermes.png', 1024, 2048],
     'work-suborbia': ['works', 'works/03-suborbia.png', 1024, 2048],
@@ -19,7 +15,7 @@
     'footer-background': ['services', 'optimized/footer-background-2560.webp', 1440, 2560],
     'footer-portrait': ['services', 'optimized/footer-portrait-392.webp', 256, 392],
   });
-  const stages = new Map(['inspiration', 'works', 'services'].map(name => [name,
+  const stages = new Map(['works', 'services'].map(name => [name,
     { name, started: false, ready: false, failed: false, version: 0, tasks: [], prepares: new Set(), promise: null }]));
   const imageStates = new WeakMap();
   const reduce = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
@@ -124,8 +120,7 @@
       stage.promise = settle(stage);
     }
   }
-  function update({ distance = 0, requestedDistance = distance, morphDistance = Infinity,
-    inspirationStart = Infinity, worksStart = Infinity, servicesStart = Infinity, height = 1, reducedMotion = false } = {}) {
+  function update({ distance = 0, requestedDistance = distance, worksStart = Infinity, servicesStart = Infinity, height = 1, reducedMotion = false } = {}) {
     const nextPhone = small();
     if (nextPhone !== phone) {
       phone = nextPhone;
@@ -136,14 +131,9 @@
         stage.promise = settle(stage);
       }
     }
-    if (reducedMotion || reduce?.matches) { ensure('inspiration'); ensure('works'); ensure('services'); return; }
+    if (reducedMotion || reduce?.matches) { ensure('works'); ensure('services'); return; }
     const ahead = Math.max(distance, requestedDistance);
-    if (ahead >= morphDistance - Math.max(1, height) * .35) ensure('inspiration');
-    // Start the next GPU chapter after Inspiration is entered, well before its
-    // closing heading. A history jump directly to Works takes both paths.
-    if (ahead >= Math.min(inspirationStart + Math.max(1, height) * .4, worksStart - Math.max(1, height) * 1.5)) {
-      ensure('inspiration'); ensure('works');
-    }
+    if (ahead >= worksStart - Math.max(1, height) * 1.5) ensure('works');
     // Decode the service planes and closing screen before their upward entrance.
     if (ahead >= servicesStart - Math.max(1, height) * 1.5) ensure('services');
   }
@@ -154,6 +144,6 @@
       return stage ? { started: stage.started, ready: stage.ready, failed: stage.failed } : null;
     } });
   document.addEventListener?.('DOMContentLoaded', () => {
-    if (reduce?.matches) { ensure('inspiration'); ensure('works'); ensure('services'); }
+    if (reduce?.matches) { ensure('works'); ensure('services'); }
   }, { once: true });
 })();
