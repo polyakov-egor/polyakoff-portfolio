@@ -6,7 +6,8 @@
   const filterId = 'hero-plane-bend-filter';
   const filterReference = `url(#${filterId})`;
   const mapSize = 96;
-  const maxScale = .045;
+  // The outer edges bend by up to 4.6% of the plane height at full strength.
+  const maxScale = .1;
   let initialized = false;
   let displacement = null;
   let requestedPlane = null;

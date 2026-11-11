@@ -1,4 +1,4 @@
-/* One clock owns the scroll-linked chapters and the timed About crossfade. */
+/* One clock owns the scroll-linked chapters and the timed About statement change. */
 (() => {
   'use strict';
 
@@ -9,10 +9,11 @@
   const scene = plane.querySelector('.hero__scene');
   const about = journey.querySelector('.redesign-about');
   const statements = [...about.querySelectorAll('[data-about-statement]')];
+  const statementRows = statements.map(prepareStatementRows);
   const logo = hero.querySelector('[data-return-hero]');
   const cursor = document.querySelector('.custom-cursor');
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const fadeDuration = 360;
+  const swapDuration = 600;
   const scrollKeys = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', ' ']);
   const clamp = value => Math.min(1, Math.max(0, value));
   const smooth = value => {
@@ -26,14 +27,95 @@
   let frame = 0;
   let lastDistance = 0;
   let lastTime = 0;
-  let aboutMix = 0;
-  let fade = null;
-  let fadeLanding = null;
+  let activeStatement = 0;
+  let swap = null;
+  let swapLanding = null;
   let gesture = 0;
   let blockedGesture = -1;
   let lastInputTime = -Infinity;
   let wheelIntent = 0;
   let touchActive = false;
+
+  // Keep the original text and its responsive line breaks as the reading copy.
+  // Measure only on layout, then rotate one paint-only layer per visual row.
+  function prepareStatementRows(statement) {
+    const reading = document.createElement('span');
+    reading.className = 'redesign-about__reading';
+    reading.append(...statement.childNodes);
+    const walker = document.createTreeWalker(reading, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+    const words = [];
+    for (const text of textNodes) {
+      if (!text.data.trim()) continue;
+      const fragment = document.createDocumentFragment();
+      for (const token of text.data.match(/\s+|\S+/g)) {
+        if (!token.trim()) { fragment.append(token); continue; }
+        const word = document.createElement('span');
+        word.textContent = token;
+        fragment.append(word);
+        words.push(word);
+      }
+      text.replaceWith(fragment);
+    }
+    const layer = document.createElement('span');
+    layer.className = 'redesign-about__rows';
+    layer.setAttribute('aria-hidden', 'true');
+    statement.append(reading, layer);
+    return { statement, words, layer, lines: [], width: 0 };
+  }
+
+  function measureStatementRows() {
+    for (const group of statementRows) {
+      const { statement, words, layer, lines } = group;
+      group.width = statement.offsetWidth;
+      const rows = new Map();
+      for (const word of words) {
+        const top = word.offsetTop;
+        if (!rows.has(top)) rows.set(top, []);
+        rows.get(top).push(word.textContent);
+      }
+      const label = [...rows.values()].map(row => row.join(' '));
+      if (lines.length === label.length && lines.every((line, index) => line.textContent === label[index])) continue;
+      lines.length = 0;
+      for (const text of label) {
+        const line = document.createElement('span');
+        line.className = 'redesign-about__row';
+        line.textContent = text;
+        lines.push(line);
+      }
+      layer.replaceChildren(...lines);
+    }
+  }
+
+  function paintAboutStatements(width) {
+    const swapping = Boolean(swap);
+    about.toggleAttribute('data-about-swapping', swapping);
+    for (const [index, statement] of statements.entries()) {
+      const hidden = String(activeStatement !== index);
+      if (statement.getAttribute('aria-hidden') !== hidden) statement.setAttribute('aria-hidden', hidden);
+    }
+    if (!swap) return;
+
+    const direction = swap.target ? 1 : -1;
+    const mostRows = Math.max(...statementRows.map(group => group.lines.length));
+    const stagger = Math.min(.112, .4 / Math.max(1, mostRows - 1));
+    const rowDuration = .96 - stagger * (mostRows - 1);
+    for (const [index, { width: statementWidth, lines }] of statementRows.entries()) {
+      const incoming = index === swap.target;
+      const side = incoming ? direction : -direction;
+      const travel = Math.max(width * .33, statementWidth * .56);
+      for (const [row, line] of lines.entries()) {
+        const start = stagger * row + (incoming ? 0 : .028);
+        const motion = smooth(progress(swap.progress, start, start + rowDuration));
+        const edge = incoming ? 1 - motion : motion;
+        const angle = -side * 78 * Math.pow(edge, .72);
+        const x = side * travel * edge;
+        line.style.transform = 'translateX(' + x + 'px) perspective(12em) rotateY(' + angle + 'deg) scaleX(' + (1 - .35 * edge) + ')';
+        line.style.opacity = (1 - smooth(progress(edge, .76, 1))).toFixed(4);
+      }
+    }
+  }
 
   function jump(distance) {
     const top = Math.max(0, storyTop + distance);
@@ -52,6 +134,7 @@
     document.documentElement.classList.toggle('has-scroll-story', enabled);
     if (enabled && about.parentNode !== hero) hero.insertBefore(about, logo);
     if (!enabled && about.parentNode !== journey) hero.after(about);
+    if (enabled) measureStatementRows();
 
     const shrinkEnd = height * .68;
     const first = shrinkEnd + height * .82;
@@ -72,21 +155,21 @@
 
     let landing = distance;
     if (old && enabled && rebase) {
-      if (fade) landing = fade.target ? first : second;
+      if (swap) landing = swap.target ? first : second;
       else if (Number.isFinite(services?.rebaseDistance)) landing = services.rebaseDistance;
       else if (distance <= old.worksStart) landing = distance / old.worksStart * worksStart;
       else landing = worksStart + distance - old.worksStart;
       if (Math.abs(landing - distance) > 1) jump(landing);
     }
     lastDistance = landing;
-    if (!fade) aboutMix = Number(landing >= second - 1);
+    if (!swap) activeStatement = Number(landing >= second - 1);
     lastTime = 0;
     schedule();
   }
 
-  function beginFade(target, now) {
-    fade = { target, started: now };
-    fadeLanding = null;
+  function startAboutSwap(target, now) {
+    swap = { target, started: now, progress: 0 };
+    swapLanding = null;
     blockedGesture = gesture;
     jump(target ? geometry.first : geometry.second);
     schedule();
@@ -94,20 +177,20 @@
 
   function resolveDistance(requested, now) {
     const { first, second } = geometry;
-    if (fade) {
-      const { target, started } = fade;
-      const elapsed = clamp((now - started) / fadeDuration);
-      const mix = smooth(elapsed);
-      aboutMix = target ? mix : 1 - mix;
+    if (swap) {
+      const { target, started } = swap;
+      const elapsed = clamp((now - started) / swapDuration);
+      swap.progress = elapsed;
+      activeStatement = elapsed < .5 ? 1 - target : target;
       if (elapsed < 1) {
         const held = target ? first : second;
         if (Math.abs(requested - held) > 1) jump(held);
         return held;
       }
-      fade = null;
+      swap = null;
       blockedGesture = gesture;
       const landing = target ? second : first;
-      fadeLanding = target ? 'second' : 'first';
+      swapLanding = target ? 'second' : 'first';
       jump(landing);
       return landing;
     }
@@ -115,21 +198,21 @@
     // Pin the end of a long gesture at the readable About states. The next
     // deliberate wheel gesture or swipe can enter the timed interval.
     const deliberateInput = touchActive || now - lastInputTime < 350;
-    if (fadeLanding && deliberateInput && gesture === blockedGesture) {
-      const held = geometry[fadeLanding];
+    if (swapLanding && deliberateInput && gesture === blockedGesture) {
+      const held = geometry[swapLanding];
       if (Math.abs(requested - held) > 1) jump(held);
       return held;
     }
-    fadeLanding = null;
+    swapLanding = null;
     if (deliberateInput && lastDistance < first - 2 && requested >= first) {
       blockedGesture = gesture;
-      aboutMix = 0;
+      activeStatement = 0;
       jump(first);
       return first;
     }
     if (deliberateInput && lastDistance > second + 2 && requested <= second) {
       blockedGesture = gesture;
-      aboutMix = 1;
+      activeStatement = 1;
       jump(second);
       return second;
     }
@@ -139,12 +222,12 @@
       ((lastDistance <= first + 2 && requested > first + 2) ||
        (lastDistance >= second - 2 && requested < second - 2));
     if (inSwapRange || movedThroughSwap) {
-      if (gesture !== blockedGesture || !deliberateInput) beginFade(aboutMix === 0 ? 1 : 0, now);
-      const held = aboutMix === 0 ? first : second;
+      if (gesture !== blockedGesture || !deliberateInput) startAboutSwap(activeStatement === 0 ? 1 : 0, now);
+      const held = activeStatement === 0 ? first : second;
       if (Math.abs(requested - held) > 1) jump(held);
       return held;
     }
-    aboutMix = Number(requested >= second - 2);
+    activeStatement = Number(requested >= second - 2);
     return requested;
   }
 
@@ -152,6 +235,8 @@
     const { width, height, shrinkEnd, first, second, worksStart } = geometry;
     const shrink = smooth(distance / shrinkEnd);
     const departure = smooth(progress(distance, shrinkEnd, first));
+    const turn = Math.pow(departure, .72);
+    const bend = Math.sin(Math.PI * departure);
     const phone = width < 600;
     const frameScale = phone ? .64 : width < 1024 ? .677 : .625;
     const scale = (1 - (1 - frameScale) * shrink) * (1 - .26 * departure);
@@ -162,24 +247,28 @@
     plane.classList.toggle('is-moving', shrink > 0 && !heroHidden);
     plane.style.setProperty('--redesign-hero-transform', shrink ? 'translate3d(' +
       (-width * 1.2 * departure) + 'px,' + (-height * ((phone ? .004 * shrink : 0) + .1 * departure)) +
-      'px,0) rotateY(' + (42 * departure) + 'deg) rotateZ(' + (-5 * departure) + 'deg) scale(' + scale + ')' : 'none');
+      'px,0) rotateY(' + (57 * turn) + 'deg) rotateX(' + (-10 * bend) + 'deg) rotateZ(' + (-8 * departure) + 'deg) scale(' + scale + ')' : 'none');
     plane.style.setProperty('--redesign-hero-trim', phone ? (height * .086 * shrink) + 'px' : '0px');
-    window.HeroPlaneBend?.set(scene, heroHidden ? 0 : Math.sin(Math.PI * departure));
+    window.HeroPlaneBend?.set(scene, heroHidden ? 0 : bend);
     window.HeroDepthEffect?.setScrollGate(1 - smooth(progress(distance, 0, shrinkEnd * .4)));
     window.HeroWelcomeStack?.setVisible(!hideIntro);
 
-    const arrival = smooth(progress(distance, shrinkEnd * 1.08, first));
+    const arrival = smooth(progress(distance, shrinkEnd * .99, first));
+    const remaining = 1 - arrival;
+    const perspective = Math.pow(remaining, .68);
+    const aboutX = width * .92 * Math.pow(remaining, 1.65);
+    const aboutY = height * .29 * Math.pow(remaining, .82);
+    const arrivalScale = .50 + .50 * Math.pow(arrival, 1.34);
     const worksEntry = progress(distance, second, worksStart);
     const copyExit = smooth(worksEntry);
     const aboutOpacity = Number(arrival > 0) * (1 - copyExit);
-    about.style.setProperty('--redesign-about-transform', 'translate3d(' + ((1 - arrival) * width * 1.1) +
-      'px,' + ((1 - arrival) * height * .18) + 'px,0) rotateY(' + ((1 - arrival) * -24) +
-      'deg) rotateZ(' + ((1 - arrival) * 5) + 'deg) scale(' + (1 - copyExit * .16) + ')');
+    about.style.setProperty('--redesign-about-transform',
+      'translate3d(' + aboutX + 'px,' + aboutY + 'px,0) rotateY(' + (-53 * perspective) +
+      'deg) rotateX(' + (17 * perspective) + 'deg) rotateZ(' + (8 * perspective) +
+      'deg) scale(' + (arrivalScale * (1 - copyExit * .16)) + ')');
     about.style.setProperty('--redesign-about-opacity', aboutOpacity.toFixed(4));
-    about.style.setProperty('--redesign-about-swap', aboutMix.toFixed(4));
     about.setAttribute('aria-hidden', String(aboutOpacity === 0));
-    statements[0].setAttribute('aria-hidden', String(aboutMix >= .5));
-    statements[1].setAttribute('aria-hidden', String(aboutMix < .5));
+    paintAboutStatements(width);
 
     const light = smooth(progress(distance, 0, shrinkEnd * .6)) * (1 - smooth(worksEntry * 1.45));
     backdrop?.style.setProperty('--redesign-light', light.toFixed(4));
@@ -192,7 +281,7 @@
     if (hero.dataset.aboutActive !== aboutActive) hero.dataset.aboutActive = aboutActive;
     cursor?.classList.toggle('is-past-hero', hideIntro);
     hero.dataset.scrollProgress = progress(distance, 0, shrinkEnd).toFixed(4);
-    hero.dataset.aboutStage = fade ? 'crossfade' : aboutMix ? 'second' : arrival === 1 ? 'first' : 'entering';
+    hero.dataset.aboutStage = swap ? 'swapping' : activeStatement ? 'second' : arrival === 1 ? 'first' : 'entering';
     hero.dataset.lightProgress = light.toFixed(4);
     return worksEntry;
   }
@@ -206,8 +295,8 @@
     const { height, worksStart, servicesStart } = geometry;
     window.ChapterAssets?.update({ distance: requested, worksStart, servicesStart, height, reducedMotion: staticLayout });
     if (staticLayout) {
-      fade = null;
-      fadeLanding = null;
+      swap = null;
+      swapLanding = null;
       hero.dataset.scrollProgress = '0';
       for (const element of [plane, about, ...statements]) element.removeAttribute('aria-hidden');
       plane.classList.remove('is-moving');
@@ -215,7 +304,7 @@
       plane.style.removeProperty('--redesign-hero-trim');
       about.style.removeProperty('--redesign-about-transform');
       about.style.removeProperty('--redesign-about-opacity');
-      about.style.removeProperty('--redesign-about-swap');
+      about.removeAttribute('data-about-swapping');
       logo.style.removeProperty('opacity');
       logo.style.removeProperty('transform');
       backdrop?.style.removeProperty('--redesign-light');
@@ -235,7 +324,7 @@
     const elapsed = lastTime ? Math.min(45, now - lastTime) : 16;
     lastTime = now;
     const native = !window.SiteSmoothScroll?.usesSmoothedScroll();
-    const easeNative = native && !fade && resolved !== geometry.first && resolved !== geometry.second;
+    const easeNative = native && !swap && resolved !== geometry.first && resolved !== geometry.second;
     const difference = resolved - lastDistance;
     const distance = easeNative && Math.abs(difference) > .5
       ? lastDistance + difference * (1 - Math.exp(-Math.max(1, elapsed) / 48))
@@ -244,7 +333,7 @@
     const entryProgress = paint(distance);
     const services = window.ServicesScrollChapter?.update(distance - servicesStart, { now });
     window.WorksScrollChapter?.update(distance - worksStart, { entryProgress, now });
-    if (fade || Math.abs(distance - resolved) > .5 || services?.footerAnimating ||
+    if (swap || Math.abs(distance - resolved) > .5 || services?.footerAnimating ||
       window.WorksGallery?.isAnimating?.() || window.SiteSmoothScroll?.isAnimating()) schedule();
     else lastTime = 0;
   }
@@ -269,11 +358,11 @@
     const current = window.scrollY - storyTop;
     const forward = direction > 0 && Math.abs(current - geometry.first) <= 2;
     const backward = direction < 0 && Math.abs(current - geometry.second) <= 2;
-    const carriedMomentum = fadeLanding && gesture === blockedGesture && Math.abs(current - geometry[fadeLanding]) <= 2;
-    if (!fade && !forward && !backward && !carriedMomentum) return;
+    const carriedMomentum = swapLanding && gesture === blockedGesture && Math.abs(current - geometry[swapLanding]) <= 2;
+    if (!swap && !forward && !backward && !carriedMomentum) return;
     if (event.cancelable) event.preventDefault();
     window.SiteSmoothScroll?.cancel();
-    if (!fade && (forward || backward) && gesture !== blockedGesture) beginFade(forward ? 1 : 0, now);
+    if (!swap && (forward || backward) && gesture !== blockedGesture) startAboutSwap(forward ? 1 : 0, now);
   }
 
   // The preloader and the existing Lenis adapter use this readiness marker.

@@ -39,7 +39,7 @@
   z-index: 4;
   inset: 0;
   pointer-events: none;
-  perspective: 1450px;
+  perspective: 76vw;
 }
 .redesign-hero-plane > .hero__scene {
   color: #fff;
@@ -88,7 +88,7 @@
   inset: 0;
   min-height: 0;
   padding-inline: 0;
-  perspective: 1150px;
+  perspective: 68vw;
   opacity: var(--redesign-about-opacity, 0);
 }
 .has-scroll-story .redesign-about[aria-hidden="true"] { visibility: hidden; }
@@ -97,9 +97,12 @@
   translate: 0 calc((12px + var(--about-label-gap)) / -2);
 }
 .has-scroll-story .redesign-about__statements { gap: 0; }
-.has-scroll-story .redesign-about__statement { grid-area: 1 / 1; align-self: center; }
-.has-scroll-story [data-about-statement="1"] { opacity: calc(1 - var(--redesign-about-swap, 0)); }
-.has-scroll-story [data-about-statement="2"] { opacity: var(--redesign-about-swap, 0); }
+.has-scroll-story .redesign-about__statement { position: relative; grid-area: 1 / 1; align-self: center; }
+.has-scroll-story .redesign-about:not([data-about-swapping]) .redesign-about__statement[aria-hidden="true"] { visibility: hidden; }
+.redesign-about__rows { display: none; }
+.has-scroll-story [data-about-swapping] .redesign-about__reading { opacity: 0; }
+.has-scroll-story [data-about-swapping] .redesign-about__rows { display: block; position: absolute; inset: 0; }
+.redesign-about__row { display: block; white-space: nowrap; transform-origin: center; }
 
 @media (max-width: 599px) {
   .hero__intro { top: max(75px, env(safe-area-inset-top, 0px)); }
