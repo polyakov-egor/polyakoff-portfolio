@@ -35,6 +35,7 @@
 }
 .hero.is-works > .works-viewport,
 .hero > .works-viewport.works-is-preview { visibility: visible; }
+.hero > .works-viewport.works-is-enhanced .works__title { color: var(--redesign-chapter-ink, #fff); }
 .hero.is-works > .works-viewport.works-is-enhanced { pointer-events: auto; }
 .hero > .works-viewport.works-is-preview :is(.works-card, .works-gallery-canvas) { pointer-events: none; }
 .hero > .works-viewport > .hero__datetime,

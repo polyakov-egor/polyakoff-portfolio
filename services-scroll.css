@@ -26,7 +26,11 @@
   --services-fit-deck-width: 49.25svh;
   --services-fit-card-width: 36.85svh;
 }
-.services-is-shared .services__header { opacity: var(--services-heading-opacity, 0); }
+.services-is-shared .services__header {
+  --services-white: var(--redesign-chapter-ink, #fff);
+  color: var(--services-white);
+  opacity: var(--services-heading-opacity, 0);
+}
 .services-is-shared .services__counter { opacity: var(--services-reveal-progress, 0); }
 .services-is-shared .services__heading {
   font-size: min(var(--services-heading-size), 10svh);
@@ -35,6 +39,7 @@
 }
 .services-is-shared .services__word[data-active="true"]::before,
 .services-is-shared .services__word[data-active="true"]::after { opacity: var(--services-glow-progress, 0); }
+.services-is-shared .services__word { transition: none; }
 .services-is-shared:not(.services-glow-settled) .services__word::before,
 .services-is-shared:not(.services-glow-settled) .services__word::after { transition: none; }
 .services-is-shared .services__deck {

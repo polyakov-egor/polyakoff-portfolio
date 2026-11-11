@@ -13,7 +13,21 @@
   const logo = hero.querySelector('[data-return-hero]');
   const cursor = document.querySelector('.custom-cursor');
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const swapDuration = 600;
+  const referenceFrame = 1000 / 30;
+  const rowStagger = 2 * referenceFrame;
+  // Horizontal travel and apparent width, sampled separately from 053.mp4.
+  // The centers are clamped to their resting positions at each end.
+  const outgoingPoses = [
+    [0, 1], [.052, .998], [.147, .988], [.261, .955], [.398, .895],
+    [.536, .81], [.654, .705], [.758, .59], [.834, .483], [.9, .373],
+    [.948, .255], [.986, .137], [1, .025], [1, 0],
+  ];
+  const incomingPoses = [
+    [0, 0], [0, .008], [0, .03], [.014, .134], [.047, .273],
+    [.108, .411], [.184, .541], [.278, .667], [.373, .753], [.476, .84],
+    [.594, .909], [.722, .957], [.84, .987], [.939, 1], [1, 1],
+  ];
+  const rowDuration = (incomingPoses.length - 1) * referenceFrame;
   const scrollKeys = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', ' ']);
   const clamp = value => Math.min(1, Math.max(0, value));
   const smooth = value => {
@@ -28,6 +42,7 @@
   let lastDistance = 0;
   let lastTime = 0;
   let activeStatement = 0;
+  let swapDuration = rowDuration;
   let swap = null;
   let swapLanding = null;
   let gesture = 0;
@@ -72,25 +87,37 @@
       const rows = new Map();
       for (const word of words) {
         const top = word.offsetTop;
-        if (!rows.has(top)) rows.set(top, []);
-        rows.get(top).push(word.textContent);
+        const left = word.offsetLeft;
+        if (!rows.has(top)) rows.set(top, { words: [], left, right: left });
+        const row = rows.get(top);
+        row.words.push(word.textContent);
+        row.right = left + word.offsetWidth;
       }
-      const label = [...rows.values()].map(row => row.join(' '));
-      if (lines.length === label.length && lines.every((line, index) => line.textContent === label[index])) continue;
-      lines.length = 0;
-      for (const text of label) {
-        const line = document.createElement('span');
-        line.className = 'redesign-about__row';
-        line.textContent = text;
-        lines.push(line);
+      const measured = [...rows.values()];
+      const labels = measured.map(row => row.words.join(' '));
+      const sameLines = lines.length === labels.length &&
+        lines.every(({ element }, index) => element.textContent === labels[index]);
+      if (!sameLines) {
+        lines.length = 0;
+        for (const text of labels) {
+          const element = document.createElement('span');
+          element.className = 'redesign-about__row';
+          element.textContent = text;
+          lines.push({ element, halfWidth: 1 });
+        }
+        layer.replaceChildren(...lines.map(({ element }) => element));
       }
-      layer.replaceChildren(...lines);
+      lines.forEach((line, index) => {
+        line.halfWidth = Math.max(1, (measured[index].right - measured[index].left) / 2);
+        line.element.style.transformOrigin = '50% ' + (lines.length / 2 - index) * 100 + '%';
+      });
     }
+    const longestStatement = Math.max(...statementRows.map(group => group.lines.length));
+    swapDuration = rowDuration + rowStagger * Math.max(0, longestStatement - 1);
   }
 
   function paintAboutStatements(width) {
-    const swapping = Boolean(swap);
-    about.toggleAttribute('data-about-swapping', swapping);
+    about.toggleAttribute('data-about-swapping', Boolean(swap));
     for (const [index, statement] of statements.entries()) {
       const hidden = String(activeStatement !== index);
       if (statement.getAttribute('aria-hidden') !== hidden) statement.setAttribute('aria-hidden', hidden);
@@ -98,21 +125,29 @@
     if (!swap) return;
 
     const direction = swap.target ? 1 : -1;
-    const mostRows = Math.max(...statementRows.map(group => group.lines.length));
-    const stagger = Math.min(.112, .4 / Math.max(1, mostRows - 1));
-    const rowDuration = .96 - stagger * (mostRows - 1);
     for (const [index, { width: statementWidth, lines }] of statementRows.entries()) {
       const incoming = index === swap.target;
       const side = incoming ? direction : -direction;
+      const poses = incoming ? incomingPoses : outgoingPoses;
       const travel = Math.max(width * .33, statementWidth * .56);
-      for (const [row, line] of lines.entries()) {
-        const start = stagger * row + (incoming ? 0 : .028);
-        const motion = smooth(progress(swap.progress, start, start + rowDuration));
-        const edge = incoming ? 1 - motion : motion;
-        const angle = -side * 78 * Math.pow(edge, .72);
-        const x = side * travel * edge;
-        line.style.transform = 'translateX(' + x + 'px) perspective(12em) rotateY(' + angle + 'deg) scaleX(' + (1 - .35 * edge) + ')';
-        line.style.opacity = (1 - smooth(progress(edge, .76, 1))).toFixed(4);
+      for (const [row, { element, halfWidth }] of lines.entries()) {
+        const frame = Math.min(poses.length - 1, Math.max(0, (swap.elapsed - row * rowStagger) / referenceFrame));
+        const lower = Math.floor(frame);
+        const [startX, startWidth] = poses[lower];
+        const [endX, endWidth] = poses[Math.min(lower + 1, poses.length - 1)];
+        const blend = frame - lower;
+        const fraction = startX + (endX - startX) * blend;
+        const apparentWidth = startWidth + (endWidth - startWidth) * blend;
+        const x = side * travel * (incoming ? 1 - fraction : fraction);
+
+        // Project the row like a turned plane. Correct its projected center
+        // so perspective cannot create a small move in the opposite direction.
+        const tilt = side * .13 * Math.sqrt(1 - apparentWidth ** 2);
+        const scaleX = Math.max(.001, apparentWidth * (1 - tilt ** 2));
+        const centeredX = x + apparentWidth * halfWidth * tilt;
+        element.style.transform = 'translateX(' + centeredX + 'px) matrix3d(' +
+          scaleX + ',0,0,' + (tilt / halfWidth) + ',0,1,0,0,0,0,1,0,0,0,0,1)';
+        element.style.opacity = smooth(progress(apparentWidth, 0, .025)).toFixed(4);
       }
     }
   }
@@ -146,7 +181,12 @@
       width, height, worksStart, worksTravel, distance: rebase && old ? distance : undefined,
       worksHeadingDistance: works?.servicesHeadingDistance, worksRevealDistance: works?.servicesRevealDistance,
     });
-    geometry = { width, height, shrinkEnd, first, second, worksStart, servicesStart: services?.start ?? Infinity };
+    geometry = {
+      width, height, shrinkEnd, first, second, worksStart,
+      servicesStart: services?.start ?? Infinity,
+      servicesHeadingStart: services ? services.start + services.headingStart : Infinity,
+      servicesHeadingFade: services?.headingFade ?? 1,
+    };
     hero.dataset.aboutFirst = first.toFixed(2);
     hero.dataset.aboutSecond = second.toFixed(2);
     hero.dataset.worksStart = worksStart.toFixed(2);
@@ -168,7 +208,7 @@
   }
 
   function startAboutSwap(target, now) {
-    swap = { target, started: now, progress: 0 };
+    swap = { target, started: now, elapsed: 0 };
     swapLanding = null;
     blockedGesture = gesture;
     jump(target ? geometry.first : geometry.second);
@@ -180,7 +220,7 @@
     if (swap) {
       const { target, started } = swap;
       const elapsed = clamp((now - started) / swapDuration);
-      swap.progress = elapsed;
+      swap.elapsed = elapsed * swapDuration;
       activeStatement = elapsed < .5 ? 1 - target : target;
       if (elapsed < 1) {
         const held = target ? first : second;
@@ -232,7 +272,7 @@
   }
 
   function paint(distance) {
-    const { width, height, shrinkEnd, first, second, worksStart } = geometry;
+    const { width, height, shrinkEnd, first, second, worksStart, servicesHeadingStart, servicesHeadingFade } = geometry;
     const shrink = smooth(distance / shrinkEnd);
     const departure = smooth(progress(distance, shrinkEnd, first));
     const turn = Math.pow(departure, .72);
@@ -270,7 +310,8 @@
     about.setAttribute('aria-hidden', String(aboutOpacity === 0));
     paintAboutStatements(width);
 
-    const light = smooth(progress(distance, 0, shrinkEnd * .6)) * (1 - smooth(worksEntry * 1.45));
+    const darken = smooth((distance - servicesHeadingStart) / servicesHeadingFade);
+    const light = smooth(progress(distance, 0, shrinkEnd * .6)) * (1 - darken);
     backdrop?.style.setProperty('--redesign-light', light.toFixed(4));
     // Use one of the two ink colors at the midpoint so fixed labels stay legible.
     hero.style.setProperty('--redesign-ink', light >= .56 ? '1' : '0');
