@@ -17,6 +17,8 @@
   // Use one world-space camera speed for entry, browsing and departure. Its
   // pace matches the previous two-screen final exit, without its acceleration.
   const paceReferenceProgress = 43.2 / 56.592;
+  // AMONRA's lead-in pose, just before the card faces the viewer.
+  const leadHandoffPhase = .2941;
   const titleRevealPhase = window.WorksGallery.leadFrontalPhase - .01;
   let titleHidePhase = Infinity;
 
@@ -126,6 +128,7 @@
     const paceClearProgress=measureClearProgress(window.WorksGallery.getPaceReferenceBounds,paceReferenceProgress);
     phasePerViewport=Math.max(.001,(paceClearProgress-paceReferenceProgress)/2);
     const distanceAt=progress=>Math.max(0,(progress-entrancePeek)/phasePerViewport*height);
+    const leadHandoffDistance=distanceAt(leadHandoffPhase);
     galleryTravel=reduced.matches?0:distanceAt(finalProgress);
     exitTravel=reduced.matches?0:Math.max(0,(clearProgress-finalProgress)/phasePerViewport*height);
     // Start the heading under the frontal card so its fade continues as
@@ -150,7 +153,7 @@
       viewport.removeAttribute('aria-hidden');
       window.WorksGallery.update(0, { reducedMotion: true });
     }
-    return { travel, galleryTravel, exitTravel, emptyHold, holdDistance, phasePerViewport, servicesHeadingDistance, servicesRevealDistance };
+    return { travel, galleryTravel, exitTravel, emptyHold, holdDistance, phasePerViewport, leadHandoffDistance, servicesHeadingDistance, servicesRevealDistance };
   }
 
   function update(localDistance, { reducedMotion = reduced.matches, entryProgress = 0, titleReady, now = 0 } = {}) {

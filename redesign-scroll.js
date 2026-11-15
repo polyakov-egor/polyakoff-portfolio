@@ -21,6 +21,7 @@
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   const referenceFrame = 1000 / 30;
   const rowStagger = 2 * referenceFrame;
+  const blindsCatchUpMs = 650;
   // Horizontal travel and apparent width, sampled separately from 053.mp4.
   // The centers are clamped to their resting positions at each end.
   const outgoingPoses = [
@@ -47,6 +48,7 @@
   let frame = 0;
   let lastDistance = 0;
   let lastTime = 0;
+  let paintedBlinds = null;
   let activeStatement = 0;
   let swapDuration = rowDuration;
   let swap = null;
@@ -202,9 +204,9 @@
     const phoneExitLead = .56 + .05 * progress(width, 320, 375);
     const aboutExitStart = worksStart + height * (width < 600 ? phoneExitLead : width < 1024 ? .14 : .09);
     const aboutExitEnd = aboutExitStart + height * .36;
-    const darkenStart = aboutExitEnd + height * .025;
-    const darkenEnd = darkenStart + height * .28;
     const works = window.WorksScrollChapter?.measure({ width, height, start: worksStart });
+    const worksHandoff = worksStart + (works?.leadHandoffDistance ?? height * .305);
+    const darkenEnd = worksHandoff + height * .38;
     const worksTravel = works?.travel ?? 0;
     const services = window.ServicesScrollChapter?.measure({
       width, height, worksStart, worksTravel, distance: rebase && old ? distance : undefined,
@@ -213,7 +215,7 @@
     const heroTop = hero.getBoundingClientRect().top;
     geometry = {
       width, height, heroExitEnd, aboutEntryStart, first, second, worksStart, aboutExitStart, aboutExitEnd,
-      darkenStart, darkenEnd,
+      worksHandoff, darkenEnd,
       themeSamples: inkTargets.map(element => {
         const rect = element.getBoundingClientRect();
         const center = element === logo ? logo.offsetTop + logo.offsetHeight / 2 : rect.top - heroTop + rect.height / 2;
@@ -305,9 +307,19 @@
     return requested;
   }
 
-  function paintBackdrop(distance) {
-    const { aboutEntryStart, darkenStart, darkenEnd, themeSamples } = geometry;
-    const darken = progress(distance, darkenStart, darkenEnd);
+  function paintBackdrop(distance, elapsed) {
+    const { aboutEntryStart, second, worksHandoff, darkenEnd, themeSamples } = geometry;
+    const target = progress(distance, worksHandoff, darkenEnd);
+    if (paintedBlinds === null || distance <= second) {
+      // An initial/restored position or the settled About must use its own backdrop.
+      paintedBlinds = target;
+    } else {
+      // Slow input follows scroll directly. Fast input is limited in either direction.
+      const difference = target - paintedBlinds;
+      const step = elapsed / blindsCatchUpMs;
+      paintedBlinds = Math.abs(difference) <= step ? target : paintedBlinds + Math.sign(difference) * step;
+    }
+    const darken = paintedBlinds;
     const light = darken < 1 ? smooth(progress(distance, 0, aboutEntryStart)) : 0;
     const edges = [];
     if (darken > 0 && darken < 1) {
@@ -341,6 +353,7 @@
       if (element.style.getPropertyValue('--redesign-ink') !== ink) element.style.setProperty('--redesign-ink', ink);
     }
     hero.dataset.lightProgress = (light * (1 - smooth(darken))).toFixed(4);
+    return darken !== target;
   }
 
   function paint(distance) {
@@ -378,7 +391,6 @@
     about.toggleAttribute('data-about-exiting', copyExit > 0);
     about.setAttribute('aria-hidden', String(!aboutVisible));
     paintAboutStatements(width);
-    paintBackdrop(distance);
     const logoProgress = smooth(progress(distance, height * .095, height * .49));
     logo.style.opacity = String(logoProgress);
     logo.style.transform = 'translate3d(0,' + ((1 - logoProgress) * 32) + 'px,0)';
@@ -400,6 +412,8 @@
     if (staticLayout) {
       swap = null;
       swapLanding = null;
+      paintedBlinds = null;
+      lastTime = 0;
       hero.dataset.scrollProgress = '0';
       for (const element of [plane, about, ...statements]) element.removeAttribute('aria-hidden');
       plane.classList.remove('is-moving');
@@ -427,20 +441,21 @@
     const resolved = resolveDistance(requested, now);
     // Lenis already smooths wheel deltas. A short, local interpolation keeps
     // native touch and keyboard scrolling smooth without a competing wheel RAF.
-    const elapsed = lastTime ? Math.min(45, now - lastTime) : 16;
+    const elapsed = lastTime ? Math.max(0, now - lastTime) : 16;
     lastTime = now;
     const native = !window.SiteSmoothScroll?.usesSmoothedScroll();
     const easeNative = native && !swap && resolved !== geometry.first && resolved !== geometry.second;
     const difference = resolved - lastDistance;
     const distance = easeNative && Math.abs(difference) > .5
-      ? lastDistance + difference * (1 - Math.exp(-Math.max(1, elapsed) / 48))
+      ? lastDistance + difference * (1 - Math.exp(-Math.max(1, Math.min(45, elapsed)) / 48))
       : resolved;
     lastDistance = distance;
     paint(distance);
+    const blindsMoving = paintBackdrop(distance, elapsed);
     const entryProgress = progress(distance, geometry.second, worksStart);
     const services = window.ServicesScrollChapter?.update(distance - servicesStart, { now });
-    window.WorksScrollChapter?.update(distance - worksStart, { entryProgress, titleReady: distance > geometry.aboutExitStart, now });
-    if (swap || Math.abs(distance - resolved) > .5 || services?.footerAnimating ||
+    window.WorksScrollChapter?.update(distance - worksStart, { entryProgress, titleReady: distance >= geometry.worksHandoff, now });
+    if (swap || blindsMoving || Math.abs(distance - resolved) > .5 || services?.footerAnimating ||
       window.WorksGallery?.isAnimating?.() || window.SiteSmoothScroll?.isAnimating()) schedule();
     else lastTime = 0;
   }
@@ -494,7 +509,14 @@
       lastInputTime = performance.now();
     }, { passive: true });
   }
-  window.addEventListener('pageshow', () => measure(false));
+  window.addEventListener('pageshow', () => {
+    paintedBlinds = null;
+    measure(false);
+  });
+  document.addEventListener('visibilitychange', () => {
+    lastTime = 0;
+    if (!document.hidden) schedule();
+  });
   for (const name of ['works:ready', 'services:ready']) window.addEventListener(name, () => measure());
   for (const name of ['inspiration:ready', 'works:interaction', 'chapter-assets:ready']) window.addEventListener(name, schedule);
   reduced.addEventListener('change', () => measure(false));

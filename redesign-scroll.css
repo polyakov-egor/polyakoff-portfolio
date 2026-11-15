@@ -140,6 +140,7 @@
   padding-inline: 0;
   perspective: 68vw;
   opacity: var(--redesign-about-alpha, 1);
+  color: var(--redesign-chapter-ink, #1d1d1d);
 }
 .has-scroll-story .redesign-about[aria-hidden="true"] { visibility: hidden; }
 .has-scroll-story .works-is-preview .works__title { opacity: 0; transition: none; }
