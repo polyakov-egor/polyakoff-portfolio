@@ -308,7 +308,7 @@
       const maxDelay = .48;
       const stops = [];
       const percent = fraction => (fraction * 100).toFixed(4) + '%';
-      // Build the mask from the bottom edge, with a later start for higher bands.
+      // Build the mask from the top edge, with a later start for lower bands.
       for (let i = 0; i < bandCount; i++) {
         const delay = maxDelay * i / (bandCount - 1);
         const cover = smooth((darken - delay) / (1 - maxDelay));
@@ -319,16 +319,15 @@
         if (cover > 0) stops.push('transparent ' + percent(start) + ' ' + percent(edge));
         if (cover < 1) stops.push('#000 ' + percent(edge) + ' ' + percent(end));
       }
-      backdrop?.style.setProperty('--redesign-light-mask', 'linear-gradient(to top, ' + stops.join(', ') + ')');
+      backdrop?.style.setProperty('--redesign-light-mask', 'linear-gradient(to bottom, ' + stops.join(', ') + ')');
     } else {
       backdrop?.style.removeProperty('--redesign-light-mask');
     }
     backdrop?.style.setProperty('--redesign-light', light.toFixed(4));
 
     const inkAt = y => {
-      const fromBottom = 1 - y;
-      const band = Math.min(bandCount - 1, Math.floor(fromBottom * bandCount));
-      return light >= .52 && (!edges.length || fromBottom >= edges[band]) ? '1' : '0';
+      const band = Math.min(bandCount - 1, Math.floor(y * bandCount));
+      return light >= .52 && (!edges.length || y >= edges[band]) ? '1' : '0';
     };
     hero.style.setProperty('--redesign-ink', inkAt(.5));
     for (const { element, y } of themeSamples) {
