@@ -14,14 +14,12 @@
   const navigationItems = hero.querySelectorAll(':scope > .hero__footer :is(.glass-button, .music-control, .language-control)');
   const worksTitle = document.querySelector('.works__title');
   const inkTargets = [logo, ...navigationItems, worksTitle].filter(Boolean);
-  const bandInput = document.querySelector('[data-blind-count]');
-  const bandOutput = document.querySelector('[data-blind-count-output]');
-  const blindCountKey = 'polyakoff.redesign.blind-count';
   const cursor = document.querySelector('.custom-cursor');
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   const referenceFrame = 1000 / 30;
   const rowStagger = 2 * referenceFrame;
   const blindsCatchUpMs = 650;
+  const bandCount = 5;
   // Horizontal travel and apparent width, sampled separately from 053.mp4.
   // The centers are clamped to their resting positions at each end.
   const outgoingPoses = [
@@ -58,22 +56,6 @@
   let lastInputTime = -Infinity;
   let wheelIntent = 0;
   let touchActive = false;
-
-  let bandCount = bandInput.valueAsNumber;
-  try {
-    const storedCount = Number(localStorage.getItem(blindCountKey));
-    if (Number.isInteger(storedCount) && storedCount >= Number(bandInput.min) && storedCount <= Number(bandInput.max)) {
-      bandCount = storedCount;
-    }
-  } catch { /* The slider still works when storage is blocked. */ }
-  bandInput.valueAsNumber = bandCount;
-  bandOutput.value = String(bandCount);
-  bandInput.addEventListener('input', () => {
-    bandCount = bandInput.valueAsNumber;
-    bandOutput.value = String(bandCount);
-    try { localStorage.setItem(blindCountKey, String(bandCount)); } catch { /* Keep the in-memory value. */ }
-    schedule();
-  });
 
   // Keep the original text and its responsive line breaks as the reading copy.
   // Measure only on layout, then rotate one paint-only layer per visual row.
@@ -323,29 +305,30 @@
     const light = darken < 1 ? smooth(progress(distance, 0, aboutEntryStart)) : 0;
     const edges = [];
     if (darken > 0 && darken < 1) {
-      const maxDelay = bandCount > 1 ? .48 : 0;
+      const maxDelay = .48;
       const stops = [];
       const percent = fraction => (fraction * 100).toFixed(4) + '%';
-      // Each band covers its share from top to bottom, with a later start below it.
+      // Build the mask from the bottom edge, with a later start for higher bands.
       for (let i = 0; i < bandCount; i++) {
-        const delay = maxDelay * i / Math.max(1, bandCount - 1);
+        const delay = maxDelay * i / (bandCount - 1);
         const cover = smooth((darken - delay) / (1 - maxDelay));
-        const top = i / bandCount;
+        const start = i / bandCount;
         const edge = (i + cover) / bandCount;
-        const bottom = (i + 1) / bandCount;
+        const end = (i + 1) / bandCount;
         edges.push(edge);
-        if (cover > 0) stops.push('transparent ' + percent(top) + ' ' + percent(edge));
-        if (cover < 1) stops.push('#000 ' + percent(edge) + ' ' + percent(bottom));
+        if (cover > 0) stops.push('transparent ' + percent(start) + ' ' + percent(edge));
+        if (cover < 1) stops.push('#000 ' + percent(edge) + ' ' + percent(end));
       }
-      backdrop?.style.setProperty('--redesign-light-mask', 'linear-gradient(to bottom, ' + stops.join(', ') + ')');
+      backdrop?.style.setProperty('--redesign-light-mask', 'linear-gradient(to top, ' + stops.join(', ') + ')');
     } else {
       backdrop?.style.removeProperty('--redesign-light-mask');
     }
     backdrop?.style.setProperty('--redesign-light', light.toFixed(4));
 
     const inkAt = y => {
-      const band = Math.min(bandCount - 1, Math.floor(y * bandCount));
-      return light >= .52 && (!edges.length || y >= edges[band]) ? '1' : '0';
+      const fromBottom = 1 - y;
+      const band = Math.min(bandCount - 1, Math.floor(fromBottom * bandCount));
+      return light >= .52 && (!edges.length || fromBottom >= edges[band]) ? '1' : '0';
     };
     hero.style.setProperty('--redesign-ink', inkAt(.5));
     for (const { element, y } of themeSamples) {
