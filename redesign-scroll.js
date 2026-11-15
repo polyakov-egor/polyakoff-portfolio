@@ -14,6 +14,9 @@
   const navigationItems = hero.querySelectorAll(':scope > .hero__footer :is(.glass-button, .music-control, .language-control)');
   const worksTitle = document.querySelector('.works__title');
   const inkTargets = [logo, ...navigationItems, worksTitle].filter(Boolean);
+  const bandInput = document.querySelector('[data-blind-count]');
+  const bandOutput = document.querySelector('[data-blind-count-output]');
+  const blindCountKey = 'polyakoff.redesign.blind-count';
   const cursor = document.querySelector('.custom-cursor');
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   const referenceFrame = 1000 / 30;
@@ -53,6 +56,22 @@
   let lastInputTime = -Infinity;
   let wheelIntent = 0;
   let touchActive = false;
+
+  let bandCount = bandInput.valueAsNumber;
+  try {
+    const storedCount = Number(localStorage.getItem(blindCountKey));
+    if (Number.isInteger(storedCount) && storedCount >= Number(bandInput.min) && storedCount <= Number(bandInput.max)) {
+      bandCount = storedCount;
+    }
+  } catch { /* The slider still works when storage is blocked. */ }
+  bandInput.valueAsNumber = bandCount;
+  bandOutput.value = String(bandCount);
+  bandInput.addEventListener('input', () => {
+    bandCount = bandInput.valueAsNumber;
+    bandOutput.value = String(bandCount);
+    try { localStorage.setItem(blindCountKey, String(bandCount)); } catch { /* Keep the in-memory value. */ }
+    schedule();
+  });
 
   // Keep the original text and its responsive line breaks as the reading copy.
   // Measure only on layout, then rotate one paint-only layer per visual row.
@@ -191,12 +210,14 @@
       width, height, worksStart, worksTravel, distance: rebase && old ? distance : undefined,
       worksHeadingDistance: works?.servicesHeadingDistance, worksRevealDistance: works?.servicesRevealDistance,
     });
+    const heroTop = hero.getBoundingClientRect().top;
     geometry = {
       width, height, heroExitEnd, aboutEntryStart, first, second, worksStart, aboutExitStart, aboutExitEnd,
-      darkenStart, darkenEnd, wipeFeather: Math.min(420, Math.max(100, width * .24)) / width,
+      darkenStart, darkenEnd,
       themeSamples: inkTargets.map(element => {
-        const { left, width: itemWidth } = element.getBoundingClientRect();
-        return { element, x: clamp((left + itemWidth / 2) / width) };
+        const rect = element.getBoundingClientRect();
+        const center = element === logo ? logo.offsetTop + logo.offsetHeight / 2 : rect.top - heroTop + rect.height / 2;
+        return { element, y: clamp(center / height) };
       }),
       servicesStart: services?.start ?? Infinity,
     };
@@ -284,6 +305,44 @@
     return requested;
   }
 
+  function paintBackdrop(distance) {
+    const { aboutEntryStart, darkenStart, darkenEnd, themeSamples } = geometry;
+    const darken = progress(distance, darkenStart, darkenEnd);
+    const light = darken < 1 ? smooth(progress(distance, 0, aboutEntryStart)) : 0;
+    const edges = [];
+    if (darken > 0 && darken < 1) {
+      const maxDelay = bandCount > 1 ? .48 : 0;
+      const stops = [];
+      const percent = fraction => (fraction * 100).toFixed(4) + '%';
+      // Each band covers its share from top to bottom, with a later start below it.
+      for (let i = 0; i < bandCount; i++) {
+        const delay = maxDelay * i / Math.max(1, bandCount - 1);
+        const cover = smooth((darken - delay) / (1 - maxDelay));
+        const top = i / bandCount;
+        const edge = (i + cover) / bandCount;
+        const bottom = (i + 1) / bandCount;
+        edges.push(edge);
+        if (cover > 0) stops.push('transparent ' + percent(top) + ' ' + percent(edge));
+        if (cover < 1) stops.push('#000 ' + percent(edge) + ' ' + percent(bottom));
+      }
+      backdrop?.style.setProperty('--redesign-light-mask', 'linear-gradient(to bottom, ' + stops.join(', ') + ')');
+    } else {
+      backdrop?.style.removeProperty('--redesign-light-mask');
+    }
+    backdrop?.style.setProperty('--redesign-light', light.toFixed(4));
+
+    const inkAt = y => {
+      const band = Math.min(bandCount - 1, Math.floor(y * bandCount));
+      return light >= .52 && (!edges.length || y >= edges[band]) ? '1' : '0';
+    };
+    hero.style.setProperty('--redesign-ink', inkAt(.5));
+    for (const { element, y } of themeSamples) {
+      const ink = inkAt(y);
+      if (element.style.getPropertyValue('--redesign-ink') !== ink) element.style.setProperty('--redesign-ink', ink);
+    }
+    hero.dataset.lightProgress = (light * (1 - smooth(darken))).toFixed(4);
+  }
+
   function paint(distance) {
     const { width, height, heroExitEnd, aboutEntryStart, first, aboutExitStart, aboutExitEnd } = geometry;
     const departure = smooth(progress(distance, 0, heroExitEnd));
@@ -306,41 +365,20 @@
 
     const arrival = smooth(progress(distance, aboutEntryStart, first));
     const remaining = 1 - arrival;
-    const exitProgress = progress(distance, aboutExitStart, aboutExitEnd);
-    const copyExit = smooth(exitProgress);
-    const copyLift = width >= 1024 ? .28 * smooth(exitProgress / .58) : .38 * copyExit;
+    const copyExit = smooth(progress(distance, aboutExitStart, aboutExitEnd));
     const aboutVisible = arrival > 0 && copyExit < 1;
-    const aboutTurn = remaining - copyExit;
-    const aboutExitTravel = width * .82 + height * .065;
-    const aboutX = width * 1.06 * remaining - aboutExitTravel * copyExit;
-    const aboutY = height * (.29 * remaining - copyLift);
-    const aboutScale = 1 - .5 * (remaining + copyExit);
+    const aboutX = width * 1.06 * remaining;
+    const aboutY = height * .29 * remaining;
+    const aboutScale = 1 - .5 * remaining - .75 * copyExit;
     about.style.setProperty('--redesign-about-transform',
-      'translate3d(' + aboutX + 'px,' + aboutY + 'px,0) rotateY(' + (-53 * aboutTurn) +
-      'deg) rotateX(' + (17 * aboutTurn) + 'deg) rotateZ(' + (8 * aboutTurn) +
+      'translate3d(' + aboutX + 'px,' + aboutY + 'px,0) rotateY(' + (-53 * remaining) +
+      'deg) rotateX(' + (17 * remaining) + 'deg) rotateZ(' + (8 * remaining) +
       'deg) scale(' + aboutScale + ')');
+    about.style.setProperty('--redesign-about-alpha', String(1 - copyExit ** 1.35));
+    about.toggleAttribute('data-about-exiting', copyExit > 0);
     about.setAttribute('aria-hidden', String(!aboutVisible));
     paintAboutStatements(width);
-
-    const { darkenStart, darkenEnd, wipeFeather, themeSamples } = geometry;
-    const darken = smooth(progress(distance, darkenStart, darkenEnd));
-    const light = darken < 1 ? smooth(progress(distance, 0, aboutEntryStart)) : 0;
-    const darkEdge = (1 + wipeFeather) * darken - wipeFeather;
-    const wipeActive = darken > 0 && darken < 1;
-    if (wipeActive) {
-      const darkStop = (darkEdge * 100).toFixed(3) + '%';
-      const lightStop = ((darkEdge + wipeFeather) * 100).toFixed(3) + '%';
-      backdrop?.style.setProperty('--redesign-light-mask', 'linear-gradient(to right, transparent ' + darkStop + ', #000 ' + lightStop + ')');
-    } else {
-      backdrop?.style.removeProperty('--redesign-light-mask');
-    }
-    backdrop?.style.setProperty('--redesign-light', light.toFixed(4));
-    const inkAt = x => light * clamp((x - darkEdge) / wipeFeather) >= .52 ? '1' : '0';
-    hero.style.setProperty('--redesign-ink', inkAt(.5));
-    for (const { element, x } of themeSamples) {
-      const ink = inkAt(x);
-      if (element.style.getPropertyValue('--redesign-ink') !== ink) element.style.setProperty('--redesign-ink', ink);
-    }
+    paintBackdrop(distance);
     const logoProgress = smooth(progress(distance, height * .095, height * .49));
     logo.style.opacity = String(logoProgress);
     logo.style.transform = 'translate3d(0,' + ((1 - logoProgress) * 32) + 'px,0)';
@@ -349,7 +387,6 @@
     cursor?.classList.toggle('is-past-hero', hideIntro);
     hero.dataset.scrollProgress = progress(distance, 0, heroExitEnd).toFixed(4);
     hero.dataset.aboutStage = swap ? 'swapping' : activeStatement ? 'second' : arrival === 1 ? 'first' : 'entering';
-    hero.dataset.lightProgress = (light * (1 - darken)).toFixed(4);
   }
 
   function render(now) {
@@ -369,7 +406,9 @@
       plane.style.removeProperty('--redesign-hero-transform');
       plane.style.removeProperty('--redesign-hero-trim');
       about.style.removeProperty('--redesign-about-transform');
+      about.style.removeProperty('--redesign-about-alpha');
       about.removeAttribute('data-about-swapping');
+      about.removeAttribute('data-about-exiting');
       logo.style.removeProperty('opacity');
       logo.style.removeProperty('transform');
       backdrop?.style.removeProperty('--redesign-light');

@@ -50,6 +50,40 @@
   mask: url("./assets/icons/contact-plane.svg") center / 16px 16px no-repeat;
 }
 
+.redesign-effects {
+  display: none;
+  position: fixed;
+  z-index: 1001;
+  top: max(16px, env(safe-area-inset-top, 0px));
+  left: max(16px, env(safe-area-inset-left, 0px));
+  width: min(220px, calc(100vw - 32px));
+  border: 1px solid #505050;
+  border-radius: 12px;
+  background: #1d1d1d;
+  color: #fff;
+  font: 12px/1.4 "Roboto Mono", monospace;
+}
+.has-scroll-story:not(.is-site-loading, .is-site-entering) .redesign-effects { display: block; }
+.redesign-effects summary { padding: 10px 12px; cursor: pointer; }
+.redesign-effects__field {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  align-items: center;
+  margin: 0 12px;
+  padding: 10px 0;
+  border-top: 1px solid #505050;
+}
+.redesign-effects__field output { font-variant-numeric: tabular-nums; }
+.redesign-effects__field input {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin: 0;
+  accent-color: #fff;
+  cursor: pointer;
+}
+.redesign-effects :is(summary, input):focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
 .redesign-hero-plane {
   position: absolute;
   z-index: 4;
@@ -105,12 +139,16 @@
   min-height: 0;
   padding-inline: 0;
   perspective: 68vw;
+  opacity: var(--redesign-about-alpha, 1);
 }
 .has-scroll-story .redesign-about[aria-hidden="true"] { visibility: hidden; }
 .has-scroll-story .works-is-preview .works__title { opacity: 0; transition: none; }
 .has-scroll-story .redesign-about__plane {
   /* Center the copy itself, with its label above it. */
   translate: 0 calc((12px + var(--about-label-gap)) / -2);
+}
+.has-scroll-story .redesign-about[data-about-exiting] .redesign-about__plane {
+  transform-origin: 50% calc(50% + (12px + var(--about-label-gap)) / 2);
 }
 .has-scroll-story .redesign-about__statements { gap: 0; }
 .has-scroll-story .redesign-about__statement { position: relative; grid-area: 1 / 1; align-self: center; }
