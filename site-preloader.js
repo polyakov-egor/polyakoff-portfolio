@@ -1,16 +1,17 @@
-/* Real first-screen readiness, not a timed loading animation. Later chapters
-   keep their existing approach-based prefetch and sleeping renderers. */
+/* LOAD turns while the first screen prepares. DONE follows the real asset
+   and layout barriers. Later chapters retain their own prefetch. */
 (() => {
   'use strict';
   if (window.SitePreloader) return;
   const html = document.documentElement;
   const failedResources = new Set();
   const blockingKeys = new Set(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','PageUp','PageDown','Home','End',' ']);
-  const state = { phase: 'loading', completed: 0, total: 0, progress: 0, displayedProgress: 0, failed: [] };
-  let overlay, button, label, progress, status, retry, main, hero;
+  const state = { phase: 'loading', completed: 0, total: 0, progress: 0, failed: [] };
+  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+  const loadTurnInterval = 2000, turnDuration = 560, doneHold = 220;
+  let overlay, rotor, status, retry, main, hero;
   let generation = 0, changedViewport = false, slowTimer = 0, revealTimer = 0, resizeFrame = 0;
-  let progressFrame = 0, progressTime = 0, progressVelocity = 0;
-  let progressWaiters = [];
+  let loadTimer = 0, doneTimer = 0, turn = null;
   let resolveReady;
   const whenReady = new Promise(resolve => { resolveReady = resolve; });
   const isBlocking = () => state.phase !== 'entered';
@@ -43,12 +44,11 @@
     if (!isBlocking() || event.altKey || event.ctrlKey || event.metaKey) return;
     if (event.key === 'Tab') {
       event.preventDefault(); event.stopImmediatePropagation();
-      (state.phase === 'ready' ? button : retry && !retry.hidden ? retry : overlay)?.focus({ preventScroll: true });
+      (retry && !retry.hidden ? retry : overlay)?.focus({ preventScroll: true });
     } else if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault(); event.stopImmediatePropagation();
       if (event.repeat) return;
       if (event.target === retry && !retry.hidden) window.location.reload();
-      else if (state.phase === 'ready') enter();
     } else if (blockingKeys.has(event.key)) blockScroll(event);
   }
   window.addEventListener('wheel', blockScroll, { capture: true, passive: false });
@@ -59,68 +59,93 @@
   const onResize = () => {
     if (!isBlocking() || state.phase === 'entering') return;
     changedViewport = true;
-    if (state.phase === 'ready' || state.phase === 'complete') {
+    if (state.phase === 'ready' || state.phase === 'done') {
       // Let the browser select the new <picture> candidates before decode().
       // A synchronous decode during media selection can abort a valid image.
       phase('loading');
-      button.disabled = true;
+      stopTurns();
       resizeFrame = window.requestAnimationFrame(() => { resizeFrame = 0; prepare(); });
     }
   };
   window.addEventListener('resize', onResize);
 
-  function drawProgress() {
-    const percent = Math.floor(state.displayedProgress);
-    overlay?.style.setProperty('--load-progress', String(state.displayedProgress / 100));
-    progress?.setAttribute('aria-valuenow', String(percent));
-    progress?.setAttribute('aria-valuetext', `${percent}% of the first screen ready`);
-    if (label) label.textContent = `${percent}%`;
-    if (overlay) overlay.dataset.displayedProgress = state.displayedProgress.toFixed(4);
+  function clearTurnTimers() {
+    clearTimeout(loadTimer);
+    clearTimeout(doneTimer);
+    loadTimer = 0;
+    doneTimer = 0;
   }
-  function settleProgress() {
-    if (progressFrame) window.cancelAnimationFrame(progressFrame);
-    progressFrame = 0; progressTime = 0; progressVelocity = 0;
-    const waiting = progressWaiters; progressWaiters = [];
-    waiting.forEach(resolve => resolve());
+
+  function stopTurns() {
+    clearTurnTimers();
+    turn?.cancel();
+    turn = null;
+    rotor.dataset.word = 'load';
+    rotor.dataset.nextWord = 'load';
   }
-  function animateProgress(now) {
-    progressFrame = 0;
-    if (!['loading','complete'].includes(state.phase) || document.hidden) { progressTime = 0; return; }
-    const previous = state.displayedProgress, target = state.progress;
-    const dt = Math.min(.05, Math.max(0, (now - (progressTime || now - 1000 / 60)) / 1000));
-    progressTime = now;
-    // Exact critically damped response: a newly decoded resource changes only
-    // the destination, preserving velocity instead of restarting a tween.
-    // Clamp to settled work; no animation or elapsed time can invent progress.
-    const omega = 14, error = previous - target;
-    const coefficient = progressVelocity + omega * error, decay = Math.exp(-omega * dt);
-    const next = target + (error + coefficient * dt) * decay;
-    progressVelocity = (progressVelocity - omega * coefficient * dt) * decay;
-    state.displayedProgress = Math.min(target, Math.max(previous, next));
-    if (target - state.displayedProgress < .005 && Math.abs(progressVelocity) < .1) {
-      state.displayedProgress = target; drawProgress(); settleProgress(); return;
+
+  function playTurn(word, onFinish) {
+    rotor.dataset.nextWord = word;
+    if (reduced?.matches || typeof rotor.animate !== 'function') {
+      rotor.dataset.word = word;
+      onFinish();
+      return;
     }
-    drawProgress();
-    progressFrame = window.requestAnimationFrame(animateProgress);
+    const animation = rotor.animate([
+      { transform: 'translateZ(-20px) rotateX(0deg)' },
+      { transform: 'translateZ(-20px) rotateX(-90deg)' }
+    ], { duration: turnDuration, easing: 'cubic-bezier(.55,0,.25,1)', fill: 'forwards' });
+    turn = animation;
+    animation.finished.then(() => {
+      if (turn !== animation) return;
+      // Both faces have the same screen position at their resting angle.
+      rotor.dataset.word = word;
+      turn = null;
+      animation.cancel();
+      onFinish();
+    }, () => {});
   }
-  function scheduleProgress() {
-    if (state.displayedProgress >= state.progress) { settleProgress(); return; }
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-      state.displayedProgress = state.progress; drawProgress(); settleProgress(); return;
-    }
-    if (!progressFrame && !document.hidden) progressFrame = window.requestAnimationFrame(animateProgress);
+
+  function scheduleLoadTurn() {
+    if (!rotor || loadTimer || document.hidden || reduced?.matches || state.phase !== 'loading') return;
+    loadTimer = setTimeout(() => {
+      loadTimer = 0;
+      if (state.phase !== 'loading' || document.hidden) return;
+      if (!turn) playTurn('load', presentDone);
+      scheduleLoadTurn();
+    }, loadTurnInterval);
   }
+
+  function presentDone() {
+    if (state.phase !== 'ready' || turn || document.hidden) return;
+    playTurn('done', () => {
+      phase('done');
+      scheduleEntry();
+    });
+  }
+
+  function scheduleEntry() {
+    if (doneTimer || document.hidden || state.phase !== 'done') return;
+    doneTimer = setTimeout(() => {
+      doneTimer = 0;
+      if (!document.hidden) enter();
+    }, doneHold);
+  }
+
   function paintProgress() {
     state.progress = state.total ? Math.floor(state.completed / state.total * 100) : 0;
     if (overlay) overlay.dataset.progress = String(state.progress);
-    scheduleProgress();
   }
-  const progressCaughtUp = () => state.displayedProgress >= state.progress
-    ? Promise.resolve() : new Promise(resolve => progressWaiters.push(resolve));
   const onVisibility = () => {
-    if (!['loading','complete'].includes(state.phase)) return;
-    if (document.hidden) { if (progressFrame) window.cancelAnimationFrame(progressFrame); progressFrame = 0; progressTime = 0; }
-    else scheduleProgress();
+    if (document.hidden) {
+      clearTurnTimers();
+      turn?.pause();
+      return;
+    }
+    if (turn?.playState === 'paused') turn.play();
+    scheduleLoadTurn();
+    presentDone();
+    scheduleEntry();
   };
   document.addEventListener('visibilitychange', onVisibility);
   function phase(value) {
@@ -180,15 +205,15 @@
   }
   async function prepare() {
     const run = ++generation;
-    settleProgress();
     changedViewport = false;
     clearTimeout(slowTimer);
     phase('loading');
-    state.completed = 0; state.progress = 0; state.displayedProgress = 0; state.failed = [];
-    drawProgress();
+    state.completed = 0; state.total = 0; state.failed = [];
+    paintProgress();
+    scheduleLoadTurn();
     overlay.removeAttribute('data-failed-task');
     overlay.removeAttribute('data-failed-resource');
-    button.disabled = true; retry.hidden = true;
+    retry.hidden = true;
     overlay.setAttribute('aria-busy', 'true');
     status.textContent = 'Loading the first screen';
     const tasks = [];
@@ -205,7 +230,7 @@
     const images = criticalImages();
     for (const image of images) add('image', () => imageReady(image), source(image));
     if (document.fonts?.load) {
-      for (const [font, sample] of [['400 12px "Roboto Mono"','ENTER I’M EGOR 00:00'], ['300 14px "Roboto"','Welcome to the club buddy!'], ['300 14px "Noto Sans SC"','欢迎加入俱乐部，伙计！我是叶戈尔。'], ['400 48px "Inter Tight"','I’m a designer']]) {
+      for (const [font, sample] of [['400 12px "Roboto Mono"','I’M EGOR 00:00'], ['300 14px "Roboto"','Welcome to the club buddy!'], ['300 14px "Noto Sans SC"','欢迎加入俱乐部，伙计！我是叶戈尔。'], ['400 48px "Inter Tight"','I’m a designer']]) {
         add('font', async () => {
           const faces = await document.fonts.load(font, sample);
           if (!faces.length) throw new Error('Font unavailable');
@@ -247,24 +272,19 @@
       if (changedViewport) { prepare(); return; }
       if (!hero.heroLayout || Number(hero.dataset.scrollProgress) !== 0) throw new Error('First screen not in position');
       state.completed++; paintProgress();
-      phase('complete');
-      await progressCaughtUp();
-      if (run !== generation || state.phase !== 'complete') return;
-      // Paint a genuine100% frame before replacing the number with ENTER.
-      await twoFrames();
-      if (run !== generation || state.phase !== 'complete') return;
       clearTimeout(slowTimer);
+      clearTurnTimers();
       phase('ready');
-      button.disabled = false; label.textContent = 'ENTER';
       retry.hidden = true;
       overlay.setAttribute('aria-busy', 'false');
-      status.textContent = 'Ready. Press Enter or tap the circle to enter.';
+      status.textContent = 'First screen ready';
       resolveReady();
+      presentDone();
     } catch {
       if (run !== generation) return;
       clearTimeout(slowTimer);
       phase('error');
-      settleProgress();
+      stopTurns();
       overlay.setAttribute('aria-busy', 'false');
       status.textContent = 'Couldn’t load the first screen. Please retry.';
       retry.hidden = false;
@@ -273,7 +293,6 @@
   function finishEnter() {
     if (state.phase !== 'entering') return;
     clearTimeout(revealTimer);
-    settleProgress();
     if (resizeFrame) window.cancelAnimationFrame(resizeFrame);
     phase('entered');
     html.classList.remove('is-site-entering','is-site-loading');
@@ -296,36 +315,46 @@
     if (event.target === hero && ['site-hero-enter','site-hero-enter-reduced'].includes(event.animationName)) finishEnter();
   }
   function enter() {
-    if (state.phase !== 'ready') return;
+    if (state.phase !== 'done') return;
     const canvas = hero.querySelector('[data-layer="depth"]');
-    if (canvas?.dataset.state === 'loading' || criticalImages().some(image => !image.complete || !image.naturalWidth)) { prepare(); return; }
+    if (canvas?.dataset.state === 'loading' || criticalImages().some(image => !image.complete || !image.naturalWidth)) {
+      stopTurns();
+      prepare();
+      return;
+    }
     phase('entering');
-    button.disabled = true;
     html.classList.add('is-site-entering');
     html.classList.remove('is-site-loading');
     hero.addEventListener('animationend', animationEnd);
-    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    revealTimer = setTimeout(finishEnter, reduced ? 210 : 1300);
+    revealTimer = setTimeout(finishEnter, reduced?.matches ? 210 : 1300);
   }
   function mount() {
+    document.removeEventListener('readystatechange', startLoadingMotion);
     overlay = document.querySelector('[data-site-preloader]');
+    rotor = overlay?.querySelector('[data-preloader-rotor]');
     main = document.querySelector('body > main');
     hero = document.querySelector('.hero');
-    if (!overlay || !main || !hero) {
+    if (!rotor || !main || !hero) {
+      clearTurnTimers();
+      if (overlay) overlay.hidden = true;
       phase('entered'); html.classList.remove('is-site-loading'); return;
     }
-    button = overlay.querySelector('[data-preloader-enter]');
-    label = overlay.querySelector('[data-preloader-label]');
-    progress = overlay.querySelector('[data-preloader-progress]');
     status = overlay.querySelector('[data-preloader-status]');
     retry = overlay.querySelector('[data-preloader-retry]');
     main.inert = true;
     firstScreen();
     overlay.focus({ preventScroll: true });
-    button.addEventListener('click', enter);
     retry.addEventListener('click', () => window.location.reload());
     prepare();
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, { once: true });
-  else mount();
+  function startLoadingMotion() {
+    if (document.readyState !== 'interactive') return;
+    rotor = document.querySelector('[data-site-preloader]')?.querySelector('[data-preloader-rotor]');
+    scheduleLoadTurn();
+  }
+  if (document.readyState === 'loading') {
+    // The loader can already turn while deferred first-screen scripts download.
+    document.addEventListener('readystatechange', startLoadingMotion);
+    document.addEventListener('DOMContentLoaded', mount, { once: true });
+  } else mount();
 })();
