@@ -11,6 +11,9 @@
   const statements = [...about.querySelectorAll('[data-about-statement]')];
   const statementRows = statements.map(prepareStatementRows);
   const logo = hero.querySelector('[data-return-hero]');
+  const navigationItems = hero.querySelectorAll(':scope > .hero__footer :is(.glass-button, .music-control, .language-control)');
+  const worksTitle = document.querySelector('.works__title');
+  const inkTargets = [logo, ...navigationItems, worksTitle].filter(Boolean);
   const cursor = document.querySelector('.custom-cursor');
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   const referenceFrame = 1000 / 30;
@@ -176,6 +179,11 @@
     const aboutEntryStart = height * .43;
     const second = first + height * .16;
     const worksStart = second + height * .76;
+    // On phones the lead card dips past the left edge before returning.
+    const aboutExitStart = worksStart + height * (width < 600 ? .61 : width < 1024 ? .14 : .09);
+    const aboutExitEnd = aboutExitStart + height * .36;
+    const darkenStart = aboutExitEnd + height * .025;
+    const darkenEnd = darkenStart + height * .28;
     const works = window.WorksScrollChapter?.measure({ width, height, start: worksStart });
     const worksTravel = works?.travel ?? 0;
     const services = window.ServicesScrollChapter?.measure({
@@ -183,7 +191,12 @@
       worksHeadingDistance: works?.servicesHeadingDistance, worksRevealDistance: works?.servicesRevealDistance,
     });
     geometry = {
-      width, height, heroExitEnd, aboutEntryStart, first, second, worksStart,
+      width, height, heroExitEnd, aboutEntryStart, first, second, worksStart, aboutExitStart, aboutExitEnd,
+      darkenStart, darkenEnd, wipeFeather: Math.min(420, Math.max(100, width * .24)) / width,
+      themeSamples: inkTargets.map(element => {
+        const { left, width: itemWidth } = element.getBoundingClientRect();
+        return { element, x: clamp((left + itemWidth / 2) / width) };
+      }),
       servicesStart: services?.start ?? Infinity,
     };
     hero.dataset.aboutFirst = first.toFixed(2);
@@ -271,20 +284,20 @@
   }
 
   function paint(distance) {
-    const { width, height, heroExitEnd, aboutEntryStart, first, second, worksStart } = geometry;
+    const { width, height, heroExitEnd, aboutEntryStart, first, aboutExitStart, aboutExitEnd } = geometry;
     const departure = smooth(progress(distance, 0, heroExitEnd));
-    const bend = Math.sin(Math.PI * departure);
+    const bend = Math.sin(Math.PI * departure) ** .85;
     const phone = width < 600;
     const frameScale = phone ? .64 : width < 1024 ? .677 : .625;
-    const scale = 1 - (1 - frameScale * .74) * departure;
+    const scale = frameScale * .53 + (1 - frameScale * .53) * (1 - departure) ** 1.28;
     const heroHidden = departure >= 1;
     const hideIntro = distance > 1;
 
     plane.setAttribute('aria-hidden', String(heroHidden));
     plane.classList.toggle('is-moving', departure > 0 && !heroHidden);
     plane.style.setProperty('--redesign-hero-transform', departure ? 'translate3d(' +
-      (-width * 1.2 * departure) + 'px,' + (-height * .104 * departure) +
-      'px,0) rotateY(' + (57 * departure) + 'deg) rotateX(' + (-10 * bend) + 'deg) rotateZ(' + (-8 * departure) + 'deg) scale(' + scale + ')' : 'none');
+      (-width * 1.2 * departure) + 'px,' + (-height * .38 * departure) +
+      'px,0) rotateY(' + (62 * departure) + 'deg) rotateX(' + (-13 * bend) + 'deg) rotateZ(' + (-13 * departure) + 'deg) scale(' + scale + ')' : 'none');
     plane.style.setProperty('--redesign-hero-trim', phone ? (height * .086 * departure) + 'px' : '0px');
     window.HeroPlaneBend?.set(scene, heroHidden ? 0 : bend);
     window.HeroDepthEffect?.setScrollGate(1 - smooth(progress(distance, 0, height * .27)));
@@ -292,13 +305,14 @@
 
     const arrival = smooth(progress(distance, aboutEntryStart, first));
     const remaining = 1 - arrival;
-    const worksEntry = progress(distance, second, worksStart);
-    const copyExit = smooth(worksEntry);
+    const exitProgress = progress(distance, aboutExitStart, aboutExitEnd);
+    const copyExit = smooth(exitProgress);
+    const copyLift = width >= 1024 ? .28 * smooth(exitProgress / .58) : .38 * copyExit;
     const aboutVisible = arrival > 0 && copyExit < 1;
     const aboutTurn = remaining - copyExit;
     const aboutExitTravel = width * .82 + height * .065;
     const aboutX = width * 1.06 * remaining - aboutExitTravel * copyExit;
-    const aboutY = height * (.29 * remaining - .15 * copyExit);
+    const aboutY = height * (.29 * remaining - copyLift);
     const aboutScale = 1 - .5 * (remaining + copyExit);
     about.style.setProperty('--redesign-about-transform',
       'translate3d(' + aboutX + 'px,' + aboutY + 'px,0) rotateY(' + (-53 * aboutTurn) +
@@ -307,11 +321,25 @@
     about.setAttribute('aria-hidden', String(!aboutVisible));
     paintAboutStatements(width);
 
-    const darken = smooth(progress(distance, worksStart, worksStart + height * .15));
-    const light = smooth(progress(distance, 0, aboutEntryStart)) * (1 - darken);
+    const { darkenStart, darkenEnd, wipeFeather, themeSamples } = geometry;
+    const darken = smooth(progress(distance, darkenStart, darkenEnd));
+    const light = darken < 1 ? smooth(progress(distance, 0, aboutEntryStart)) : 0;
+    const darkEdge = (1 + wipeFeather) * darken - wipeFeather;
+    const wipeActive = darken > 0 && darken < 1;
+    if (wipeActive) {
+      const darkStop = (darkEdge * 100).toFixed(3) + '%';
+      const lightStop = ((darkEdge + wipeFeather) * 100).toFixed(3) + '%';
+      backdrop?.style.setProperty('--redesign-light-mask', 'linear-gradient(to right, transparent ' + darkStop + ', #000 ' + lightStop + ')');
+    } else {
+      backdrop?.style.removeProperty('--redesign-light-mask');
+    }
     backdrop?.style.setProperty('--redesign-light', light.toFixed(4));
-    // Use one of the two ink colors at the midpoint so fixed labels stay legible.
-    hero.style.setProperty('--redesign-ink', light >= .56 ? '1' : '0');
+    const inkAt = x => light * clamp((x - darkEdge) / wipeFeather) >= .52 ? '1' : '0';
+    hero.style.setProperty('--redesign-ink', inkAt(.5));
+    for (const { element, x } of themeSamples) {
+      const ink = inkAt(x);
+      if (element.style.getPropertyValue('--redesign-ink') !== ink) element.style.setProperty('--redesign-ink', ink);
+    }
     const logoProgress = smooth(progress(distance, height * .095, height * .49));
     logo.style.opacity = String(logoProgress);
     logo.style.transform = 'translate3d(0,' + ((1 - logoProgress) * 32) + 'px,0)';
@@ -320,8 +348,7 @@
     cursor?.classList.toggle('is-past-hero', hideIntro);
     hero.dataset.scrollProgress = progress(distance, 0, heroExitEnd).toFixed(4);
     hero.dataset.aboutStage = swap ? 'swapping' : activeStatement ? 'second' : arrival === 1 ? 'first' : 'entering';
-    hero.dataset.lightProgress = light.toFixed(4);
-    return worksEntry;
+    hero.dataset.lightProgress = (light * (1 - darken)).toFixed(4);
   }
 
   function render(now) {
@@ -345,7 +372,9 @@
       logo.style.removeProperty('opacity');
       logo.style.removeProperty('transform');
       backdrop?.style.removeProperty('--redesign-light');
+      backdrop?.style.removeProperty('--redesign-light-mask');
       hero.style.removeProperty('--redesign-ink');
+      for (const element of inkTargets) element.style.removeProperty('--redesign-ink');
       delete hero.dataset.aboutActive;
       cursor?.classList.remove('is-past-hero');
       window.HeroPlaneBend?.set(scene, 0);
@@ -367,9 +396,10 @@
       ? lastDistance + difference * (1 - Math.exp(-Math.max(1, elapsed) / 48))
       : resolved;
     lastDistance = distance;
-    const entryProgress = paint(distance);
+    paint(distance);
+    const entryProgress = progress(distance, geometry.second, worksStart);
     const services = window.ServicesScrollChapter?.update(distance - servicesStart, { now });
-    window.WorksScrollChapter?.update(distance - worksStart, { entryProgress, titleReady: distance > worksStart, now });
+    window.WorksScrollChapter?.update(distance - worksStart, { entryProgress, titleReady: distance > geometry.aboutExitStart, now });
     if (swap || Math.abs(distance - resolved) > .5 || services?.footerAnimating ||
       window.WorksGallery?.isAnimating?.() || window.SiteSmoothScroll?.isAnimating()) schedule();
     else lastTime = 0;

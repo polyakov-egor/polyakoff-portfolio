@@ -8,8 +8,8 @@
 
 /* The texture is shared by every chapter. The moving Hero owns its dark copy. */
 .about-backdrop__light {
-  -webkit-mask-image: none;
-  mask-image: none;
+  -webkit-mask-image: var(--redesign-light-mask, none);
+  mask-image: var(--redesign-light-mask, none);
   opacity: var(--redesign-light, 0);
 }
 .about-backdrop__lines,
@@ -28,6 +28,18 @@
 .hero > .hero__about-logo {
   z-index: 1000;
   --about-light-progress: var(--redesign-ink, 0);
+}
+.has-scroll-story .hero > .hero__footer :is(.glass-button, .music-control, .language-control) {
+  --about-light-progress: var(--redesign-ink, 0);
+  --about-ink: calc(255 - 226 * var(--about-light-progress));
+  --color-base: rgb(var(--about-ink) var(--about-ink) var(--about-ink));
+  --color-muted: rgb(var(--about-ink) var(--about-ink) var(--about-ink) / 40%);
+  --glass-background: rgb(var(--about-ink) var(--about-ink) var(--about-ink) / 10%);
+  color: var(--color-base);
+}
+.has-scroll-story .hero > .works-viewport.works-is-enhanced .works__title {
+  --redesign-chapter-tone: calc(255 - 226 * var(--redesign-ink, 0));
+  --redesign-chapter-ink: rgb(var(--redesign-chapter-tone) var(--redesign-chapter-tone) var(--redesign-chapter-tone));
 }
 .contact-icon {
   width: 16px;
