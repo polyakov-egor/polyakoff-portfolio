@@ -171,10 +171,11 @@
     if (!enabled && about.parentNode !== journey) hero.after(about);
     if (enabled) measureStatementRows();
 
-    const shrinkEnd = height * .68;
-    const first = shrinkEnd + height * .82;
+    const first = height * 2.04;
+    const heroExitEnd = first * .84;
+    const aboutEntryStart = height * .43;
     const second = first + height * .16;
-    const worksStart = second + height * .56;
+    const worksStart = second + height * .76;
     const works = window.WorksScrollChapter?.measure({ width, height, start: worksStart });
     const worksTravel = works?.travel ?? 0;
     const services = window.ServicesScrollChapter?.measure({
@@ -182,10 +183,8 @@
       worksHeadingDistance: works?.servicesHeadingDistance, worksRevealDistance: works?.servicesRevealDistance,
     });
     geometry = {
-      width, height, shrinkEnd, first, second, worksStart,
+      width, height, heroExitEnd, aboutEntryStart, first, second, worksStart,
       servicesStart: services?.start ?? Infinity,
-      servicesHeadingStart: services ? services.start + services.headingStart : Infinity,
-      servicesHeadingFade: services?.headingFade ?? 1,
     };
     hero.dataset.aboutFirst = first.toFixed(2);
     hero.dataset.aboutSecond = second.toFixed(2);
@@ -272,56 +271,54 @@
   }
 
   function paint(distance) {
-    const { width, height, shrinkEnd, first, second, worksStart, servicesHeadingStart, servicesHeadingFade } = geometry;
-    const shrink = smooth(distance / shrinkEnd);
-    const departure = smooth(progress(distance, shrinkEnd, first));
-    const turn = Math.pow(departure, .72);
+    const { width, height, heroExitEnd, aboutEntryStart, first, second, worksStart } = geometry;
+    const departure = smooth(progress(distance, 0, heroExitEnd));
     const bend = Math.sin(Math.PI * departure);
     const phone = width < 600;
     const frameScale = phone ? .64 : width < 1024 ? .677 : .625;
-    const scale = (1 - (1 - frameScale) * shrink) * (1 - .26 * departure);
+    const scale = 1 - (1 - frameScale * .74) * departure;
     const heroHidden = departure >= 1;
     const hideIntro = distance > 1;
 
     plane.setAttribute('aria-hidden', String(heroHidden));
-    plane.classList.toggle('is-moving', shrink > 0 && !heroHidden);
-    plane.style.setProperty('--redesign-hero-transform', shrink ? 'translate3d(' +
-      (-width * 1.2 * departure) + 'px,' + (-height * ((phone ? .004 * shrink : 0) + .1 * departure)) +
-      'px,0) rotateY(' + (57 * turn) + 'deg) rotateX(' + (-10 * bend) + 'deg) rotateZ(' + (-8 * departure) + 'deg) scale(' + scale + ')' : 'none');
-    plane.style.setProperty('--redesign-hero-trim', phone ? (height * .086 * shrink) + 'px' : '0px');
+    plane.classList.toggle('is-moving', departure > 0 && !heroHidden);
+    plane.style.setProperty('--redesign-hero-transform', departure ? 'translate3d(' +
+      (-width * 1.2 * departure) + 'px,' + (-height * .104 * departure) +
+      'px,0) rotateY(' + (57 * departure) + 'deg) rotateX(' + (-10 * bend) + 'deg) rotateZ(' + (-8 * departure) + 'deg) scale(' + scale + ')' : 'none');
+    plane.style.setProperty('--redesign-hero-trim', phone ? (height * .086 * departure) + 'px' : '0px');
     window.HeroPlaneBend?.set(scene, heroHidden ? 0 : bend);
-    window.HeroDepthEffect?.setScrollGate(1 - smooth(progress(distance, 0, shrinkEnd * .4)));
+    window.HeroDepthEffect?.setScrollGate(1 - smooth(progress(distance, 0, height * .27)));
     window.HeroWelcomeStack?.setVisible(!hideIntro);
 
-    const arrival = smooth(progress(distance, shrinkEnd * .99, first));
+    const arrival = smooth(progress(distance, aboutEntryStart, first));
     const remaining = 1 - arrival;
-    const perspective = Math.pow(remaining, .68);
-    const aboutX = width * .92 * Math.pow(remaining, 1.65);
-    const aboutY = height * .29 * Math.pow(remaining, .82);
-    const arrivalScale = .50 + .50 * Math.pow(arrival, 1.34);
     const worksEntry = progress(distance, second, worksStart);
     const copyExit = smooth(worksEntry);
-    const aboutOpacity = Number(arrival > 0) * (1 - copyExit);
+    const aboutVisible = arrival > 0 && copyExit < 1;
+    const aboutTurn = remaining - copyExit;
+    const aboutExitTravel = width * .82 + height * .065;
+    const aboutX = width * 1.06 * remaining - aboutExitTravel * copyExit;
+    const aboutY = height * (.29 * remaining - .15 * copyExit);
+    const aboutScale = 1 - .5 * (remaining + copyExit);
     about.style.setProperty('--redesign-about-transform',
-      'translate3d(' + aboutX + 'px,' + aboutY + 'px,0) rotateY(' + (-53 * perspective) +
-      'deg) rotateX(' + (17 * perspective) + 'deg) rotateZ(' + (8 * perspective) +
-      'deg) scale(' + (arrivalScale * (1 - copyExit * .16)) + ')');
-    about.style.setProperty('--redesign-about-opacity', aboutOpacity.toFixed(4));
-    about.setAttribute('aria-hidden', String(aboutOpacity === 0));
+      'translate3d(' + aboutX + 'px,' + aboutY + 'px,0) rotateY(' + (-53 * aboutTurn) +
+      'deg) rotateX(' + (17 * aboutTurn) + 'deg) rotateZ(' + (8 * aboutTurn) +
+      'deg) scale(' + aboutScale + ')');
+    about.setAttribute('aria-hidden', String(!aboutVisible));
     paintAboutStatements(width);
 
-    const darken = smooth((distance - servicesHeadingStart) / servicesHeadingFade);
-    const light = smooth(progress(distance, 0, shrinkEnd * .6)) * (1 - darken);
+    const darken = smooth(progress(distance, worksStart, worksStart + height * .15));
+    const light = smooth(progress(distance, 0, aboutEntryStart)) * (1 - darken);
     backdrop?.style.setProperty('--redesign-light', light.toFixed(4));
     // Use one of the two ink colors at the midpoint so fixed labels stay legible.
     hero.style.setProperty('--redesign-ink', light >= .56 ? '1' : '0');
-    const logoProgress = smooth(progress(distance, shrinkEnd * .14, shrinkEnd * .72));
+    const logoProgress = smooth(progress(distance, height * .095, height * .49));
     logo.style.opacity = String(logoProgress);
     logo.style.transform = 'translate3d(0,' + ((1 - logoProgress) * 32) + 'px,0)';
     const aboutActive = String(logoProgress >= .85);
     if (hero.dataset.aboutActive !== aboutActive) hero.dataset.aboutActive = aboutActive;
     cursor?.classList.toggle('is-past-hero', hideIntro);
-    hero.dataset.scrollProgress = progress(distance, 0, shrinkEnd).toFixed(4);
+    hero.dataset.scrollProgress = progress(distance, 0, heroExitEnd).toFixed(4);
     hero.dataset.aboutStage = swap ? 'swapping' : activeStatement ? 'second' : arrival === 1 ? 'first' : 'entering';
     hero.dataset.lightProgress = light.toFixed(4);
     return worksEntry;
@@ -344,7 +341,6 @@
       plane.style.removeProperty('--redesign-hero-transform');
       plane.style.removeProperty('--redesign-hero-trim');
       about.style.removeProperty('--redesign-about-transform');
-      about.style.removeProperty('--redesign-about-opacity');
       about.removeAttribute('data-about-swapping');
       logo.style.removeProperty('opacity');
       logo.style.removeProperty('transform');
@@ -373,7 +369,7 @@
     lastDistance = distance;
     const entryProgress = paint(distance);
     const services = window.ServicesScrollChapter?.update(distance - servicesStart, { now });
-    window.WorksScrollChapter?.update(distance - worksStart, { entryProgress, now });
+    window.WorksScrollChapter?.update(distance - worksStart, { entryProgress, titleReady: distance > worksStart, now });
     if (swap || Math.abs(distance - resolved) > .5 || services?.footerAnimating ||
       window.WorksGallery?.isAnimating?.() || window.SiteSmoothScroll?.isAnimating()) schedule();
     else lastTime = 0;

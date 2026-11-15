@@ -93,9 +93,9 @@
   min-height: 0;
   padding-inline: 0;
   perspective: 68vw;
-  opacity: var(--redesign-about-opacity, 0);
 }
 .has-scroll-story .redesign-about[aria-hidden="true"] { visibility: hidden; }
+.has-scroll-story .works-is-preview .works__title { opacity: 0; transition: none; }
 .has-scroll-story .redesign-about__plane {
   /* Center the copy itself, with its label above it. */
   translate: 0 calc((12px + var(--about-label-gap)) / -2);

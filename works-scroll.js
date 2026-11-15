@@ -153,7 +153,7 @@
     return { travel, galleryTravel, exitTravel, emptyHold, holdDistance, phasePerViewport, servicesHeadingDistance, servicesRevealDistance };
   }
 
-  function update(localDistance, { reducedMotion = reduced.matches, entryProgress = 0, now = 0 } = {}) {
+  function update(localDistance, { reducedMotion = reduced.matches, entryProgress = 0, titleReady, now = 0 } = {}) {
     if (!enhanced || reducedMotion) {
       window.InspirationClosing?.updateWorks(localDistance,{holdDistance,height,headingProgress:0,reducedMotion:true});
       return {finished:false};
@@ -168,7 +168,7 @@
     // Works boundary, both paths project the measured entrance pose.
     const helix=active?helixProgress(localDistance):entranceStart+(entrancePeek-entranceStart)*entryProgress;
     hero.classList.toggle('is-works', active);
-    const titleVisible=active&&galleryVisible&&helix>=titleRevealPhase&&helix<titleHidePhase;
+    const titleVisible=active&&galleryVisible&&(titleReady??(helix>=titleRevealPhase))&&helix<titleHidePhase;
     viewport.classList.toggle('has-works-title',titleVisible);
     viewport.classList.toggle('works-is-preview',preview);
     hero.style.setProperty('--works-exit-px', `${exit}px`);
