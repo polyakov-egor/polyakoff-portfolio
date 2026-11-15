@@ -180,7 +180,8 @@
     const second = first + height * .16;
     const worksStart = second + height * .76;
     // On phones the lead card dips past the left edge before returning.
-    const aboutExitStart = worksStart + height * (width < 600 ? .61 : width < 1024 ? .14 : .09);
+    const phoneExitLead = .56 + .05 * progress(width, 320, 375);
+    const aboutExitStart = worksStart + height * (width < 600 ? phoneExitLead : width < 1024 ? .14 : .09);
     const aboutExitEnd = aboutExitStart + height * .36;
     const darkenStart = aboutExitEnd + height * .025;
     const darkenEnd = darkenStart + height * .28;
