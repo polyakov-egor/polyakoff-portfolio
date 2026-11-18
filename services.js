@@ -383,8 +383,6 @@ function mountServices(root) {
   const counter = root.querySelector('[data-services-counter]');
   const status = root.querySelector('[data-services-status]');
   const words = [...root.querySelectorAll('[data-services-word]')];
-  const surfaces = [...root.querySelectorAll('[data-services-surface]')];
-  const originalClips = new Map(surfaces.map(surface => [surface, surface.style.clipPath]));
   const originalTransforms = cards.map(card => card.element.style.transform);
   const originalPerspective = deck.style.perspective;
   const decorations = [];
@@ -545,11 +543,6 @@ function mountServices(root) {
       sideOffset: number('--services-side-offset') * fit, sideTop: number('--services-side-top') * fit,
     });
     deck.style.perspective = `${geometry.perspective}px`;
-    for (const surface of surfaces) {
-      if (!view.HeroSquircle?.path) continue;
-      const radius = (number('--services-radius') || 48) * fit;
-      surface.style.clipPath = `path("${view.HeroSquircle.path(geometry.width, geometry.height, radius, 1)}")`;
-    }
     paintOrbit(true);
     wake();
   }
@@ -601,7 +594,7 @@ function mountServices(root) {
       id: event.pointerId, x: event.clientX, y: event.clientY, dx: 0, moved: false, intent: null,
       startPhase: orbit.value, startTarget: orbit.target, startStep: Math.round(orbit.value),
       lastX: event.clientX, lastTime: performance.now(), velocity: 0,
-      pixelsPerStep: Math.max(200, geometry.width * .9),
+      pixelsPerStep: Math.max(160, geometry.width * .75),
       selectable,
     };
   }, { signal });
@@ -635,10 +628,21 @@ function mountServices(root) {
     if (Math.hypot(dx, dy) > 6) gesture.moved = true;
     if (gesture.moved) suppressClickUntil = performance.now() + 500;
     if (gesture.intent !== 'horizontal') return;
-    const recentVelocity = performance.now() - gesture.lastTime < 90 ? gesture.velocity : 0;
-    let destination = Math.round(orbit.value + limit(recentVelocity * .055, -.23, .23));
-    const threshold = limit(geometry.width * .12, 28, 44);
-    if (Math.abs(dx) >= threshold && destination === gesture.startStep) destination += dx < 0 ? 1 : -1;
+    const releaseTime = performance.now();
+    const elapsed = Math.max(8, releaseTime - gesture.lastTime) / 1000;
+    const finalMovement = event.clientX - gesture.lastX;
+    const releaseVelocity = finalMovement
+      ? gesture.velocity * .4 - finalMovement / gesture.pixelsPerStep / elapsed * .6
+      : gesture.velocity;
+    const recentVelocity = releaseTime - gesture.lastTime <= 90 ? releaseVelocity : 0;
+    const displacement = -dx / gesture.pixelsPerStep;
+    const releasedPhase = gesture.startPhase + displacement;
+    // Round exact half turns toward the swipe, including negative phases.
+    let destination = displacement < 0 ? Math.ceil(releasedPhase - .5) : Math.floor(releasedPhase + .5);
+    const flick = Math.abs(dx) >= 16 && Math.abs(recentVelocity) * gesture.pixelsPerStep >= 250 &&
+      Math.sign(recentVelocity) === Math.sign(displacement);
+    if (flick && destination === gesture.startStep) destination += Math.sign(recentVelocity);
+    if (!reduced.matches) orbit.value = releasedPhase;
     orbit.velocity = limit(recentVelocity, -6, 6);
     targetPhase(destination);
   }, { signal });
@@ -750,7 +754,6 @@ function mountServices(root) {
       if (frame) view.cancelAnimationFrame(frame);
       controller.abort(); tilt.destroy();
       resizeObserver.disconnect(); intersectionObserver.disconnect();
-      originalClips.forEach((clip, surface) => { surface.style.clipPath = clip; });
       cards.forEach((card, cardIndex) => {
         card.element.style.transform = originalTransforms[cardIndex];
         card.rotor.style.display = ''; card.side.style.display = '';

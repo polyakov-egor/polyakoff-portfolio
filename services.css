@@ -10,7 +10,7 @@
   --services-side-height: 300px;
   --services-side-offset: 174.5px;
   --services-side-top: 60px;
-  --services-radius: 48px;
+  --services-radius: 0px;
   --services-card-padding: 32px;
   --services-card-padding-x: 32px;
   --services-caption-shade: .7;
@@ -115,7 +115,7 @@
 }
 @media (max-width: 599px) {
   .services { --services-entry-gap: 48px; }
-  .services { --services-heading-size: clamp(24px,8.533333vw,38px); --services-card-width: 250px; --services-card-height: 310px; --services-side-width: 98px; --services-side-height: 224px; --services-side-offset: 108px; --services-side-top: 43px; --services-radius: 40px; --services-card-padding: 32px; --services-card-padding-x: 28px; --services-caption-shade: .6; }
+  .services { --services-heading-size: clamp(24px,8.533333vw,38px); --services-card-width: 250px; --services-card-height: 310px; --services-side-width: 98px; --services-side-height: 224px; --services-side-offset: 108px; --services-side-top: 43px; --services-card-padding: 32px; --services-card-padding-x: 28px; --services-caption-shade: .6; }
   .services__layout { min-height: max(1122px,100svh); padding-top: 139px; padding-bottom: 227px; }
   .services__background { top: 0; transform: translateX(-50%); }
   .services__heading { margin-top: 40px !important; }

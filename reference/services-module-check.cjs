@@ -52,18 +52,21 @@ const cards=['web','app','motion'].map((id,index)=>{
 root.queries.set('[data-service-id]',cards);root.queries.set('[data-services-word]',[]);
 root.queries.set('[data-services-surface]',cards.flatMap(card=>['[data-services-side]','[data-services-front]','[data-services-back]'].map(selector=>card.querySelector(selector))));
 doc.querySelectorAll=selector=>selector==='[data-services]'?[root]:[];
-let time=0;const raf=new Map(),observers=[];
+let time=0;const raf=new Map(),observers=[],resizeObservers=[];
 view.requestAnimationFrame=fn=>{const id=++view.nextFrame;raf.set(id,fn);return id;};view.nextFrame=0;
 view.cancelAnimationFrame=id=>raf.delete(id);view.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});
 view.getSelection=()=>({isCollapsed:true});
+let squircleCalls=0;
+view.HeroSquircle={path(){squircleCalls++;return'M0,0';}};
 const variables={'--services-side-width':131,'--services-side-height':300,'--services-side-offset':174.5,'--services-side-top':60,'--services-radius':48};
 const scope={window:view,document:doc,Element:Node,AbortController,performance:{now:()=>time},
   getComputedStyle:()=>({getPropertyValue:name=>String(variables[name]||0)}),
   CustomEvent:class {constructor(type,options={}){Object.assign(this,{type},options);}},
-  ResizeObserver:class {observe(){}disconnect(){}},
+  ResizeObserver:class {constructor(fn){resizeObservers.push(fn);}observe(){}disconnect(){}},
   IntersectionObserver:class {constructor(fn){this.fn=fn;observers.push(this);}observe(){}disconnect(){}}};
 vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../services.js'),'utf8'),scope);
 const api=view.ServicesScreens.get(root);assert(api);assert.strictEqual(view.ServicesScreens.mount(root),api,'Mount remains idempotent');
+assert.equal(squircleCalls,0,'Square card surfaces never acquire a runtime squircle clip');
 assert.equal(raf.size,0,'Mounting far below the hero does not start a background clock');
 api.setVisible(false);observers[0].fn([{isIntersecting:true}]);
 assert.equal(raf.size,0,'A transformed tall panel intersecting behind Works stays asleep');
@@ -115,9 +118,61 @@ api.flip(false);settle();doc.activeElement=doc;
 event('pointerdown',{clientX:200,clientY:300});
 assert.equal(event('pointermove',{clientX:198,clientY:200}).defaultPrevented,false,'Vertical touch belongs to document scrolling');
 event('pointercancel');settle();assert.equal(api.activeId,'web');
-event('pointerdown',{clientX:250,clientY:250});
-assert(event('pointermove',{clientX:130,clientY:248}).defaultPrevented,'Horizontal intent belongs to the carousel');
-event('pointerup',{clientX:130,clientY:248});settle();assert.equal(api.activeId,'app');
+function swipe({dx,duration=600,pointerType='touch',pause=0,releaseDx=dx,cancel=null}){
+  event('pointerdown',{pointerType,clientX:250,clientY:250});
+  time+=duration;
+  assert(event('pointermove',{pointerType,clientX:250+dx,clientY:248}).defaultPrevented,'Horizontal intent belongs to the carousel');
+  time+=pause;
+  if(cancel==='lostpointercapture')deck.releasePointerCapture(1);
+  event(cancel||'pointerup',{pointerType,clientX:250+releaseDx,clientY:248});
+}
+for(const pointerType of['mouse','touch']){
+  api.select('web');settle();
+  swipe({pointerType,dx:-132});settle();
+  assert.equal(api.activeId,'web',`${pointerType}: a slow drag below halfway returns to the current card`);
+  swipe({pointerType,dx:-135});settle();
+  assert.equal(api.activeId,'app',`${pointerType}: an exact halfway drag advances to the next card`);
+  swipe({pointerType,dx:135});settle();
+  assert.equal(api.activeId,'web',`${pointerType}: the opposite halfway tie also commits`);
+  swipe({pointerType,dx:-28,duration:35});
+  assert.equal(api.activeId,'app',`${pointerType}: a short fast flick completes the next step`);
+  assert(event('click',{target:appOpen,detail:1}).defaultPrevented,'The immediate compatibility click after a flick is suppressed');
+  assert.equal(cards[1].dataset.flipped,'false','A flick never also flips the card');settle();
+  swipe({pointerType,dx:28,duration:35});settle();
+  assert.equal(api.activeId,'web',`${pointerType}: a short fast flick works in the opposite direction`);
+  swipe({pointerType,dx:-28,duration:600});settle();
+  assert.equal(api.activeId,'web',`${pointerType}: the same short movement made slowly does not commit`);
+  swipe({pointerType,dx:-28,duration:35,pause:120});settle();
+  assert.equal(api.activeId,'web',`${pointerType}: holding after a short flick expires its release velocity`);
+  swipe({pointerType,dx:-15,duration:10});settle();
+  assert.equal(api.activeId,'web',`${pointerType}: tiny fast movement cannot trigger a flick`);
+  swipe({pointerType,dx:-70,releaseDx:-40,pause:35});settle();
+  assert.equal(api.activeId,'web',`${pointerType}: a quick reversal cannot count as a flick in the displacement direction`);
+  swipe({pointerType,dx:-170,cancel:'pointercancel'});settle();
+  assert.equal(api.activeId,'web',`${pointerType}: cancellation does not commit a drag beyond halfway`);
+  swipe({pointerType,dx:-170,cancel:'lostpointercapture'});settle();
+  assert.equal(api.activeId,'web',`${pointerType}: losing capture restores the original destination`);
+  swipe({pointerType,dx:-100,duration:600,releaseDx:-140,pause:300});settle();
+  assert.equal(api.activeId,'app',`${pointerType}: final release coordinates can cross halfway after the last move`);
+  api.select('web');settle();
+  swipe({pointerType,dx:-150,releaseDx:-120,pause:300});settle();
+  assert.equal(api.activeId,'web',`${pointerType}: retreating below halfway before release cancels the pending step`);
+  swipe({pointerType,dx:-15,duration:600,releaseDx:-35,pause:20});settle();
+  assert.equal(api.activeId,'app',`${pointerType}: a quick final release sample can complete a short flick`);
+}
+api.select('web');settle();
+for(const card of cards){card.offsetWidth=250;card.offsetHeight=310;}
+for(const resize of resizeObservers)resize();settle();
+assert.equal(squircleCalls,0,'Phone resizing keeps card corners square');
+swipe({dx:-90});settle();
+assert.equal(api.activeId,'web','A phone drag just below halfway returns');
+swipe({dx:-94});settle();
+assert.equal(api.activeId,'app','A phone drag just beyond halfway commits');
+swipe({dx:28,duration:35});settle();
+assert.equal(api.activeId,'web','The same short fast flick works with phone geometry');
+for(const card of cards){card.offsetWidth=360;card.offsetHeight=420;}
+for(const resize of resizeObservers)resize();settle();
+swipe({dx:-135});settle();assert.equal(api.activeId,'app');
 assert(api.flip(true));settle();assert.equal(cards[1].dataset.flipped,'true');
 assert.equal(cards[1].querySelector('[data-services-front]').inert,true);
 assert.equal(cards[1].querySelector('[data-services-back]').inert,false);
@@ -130,4 +185,4 @@ assert(doc.focusCalls.every(call=>call.options?.preventScroll),'All pointer and 
 assert.equal(view.listeners.get('wheel'),undefined,'The module adds no global wheel interception');
 assert.equal(deck.listeners.get('wheel'),undefined,'The module adds no deck wheel interception');
 api.destroy();assert.equal(raf.size,0);assert.equal(view.ServicesScreens.get(root),undefined);
-console.log('Services module checks passed: stable pointer focus, keyboard focus/flip, native text/link/vertical gestures, horizontal orbit, inert sides, scoped Home, hidden panel and sleeping shared spring.');
+console.log('Services module checks passed: square surfaces, mouse/touch halfway snap and fast flicks, release samples/cancellation, phone resize, stable focus, native vertical/text/link gestures, inert sides and sleeping shared spring.');
