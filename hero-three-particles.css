@@ -4,8 +4,7 @@
 }
 
 .hero.has-three-particle-portrait .scene-layer--portrait {
-  opacity: 1;
-  filter: brightness(var(--hero-three-portrait-brightness, .66));
+  opacity: var(--hero-three-image-opacity, 1);
 }
 
 .hero.has-three-particle-portrait .scene-layer--depth {

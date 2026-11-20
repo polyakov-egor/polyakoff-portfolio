@@ -35,7 +35,7 @@ const simulationShader = `
     vec4 state = texture2D(tState, uv);
     vec2 position = (state.xy - .5) * uImageSize;
     vec2 home = (anchor.xy - .5) * uImageSize;
-    float dust = smoothstep(.61, .99, anchor.z);
+    float dust = smoothstep(.55, .98, anchor.z);
     float age = mod(uFrame + anchor.w * uLifespan, uLifespan);
 
     if (age < uDt || length(home - position) > max(200., uCanvasSize.x * .36)) {
@@ -43,9 +43,9 @@ const simulationShader = `
       return;
     }
 
-    float curlScale = mix(1.4, 6.2, dust) * uNoiseStrength * uIntensity;
+    float curlScale = mix(1.75, 5.7, dust) * uNoiseStrength * uIntensity;
     vec2 force = flow(position * uNoiseScale, uTime, anchor.z) * curlScale;
-    force += (home - position) * mix(.0075, .0017, dust);
+    force += (home - position) * mix(.0084, .00255, dust);
 
     vec2 fromPointer = position - uPointer;
     float cursorInfluence = 1. - smoothstep(0., uCursorRadius, length(fromPointer));
@@ -80,13 +80,24 @@ const pointVertex = `
     gl_Position = vec4(2. * point.x, -2. * point.y, 0., 1.);
 
     float seed = fract(anchor.z * 134.126);
-    float area = mix(.27, 1.06, pow(seed, 2.2));
-    float stretchFade = 1. - .48 * smoothstep(22., 150., distance(state.xy, anchor.xy) * uImageSize.y);
+    float diameter = mix(.29, 1.08, pow(seed, .83));
+    float travel = length((state.xy - anchor.xy) * uImageSize);
+    float stretchFade = 1. - .34 * smoothstep(38., 180., travel);
     float age = mod(uFrame + anchor.w * uLifespan, uLifespan);
-    float lifeFade = smoothstep(0., 12., age) * (1. - smoothstep(uLifespan - 44., uLifespan, age));
+    float fadeFrames = min(36., uLifespan * .22);
+    float lifeFade = smoothstep(0., fadeFrames * .3, age) * (1. - smoothstep(uLifespan - fadeFrames, uLifespan, age));
     vec4 texel = texture2D(uPortrait, anchor.xy);
-    vParticle = vec4(texel.rgb, texel.a * mix(.26, .94, fract(anchor.w * 97.16)) * lifeFade * stretchFade);
-    gl_PointSize = clamp(uPointSize * area, 1., uMaxPointSize);
+    float luminance = dot(texel.rgb, vec3(.2126, .7152, .0722));
+    float light = smoothstep(.025, .27, luminance);
+    bool beyondImage = any(lessThan(state.xy, vec2(0.))) || any(greaterThan(state.xy, vec2(1.)));
+    float localAlpha = beyondImage ? 0. : texture2D(uPortrait, state.xy).a;
+    // Lift visible highlights without thickening escaped near-black specks over the surname.
+    float opacity = mix(.31 + .19 * light, .96, fract(anchor.w * 97.16));
+    float detachFade = mix(mix(.17, 1., light), 1., localAlpha);
+    float pointSize = uPointSize * diameter;
+    float coverage = min(1., pointSize * pointSize);
+    vParticle = vec4(texel.rgb * (.89 + .42 * light), texel.a * opacity * lifeFade * stretchFade * detachFade * coverage);
+    gl_PointSize = clamp(pointSize, 1., uMaxPointSize);
   }
 `;
 
@@ -96,7 +107,7 @@ const pointFragment = `
 
   void main() {
     float distanceFromCenter = length(gl_PointCoord - .5) * 2.;
-    float edge = 1. - smoothstep(.48, 1., distanceFromCenter);
+    float edge = 1. - smoothstep(.76, 1., distanceFromCenter);
     gl_FragColor = vec4(vParticle.rgb, vParticle.a * edge * uOpacity);
   }
 `;
@@ -112,16 +123,29 @@ function samplePortrait(image) {
   context.drawImage(image, 0, 0, width, height);
   const { data } = context.getImageData(0, 0, width, height);
   const choices = [];
+  const edges = new Float32Array(width * height * 2);
+  const luminanceAt = index => (.2126 * data[index] + .7152 * data[index + 1] + .0722 * data[index + 2]) / 255;
   for (let pixel = 0, i = 0; i < data.length; pixel++, i += 4) {
     if (data[i + 3] < 12) continue;
-    const luminance = (.2126 * data[i] + .7152 * data[i + 1] + .0722 * data[i + 2]) / 255;
-    // Keep the dark silhouette. Modestly favor detail in the brighter hair,
-    // face edges and fabric where individual particles can be seen.
-    const weight = Math.max(1, Math.round((1 + Math.sqrt(luminance) * 6) * data[i + 3] / 255));
+    const x = pixel % width;
+    const y = Math.floor(pixel / width);
+    const left = 4 * (y * width + Math.max(x - 3, 0));
+    const right = 4 * (y * width + Math.min(x + 3, width - 1));
+    const top = 4 * (Math.max(y - 3, 0) * width + x);
+    const bottom = 4 * (Math.min(y + 3, height - 1) * width + x);
+    const edgeX = (data[left + 3] - data[right + 3]) / 255;
+    const edgeY = (data[top + 3] - data[bottom + 3]) / 255;
+    edges[pixel * 2] = edgeX;
+    edges[pixel * 2 + 1] = edgeY;
+    const outline = Math.min(1, Math.hypot(edgeX, edgeY));
+    const detail = Math.min(.35, Math.hypot(luminanceAt(right) - luminanceAt(left), luminanceAt(bottom) - luminanceAt(top)));
+    const light = Math.pow(Math.max(0, luminanceAt(i) - .016), .65);
+    // Sample shadows sparsely; emphasize contour and nearby texture where flecks are visible.
+    const weight = Math.max(1, Math.round((1 + 15 * light + 10 * detail + 4 * outline) * data[i + 3] / 255));
     for (let copy = 0; copy < weight; copy++) choices.push(pixel);
   }
   if (!choices.length) throw new Error('Particle portrait has no visible pixels');
-  return { sampler, width, height, choices };
+  return { sampler, width, height, choices, edges };
 }
 
 function seedTextures(anchors, initial, source, aspectWidth, aspectHeight) {
@@ -132,22 +156,28 @@ function seedTextures(anchors, initial, source, aspectWidth, aspectHeight) {
     seed ^= seed << 5;
     return (seed >>> 0) / 4294967296;
   };
-  const { width, height, choices } = source;
+  const { width, height, choices, edges } = source;
   for (let i = 0; i < initial.length; i += 4) {
     const sampled = choices[Math.floor(random() * choices.length)];
     const x = (sampled % width + random()) / width;
     const y = (Math.floor(sampled / width) + random()) / height;
-    const spread = random();
+    const edgeX = edges[sampled * 2];
+    const edgeY = edges[sampled * 2 + 1];
+    const edge = Math.min(1, Math.hypot(edgeX, edgeY));
+    const spread = Math.min(.999, random() + edge * .14);
     const angle = random() * Math.PI * 2;
-    const distance = Math.pow(random(), 2) * (spread > .78 ? aspectWidth * .13 : aspectWidth * .027);
+    const distance = Math.pow(random(), 2.2) * (spread > .8 ? aspectWidth * .115 : aspectWidth * .038);
+    const outwards = random() * Math.min(18, aspectWidth * .017);
+    const offsetX = Math.cos(angle) * distance + edgeX * outwards;
+    const offsetY = Math.sin(angle) * distance + edgeY * outwards;
     anchors[i] = x;
     anchors[i + 1] = y;
     anchors[i + 2] = spread;
     anchors[i + 3] = random();
-    initial[i] = x + Math.cos(angle) * distance / aspectWidth;
-    initial[i + 1] = y + Math.sin(angle) * distance / aspectHeight;
-    initial[i + 2] = Math.cos(angle) * distance * .007;
-    initial[i + 3] = Math.sin(angle) * distance * .007;
+    initial[i] = x + offsetX / aspectWidth;
+    initial[i + 1] = y + offsetY / aspectHeight;
+    initial[i + 2] = offsetX * .007;
+    initial[i + 3] = offsetY * .007;
   }
 }
 
@@ -213,7 +243,7 @@ export function createParticleRenderer({ canvas, image, width, height, settings 
 
   function draw() {
     const opacity = bounded(settings.particleOpacity, .9, 0, 1);
-    const pointSize = bounded(settings.particleSize, 4.5, .5, 16);
+    const pointSize = bounded(settings.particleSize, 4.5, .1, 16);
     uniforms.uState.value = compute.getCurrentRenderTarget(simulation).texture;
     uniforms.uPointSize.value = pointSize * pixelRatio;
     uniforms.uOpacity.value = opacity;
@@ -237,11 +267,11 @@ export function createParticleRenderer({ canvas, image, width, height, settings 
     values.uDt.value = dt;
     values.uTime.value = time;
     values.uFrame.value = frame;
-    values.uLifespan.value = bounded(settings.lifespan, 960, 120, 3600);
+    values.uLifespan.value = bounded(settings.lifespan, 960, 10, 3600);
     values.uNoiseScale.value = bounded(settings.noiseScale, .005, .00005, .03);
     values.uNoiseStrength.value = bounded(settings.noiseStrength, .10, 0, .5);
-    values.uDamping.value = bounded(settings.damping, .873, .6, .995);
-    values.uCursorRadius.value = bounded(settings.cursorRadius, 60, 1, 240);
+    values.uDamping.value = bounded(settings.damping, .873, .6, .999);
+    values.uCursorRadius.value = bounded(settings.cursorRadius, 60, 1, 300);
     values.uCursorStrength.value = bounded(settings.cursorStrength, .36, 0, 2.5);
     values.uIntensity.value = bounded(settings.intensity, 1, 0, 1);
     compute.compute();
@@ -318,6 +348,7 @@ export function createParticleRenderer({ canvas, image, width, height, settings 
   return {
     count,
     render,
+    redraw: draw,
     resize(w, h) {
       if (!(w > 0 && h > 0)) return;
       if (updateSize(w, h)) draw();

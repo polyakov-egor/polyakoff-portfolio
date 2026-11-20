@@ -8,12 +8,13 @@
   const defaults = Object.freeze({
     enabled: true, particleCount: 160000, particleSize: 4.5, particleOpacity: .9,
     speed: 1.5, noiseScale: .005, noiseStrength: .10, damping: .873, lifespan: 960,
-    cursorStrength: .36, cursorRadius: 60, baseOpacity: .66,
+    imageOpacity: 1, cursorStrength: .36, cursorRadius: 60,
+    showImage: true, cursorInteraction: true, paused: false,
   });
   const limits = {
-    particleCount: [20000, 350000], particleSize: [.5, 10], particleOpacity: [0, 1],
-    speed: [0, 3], noiseScale: [.0005, .03], noiseStrength: [0, .3], damping: [.5, .995],
-    lifespan: [60, 2000], cursorStrength: [0, 1], cursorRadius: [10, 160], baseOpacity: [0, 1],
+    particleCount: [10000, 500000], particleSize: [.1, 6], particleOpacity: [0, 1],
+    speed: [0, 4], noiseScale: [.0001, .02], noiseStrength: [0, .5], damping: [.8, .999],
+    lifespan: [10, 2000], imageOpacity: [0, 1], cursorStrength: [0, .4], cursorRadius: [1, 300],
   };
   const settings = { ...defaults };
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
@@ -34,7 +35,8 @@
     status, inHero: inHero(), frames, count: current?.renderer.count ?? 0,
     error: status === 'unavailable' ? failure?.error.message : undefined,
   });
-  const canDraw = () => settings.enabled && !reduced.matches && inHero() && !document.hidden && Boolean(bounds);
+  const canPresent = () => settings.enabled && !reduced.matches && inHero() && !document.hidden && Boolean(bounds);
+  const canAnimate = () => canPresent() && !settings.paused;
 
   function notify() {
     window.dispatchEvent(new CustomEvent('hero-three-particles:state', { detail: getState() }));
@@ -50,6 +52,10 @@
     cancelAnimationFrame(frame);
     frame = 0;
     lastFrame = 0;
+    clearPointer();
+  }
+
+  function clearPointer() {
     pointer.active = false;
     pointer.vx = pointer.vy = 0;
   }
@@ -102,7 +108,7 @@
 
   function animate(now) {
     frame = 0;
-    if (!current || !canDraw()) return;
+    if (!current || !canAnimate()) return;
     const dt = lastFrame ? clamp((now - lastFrame) / 1000, 0, .05) : 1 / 60;
     lastFrame = now;
     const momentumFade = Math.exp(-dt * 8);
@@ -124,10 +130,10 @@
     showStatus('loading');
     let canvas, renderer;
     try {
-      engineModule ??= import('./hero-three-particle-engine.js');
+      engineModule ??= import('./hero-three-particle-engine.js?v=2');
       const [{ createParticleRenderer }, image] = await Promise.all([engineModule, loadPortrait(source)]);
       if (run !== generation) return;
-      if (!canDraw()) {
+      if (!canPresent()) {
         pendingKey = null;
         sync();
         return;
@@ -173,7 +179,7 @@
       showStatus(reduced.matches ? 'reduced' : 'disabled');
       return;
     }
-    if (!canDraw()) {
+    if (!canPresent()) {
       stop();
       showStatus(current ? 'paused' : 'waiting');
       return;
@@ -190,6 +196,11 @@
       return;
     }
     if (pendingKey && pendingKey !== key) invalidatePending();
+    if (settings.paused) {
+      stop();
+      showStatus('paused');
+      return;
+    }
     showStatus('active');
     if (!frame) frame = requestAnimationFrame(animate);
   }
@@ -205,6 +216,8 @@
   }
 
   function setSettings(patch) {
+    const priorSize = settings.particleSize;
+    const priorOpacity = settings.particleOpacity;
     for (const [name, [min, max]] of Object.entries(limits)) {
       const value = patch?.[name];
       if (Number.isFinite(value)) settings[name] = clamp(name === 'particleCount' || name === 'lifespan' ? Math.round(value) : value, min, max);
@@ -213,14 +226,23 @@
       if (!settings.enabled && patch.enabled) { failure = null; engineModule = null; }
       settings.enabled = patch.enabled;
     }
-    hero.style.setProperty('--hero-three-portrait-brightness', settings.baseOpacity);
+    for (const name of ['showImage', 'cursorInteraction', 'paused']) {
+      if (typeof patch?.[name] === 'boolean') settings[name] = patch[name];
+    }
+    if (!settings.cursorInteraction) clearPointer();
+    hero.style.setProperty('--hero-three-image-opacity', settings.showImage ? settings.imageOpacity : 0);
     window.dispatchEvent(new CustomEvent('hero-three-particles:settings', { detail: getSettings() }));
     sync();
+    if (settings.paused && current && canPresent() &&
+        (priorSize !== settings.particleSize || priorOpacity !== settings.particleOpacity)) {
+      try { current.renderer.redraw(); }
+      catch (error) { fallback(error, current.key); }
+    }
     return getSettings();
   }
 
   function movePointer(event) {
-    if (!canDraw() || event.target?.closest?.('[data-effect-controls]')) return;
+    if (!settings.cursorInteraction || !canAnimate() || event.target?.closest?.('[data-effect-controls]')) return;
     const rect = hero.getBoundingClientRect();
     const x = event.clientX - rect.left - bounds.x;
     const y = event.clientY - rect.top - bounds.y;
@@ -235,6 +257,7 @@
 
   window.HeroThreeParticles = Object.freeze({
     getSettings, getState, setSettings, resetSettings: () => setSettings(defaults),
+    getLimits: () => Object.fromEntries(Object.entries(limits).map(([name, bounds]) => [name, [...bounds]])),
     setAtTop(value) {
       if (atTop === value) return;
       atTop = value;
@@ -245,12 +268,12 @@
 
   hero.addEventListener('pointermove', movePointer, { passive: true });
   for (const type of ['pointerleave', 'pointerup', 'pointercancel']) {
-    hero.addEventListener(type, () => { pointer.active = false; }, { passive: true });
+    hero.addEventListener(type, clearPointer, { passive: true });
   }
   hero.addEventListener('hero:layout', updateLayout);
   window.addEventListener('site:entered', () => { entered = true; sync(); notify(); }, { once: true });
   document.addEventListener('visibilitychange', sync);
-  window.addEventListener('blur', () => { pointer.active = false; });
+  window.addEventListener('blur', clearPointer);
   reduced.addEventListener('change', sync);
   small.addEventListener('change', sync);
   phone.addEventListener('change', updateLayout);

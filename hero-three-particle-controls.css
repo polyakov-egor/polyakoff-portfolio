@@ -41,40 +41,45 @@ html:is(.is-site-loading, .is-site-entering) .hero-three-particle-controls {
 }
 
 .hero-three-particle-controls__body {
-  width: min(262px, calc(100vw - 2 * var(--panel-inset) - 2px));
+  width: min(606px, calc(100vw - 2 * var(--panel-inset) - 2px));
   max-height: min(560px, calc(100dvh - var(--panel-inset) - 68px));
   padding: 0 12px 12px;
   overflow: auto;
   overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
-.hero-three-particle-controls__toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 42px;
-  border-block: 1px solid rgb(255 255 255 / 12%);
+.hero-three-particle-controls__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 
-.hero-three-particle-controls__toggle input {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  accent-color: #fff;
+.hero-three-particle-controls__switches {
+  margin-top: 10px;
 }
 
 .hero-three-particle-controls__status {
-  margin: 10px 0 0;
+  margin: 0 0 10px;
   color: rgb(255 255 255 / 75%);
   font-size: 12px;
 }
 
+.hero-three-particle-controls__slider,
+.hero-three-particle-controls__toggle {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid rgb(255 255 255 / 11%);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 4%);
+}
+
 .hero-three-particle-controls__slider {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0 8px;
-  margin-block: 10px 6px;
+  gap: 4px 6px;
+  font-size: 12px;
 }
 
 .hero-three-particle-controls__slider output {
@@ -87,17 +92,46 @@ html:is(.is-site-loading, .is-site-entering) .hero-three-particle-controls {
   grid-column: 1 / -1;
   width: 100%;
   min-width: 0;
-  height: 24px;
+  height: 20px;
   margin: 0;
   accent-color: #eee;
   touch-action: none;
 }
 
-.hero-three-particle-controls__body > button {
-  width: 100%;
-  min-height: 38px;
-  margin-top: 4px;
-  padding: 6px 8px;
+.hero-three-particle-controls__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+  font-size: 12px;
+}
+
+.hero-three-particle-controls__toggle input {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #fff;
+}
+
+.hero-three-particle-controls__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgb(255 255 255 / 12%);
+}
+
+.hero-three-particle-controls__footer .hero-three-particle-controls__toggle {
+  background: none;
+}
+
+.hero-three-particle-controls__footer > button {
+  min-height: 40px;
+  padding: 6px 12px;
   border: 1px solid rgb(255 255 255 / 20%);
   border-radius: 6px;
   background: rgb(255 255 255 / 7%);
@@ -114,4 +148,16 @@ html:is(.is-site-loading, .is-site-entering) .hero-three-particle-controls {
 
 .hero-three-particle-controls input[type="range"] {
   cursor: ew-resize;
+}
+
+@media (max-width: 600px) {
+  .hero-three-particle-controls__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .hero-three-particle-controls__slider,
+  .hero-three-particle-controls__toggle {
+    padding-inline: 8px;
+  }
 }
