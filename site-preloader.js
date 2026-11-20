@@ -192,7 +192,7 @@
     const background = document.querySelector('[data-site-backdrop]')?.querySelector('.about-backdrop__lines');
     const nodes = [...overlay.querySelectorAll('img'),
       ...(background ? [background] : []),
-      ...hero.querySelectorAll('.hero__scene img, .hero__welcome img, .hero__footer img, .hero__motion img')];
+      ...hero.querySelectorAll('.hero__scene img, .redesign-hero-art img, .hero__welcome img, .hero__footer img, .hero__motion img')];
     const unique = new Map();
     for (const image of nodes) {
       if (image.classList.contains('theme-icon__light') || !source(image)) continue;

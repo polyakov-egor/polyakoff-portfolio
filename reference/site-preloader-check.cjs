@@ -81,7 +81,7 @@ function fixture({ depth = 'loading', failedCSS = false, failedImage = false, re
   hero.append(portrait, wordmark, icon, duplicate, light); overlay.append(loaderBackground); rotor.append(loadWord, doneWord);
   if (failedImage) portrait.naturalWidth = 0;
   register(overlay, 'img', loaderBackground, loadWord, doneWord);
-  register(hero, '.hero__scene img, .hero__welcome img, .hero__footer img, .hero__motion img', portrait, wordmark, icon, duplicate, light);
+  register(hero, '.hero__scene img, .redesign-hero-art img, .hero__welcome img, .hero__footer img, .hero__motion img', portrait, wordmark, icon, duplicate, light);
   const links = [make('link'), make('link')]; links.forEach((link, i) => { link.href = `/style-${i}.css`; link.sheet = {}; });
   if (failedCSS) links[1].sheet = null;
   const scripts = [make('script')]; scripts[0].src = '/hero-scroll.js';
