@@ -171,7 +171,7 @@
     schedule();
   }
 
-  function resolveDistance(requested, now) {
+  function resolveDistance(requested, now, smoothedInput) {
     const { first, second } = geometry;
     if (swap) {
       const { target, started } = swap;
@@ -193,7 +193,7 @@
 
     // Pin the end of a long gesture at the readable About states. The next
     // deliberate wheel gesture or swipe can enter the timed interval.
-    const deliberateInput = touchActive || now - lastInputTime < 350;
+    const deliberateInput = smoothedInput || touchActive || now - lastInputTime < 350;
     if (swapLanding && deliberateInput && gesture === blockedGesture) {
       const held = geometry[swapLanding];
       if (Math.abs(requested - held) > 1) jump(held);
@@ -324,6 +324,8 @@
   function render(now) {
     frame = 0;
     if (!geometry) return;
+    // A delayed final wheel frame still belongs to its originating gesture.
+    const smoothedInput = Boolean(window.SiteSmoothScroll?.isAnimating());
     window.SiteSmoothScroll?.raf(now);
     const requested = Math.max(0, window.scrollY - storyTop);
     const staticLayout = reduced.matches;
@@ -359,7 +361,7 @@
       return;
     }
 
-    const resolved = resolveDistance(requested, now);
+    const resolved = resolveDistance(requested, now, smoothedInput);
     // Lenis already smooths wheel deltas. A short, local interpolation keeps
     // native touch and keyboard scrolling smooth without a competing wheel RAF.
     const elapsed = lastTime ? Math.max(0, now - lastTime) : 16;
