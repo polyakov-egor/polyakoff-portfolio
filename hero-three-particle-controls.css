@@ -1,0 +1,117 @@
+.hero-three-particle-controls {
+  --panel-inset: var(--page-inset, 16px);
+  position: fixed;
+  z-index: 1001;
+  top: max(var(--panel-inset), env(safe-area-inset-top, 0px));
+  left: max(var(--panel-inset), env(safe-area-inset-left, 0px));
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 12px;
+  color: #fff;
+  background: rgb(21 21 23 / 95%);
+  font: 400 13px/1.35 system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+html:is(.is-site-loading, .is-site-entering) .hero-three-particle-controls {
+  visibility: hidden;
+}
+
+.hero-three-particle-controls > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 44px;
+  padding: 0 12px;
+  list-style: none;
+  font: 400 12px/1.2 "Roboto Mono", monospace;
+}
+
+.hero-three-particle-controls > summary::-webkit-details-marker {
+  display: none;
+}
+
+.hero-three-particle-controls > summary::after {
+  content: "+";
+  color: rgb(255 255 255 / 65%);
+}
+
+.hero-three-particle-controls[open] > summary::after {
+  content: "−";
+}
+
+.hero-three-particle-controls__body {
+  width: min(262px, calc(100vw - 2 * var(--panel-inset) - 2px));
+  max-height: min(560px, calc(100dvh - var(--panel-inset) - 68px));
+  padding: 0 12px 12px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.hero-three-particle-controls__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  border-block: 1px solid rgb(255 255 255 / 12%);
+}
+
+.hero-three-particle-controls__toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #fff;
+}
+
+.hero-three-particle-controls__status {
+  margin: 10px 0 0;
+  color: rgb(255 255 255 / 75%);
+  font-size: 12px;
+}
+
+.hero-three-particle-controls__slider {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0 8px;
+  margin-block: 10px 6px;
+}
+
+.hero-three-particle-controls__slider output {
+  color: rgb(255 255 255 / 75%);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-three-particle-controls__slider input {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+  margin: 0;
+  accent-color: #eee;
+  touch-action: none;
+}
+
+.hero-three-particle-controls__body > button {
+  width: 100%;
+  min-height: 38px;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 7%);
+}
+
+.hero-three-particle-controls :is(input, summary, button):focus-visible {
+  outline: 1px solid #fff;
+  outline-offset: -2px;
+}
+
+.hero-three-particle-controls :is(summary, label, button, input[type="checkbox"]) {
+  cursor: pointer;
+}
+
+.hero-three-particle-controls input[type="range"] {
+  cursor: ew-resize;
+}

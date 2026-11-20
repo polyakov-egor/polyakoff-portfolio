@@ -37,6 +37,7 @@
   const texturePairs = new Map();
   // Scroll is a transient presentation state, independent of saved preferences.
   let scrollGate = 1;
+  let particlePortraitVisible = false;
   let breathing = false;
   const clamp = value => Math.max(-1, Math.min(1, value));
 
@@ -267,7 +268,7 @@
   }
 
   function resize() {
-    if (!state.ready || reducedMotion.matches || !settings.enabled || scrollGate <= 0) return;
+    if (particlePortraitVisible || !state.ready || reducedMotion.matches || !settings.enabled || scrollGate <= 0) return;
     const rect = canvas.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
     const maxSize = viewportLimit;
@@ -325,13 +326,13 @@
   }
 
   function schedule() {
-    if (!state.ready || !settings.enabled || scrollGate <= 0 || !state.visible || document.hidden || reducedMotion.matches || state.frame) return;
+    if (particlePortraitVisible || !state.ready || !settings.enabled || scrollGate <= 0 || !state.visible || document.hidden || reducedMotion.matches || state.frame) return;
     state.frame = requestAnimationFrame(render);
   }
 
   function render(now) {
     state.frame = 0;
-    if (!state.ready || !settings.enabled || scrollGate <= 0 || !state.visible || document.hidden || reducedMotion.matches) return;
+    if (particlePortraitVisible || !state.ready || !settings.enabled || scrollGate <= 0 || !state.visible || document.hidden || reducedMotion.matches) return;
     const delta = state.lastTime ? Math.min(64, now - state.lastTime) : 16.67;
     state.lastTime = now;
     const easing = 1 - Math.exp(-delta / settings.smoothingMs);
@@ -347,7 +348,7 @@
   }
 
   function paint(checkError = false) {
-    if (!state.ready || !settings.enabled || scrollGate <= 0 || !state.visible || document.hidden || reducedMotion.matches) return false;
+    if (particlePortraitVisible || !state.ready || !settings.enabled || scrollGate <= 0 || !state.visible || document.hidden || reducedMotion.matches) return false;
     const motionX = state.current[0] * scrollGate;
     const motionY = state.current[1] * scrollGate;
     try {
@@ -407,6 +408,7 @@
     const previous = scrollGate;
     scrollGate = next;
     syncBreathing();
+    window.HeroThreeParticles?.setAtTop(next >= .9999);
     canvas.dataset.scrollGate = next.toFixed(4);
     if (next === 0) pauseForScroll();
     else {
@@ -418,8 +420,22 @@
     return scrollGate;
   }
 
+  function setParticlePortraitVisible(visible) {
+    if (particlePortraitVisible === visible) return;
+    particlePortraitVisible = visible;
+    cancelAnimationFrame(state.frame);
+    state.frame = 0;
+    state.lastTime = 0;
+    reset();
+    if (!visible) {
+      start();
+      resize();
+    }
+    updateMotionButton();
+  }
+
   hero.addEventListener('pointermove', event => {
-    if (!settings.enabled || scrollGate <= 0 || !finePointer.matches || event.pointerType === 'touch' || event.target?.closest?.('[data-effect-controls]')) return;
+    if (particlePortraitVisible || !settings.enabled || scrollGate <= 0 || !finePointer.matches || event.pointerType === 'touch' || event.target?.closest?.('[data-effect-controls]')) return;
     const rect = hero.getBoundingClientRect();
     state.target[0] = clamp((event.clientX - rect.left) / rect.width * 2 - 1);
     state.target[1] = clamp((event.clientY - rect.top) / rect.height * 2 - 1);
@@ -432,7 +448,7 @@
   window.addEventListener('blur', reset);
 
   function onOrientation(event) {
-    if (!settings.enabled || scrollGate <= 0 || !Number.isFinite(event.beta) || !Number.isFinite(event.gamma) || !state.visible || document.hidden || reducedMotion.matches) return;
+    if (particlePortraitVisible || !settings.enabled || scrollGate <= 0 || !Number.isFinite(event.beta) || !Number.isFinite(event.gamma) || !state.visible || document.hidden || reducedMotion.matches) return;
     if (!state.baseline) state.baseline = { beta: event.beta, gamma: event.gamma };
     const difference = (angle, center) => ((angle - center + 540) % 360) - 180;
     const x = difference(event.gamma, state.baseline.gamma) / 10;
@@ -457,14 +473,14 @@
   }
 
   function updateMotionButton() {
-    const available = state.ready && settings.enabled && scrollGate > 0 && !reducedMotion.matches && coarsePointer.matches && window.isSecureContext && typeof DeviceOrientationEvent !== 'undefined';
+    const available = !particlePortraitVisible && state.ready && settings.enabled && scrollGate > 0 && !reducedMotion.matches && coarsePointer.matches && window.isSecureContext && typeof DeviceOrientationEvent !== 'undefined';
     const needsPermission = available && typeof DeviceOrientationEvent.requestPermission === 'function';
     motionButton.hidden = !needsPermission || state.sensor;
     if (available && !needsPermission) listenToSensor();
   }
 
   motionButton.addEventListener('click', async () => {
-    if (!settings.enabled || scrollGate <= 0 || !state.ready || reducedMotion.matches) return;
+    if (particlePortraitVisible || !settings.enabled || scrollGate <= 0 || !state.ready || reducedMotion.matches) return;
     try {
       // This call stays directly in the click handler: iOS requires activation.
       const permission = typeof DeviceOrientationEvent.requestPermission === 'function'
@@ -492,6 +508,7 @@
   }).observe(hero);
 
   async function start() {
+    if (particlePortraitVisible) return;
     const run = ++generation;
     if (reducedMotion.matches) return setFallback('reduced-motion');
     if (!settings.enabled) return setFallback('disabled');
@@ -548,6 +565,7 @@
     resetSettings: () => setSettings(publishedDefaults),
     getScrollGate: () => scrollGate,
     setScrollGate,
+    setParticlePortraitVisible,
   });
   syncBreathing();
   start();
