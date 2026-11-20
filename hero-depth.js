@@ -1,5 +1,5 @@
 /* A small depth-dependent view shift, following the Winline HR portrait approach.
-   No ripples or idle motion. Soft directional lighting preserves deep shadows
+   Soft directional lighting preserves deep shadows
    and the central face. The supplied WebP keeps its alpha; maps fit in UV space. */
 (() => {
   'use strict';
@@ -37,7 +37,16 @@
   const texturePairs = new Map();
   // Scroll is a transient presentation state, independent of saved preferences.
   let scrollGate = 1;
+  let breathing = false;
   const clamp = value => Math.max(-1, Math.min(1, value));
+
+  function syncBreathing() {
+    const active = scrollGate === 1 && state.visible && !document.hidden && !reducedMotion.matches && settings.enabled;
+    if (active === breathing) return;
+    breathing = active;
+    if (active) hero.classList.add('has-portrait-breathing');
+    else hero.classList.remove('has-portrait-breathing');
+  }
 
   const vertexSource = `
     attribute vec2 a_position;
@@ -396,6 +405,7 @@
     if (next === scrollGate) return scrollGate;
     const previous = scrollGate;
     scrollGate = next;
+    syncBreathing();
     canvas.dataset.scrollGate = next.toFixed(4);
     if (next === 0) pauseForScroll();
     else {
@@ -466,6 +476,7 @@
   });
 
   document.addEventListener('visibilitychange', () => {
+    syncBreathing();
     if (document.hidden) { cancelAnimationFrame(state.frame); state.frame = 0; }
     else { state.lastTime = 0; reset(); resize(); }
   });
@@ -474,6 +485,7 @@
   new ResizeObserver(resize).observe(canvas);
   new IntersectionObserver(([entry]) => {
     state.visible = entry.isIntersecting;
+    syncBreathing();
     if (!state.visible) { cancelAnimationFrame(state.frame); state.frame = 0; reset(); }
     else { state.lastTime = 0; resize(); }
   }).observe(hero);
@@ -501,6 +513,7 @@
     }
   }
   reducedMotion.addEventListener('change', () => {
+    syncBreathing();
     if (reducedMotion.matches) setFallback('reduced-motion');
     else start();
   });
@@ -519,6 +532,7 @@
     const next = normalizeSettings(patch);
     const wasEnabled = settings.enabled;
     Object.assign(settings, next);
+    syncBreathing();
     try { window.localStorage.setItem(storageKey, JSON.stringify(settings)); } catch { /* Keep working in memory if storage is blocked. */ }
     if (!settings.enabled) setFallback('disabled');
     else if (!wasEnabled) start();
@@ -534,5 +548,6 @@
     getScrollGate: () => scrollGate,
     setScrollGate,
   });
+  syncBreathing();
   start();
 })();

@@ -235,6 +235,7 @@ function assertCover(cover, width, height, label, color = 'portrait-2456.webp') 
   mouse.runFrames();
   assert.equal(mouse.canvas.dataset.state, 'ready');
   assert(mouse.heroClasses.has('has-depth-effect'));
+  assert(mouse.heroClasses.has('has-portrait-breathing'), 'The visible full Hero enables compositor breathing');
   assert.equal(mouse.gl.calls.shaders.length, 2);
   assertCover(mouse.gl.calls.drawCovers[0], 1228, 1449, 'First GPU frame');
   assert(mouse.gl.calls.shaders.some(shader => shader.source.includes('texture2D(u_depth')));
@@ -335,11 +336,13 @@ function assertCover(cover, width, height, label, color = 'portrait-2456.webp') 
   const settledDraws = mouse.gl.calls.draws;
   assert.equal(mouse.runFrames(), 0);
   assert.equal(mouse.gl.calls.draws, settledDraws);
+  assert(mouse.heroClasses.has('has-portrait-breathing'), 'Breathing stays active while the GPU and its RAF remain asleep');
 
   await mouse.hero.emit('pointermove', {pointerType: 'mouse', clientX: 1800, clientY: 700});
   settingsApi.setSettings({enabled: false});
   assert.equal(mouse.canvas.dataset.state, 'disabled');
   assert(!mouse.heroClasses.has('has-depth-effect'));
+  assert(!mouse.heroClasses.has('has-portrait-breathing'), 'Disabling portrait motion also stops breathing');
   assert.equal(mouse.raf.size, 0, 'Disabling cancels pending animation');
   await mouse.hero.emit('pointermove', {pointerType: 'mouse', clientX: 100, clientY: 100});
   assert.equal(mouse.raf.size, 0, 'Disabled input cannot restart animation');
@@ -348,25 +351,31 @@ function assertCover(cover, width, height, label, color = 'portrait-2456.webp') 
   mouse.runFrames();
   assert.equal(mouse.canvas.dataset.state, 'ready');
   assert(mouse.heroClasses.has('has-depth-effect'));
+  assert(mouse.heroClasses.has('has-portrait-breathing'), 'Re-enabling an eligible Hero resumes breathing');
   near(mouse.motion()[0], 0, 'Re-enabling restores a neutral view');
 
   await mouse.hero.emit('pointermove', {pointerType: 'mouse', clientX: 1800, clientY: 900});
   mouse.document.hidden = true;
   await mouse.document.emit('visibilitychange');
   assert.equal(mouse.raf.size, 0);
+  assert(!mouse.heroClasses.has('has-portrait-breathing'), 'A hidden tab stops compositor breathing too');
   mouse.document.hidden = false;
   await mouse.document.emit('visibilitychange');
   mouse.runFrames();
   near(mouse.motion()[0], 0, 'Returning from a hidden tab resets stale mouse input');
+  assert(mouse.heroClasses.has('has-portrait-breathing'), 'Returning to a visible eligible Hero resumes breathing');
   mouse.observers.intersection([{isIntersecting: false}]);
   assert.equal(mouse.raf.size, 0, 'Offscreen hero does not render');
+  assert(!mouse.heroClasses.has('has-portrait-breathing'), 'An offscreen Hero cannot keep breathing');
   mouse.observers.intersection([{isIntersecting: true}]);
   mouse.runFrames();
+  assert(mouse.heroClasses.has('has-portrait-breathing'), 'Re-entering the viewport resumes breathing');
 
   mouse.media.reduced.matches = true;
   await mouse.media.reduced.emit('change');
   assert.equal(mouse.canvas.dataset.state, 'reduced-motion');
   assert(!mouse.heroClasses.has('has-depth-effect'));
+  assert(!mouse.heroClasses.has('has-portrait-breathing'), 'Reduced motion stops breathing immediately');
   assert.equal(mouse.raf.size, 0);
   assert.equal(mouse.gl.calls.deletedTextures, 4, 'Disable and reduced-motion fallback both release uploaded textures');
   mouse.media.reduced.matches = false;
@@ -374,6 +383,7 @@ function assertCover(cover, width, height, label, color = 'portrait-2456.webp') 
   await nextTurn();
   mouse.runFrames();
   assert.equal(mouse.canvas.dataset.state, 'ready');
+  assert(mouse.heroClasses.has('has-portrait-breathing'), 'Leaving reduced motion resumes eligible breathing');
   let prevented = false;
   await mouse.renderer.emit('webglcontextlost', {preventDefault() {prevented = true;}});
   assert(prevented);
@@ -388,6 +398,7 @@ function assertCover(cover, width, height, label, color = 'portrait-2456.webp') 
   const reduced = makePage({reduced: true});
   await nextTurn();
   assert.equal(reduced.canvas.dataset.state, 'reduced-motion');
+  assert(!reduced.heroClasses.has('has-portrait-breathing'), 'An initially reduced-motion page never starts breathing');
   assert.equal(reduced.createdImages.length, 0, 'Reduced motion avoids texture loads');
   assert.equal(reduced.gl.calls.shaders.length, 0);
   reduced.window.HeroDepthEffect.setSettings({enabled: false});
@@ -396,6 +407,7 @@ function assertCover(cover, width, height, label, color = 'portrait-2456.webp') 
   assert.equal(reduced.canvas.dataset.state, 'reduced-motion', 'Reduced motion takes priority over enabling the effect');
   assert.equal(reduced.raf.size, 0);
   assert.equal(reduced.gl.calls.shaders.length, 0);
+  assert(!reduced.heroClasses.has('has-portrait-breathing'), 'The enabled setting cannot override reduced-motion breathing protection');
   const racing = makePage({deferImages: true});
   await nextTurn();
   racing.media.reduced.matches = true;
@@ -528,6 +540,7 @@ function assertCover(cover, width, height, label, color = 'portrait-2456.webp') 
   scrolling.runFrames();
   const scrollApi = scrolling.window.HeroDepthEffect;
   assert.equal(scrollApi.getScrollGate(), 1);
+  assert(scrolling.heroClasses.has('has-portrait-breathing'), 'The full-size scrolling fixture starts with breathing enabled');
   const scrollResources = [scrolling.gl.calls.shaders.length, scrolling.gl.calls.uploads.length];
   const storageBeforeScroll = [...scrollStorage];
   let scrollSettingsEvents = 0;
@@ -536,6 +549,7 @@ function assertCover(cover, width, height, label, color = 'portrait-2456.webp') 
   scrolling.runFrames();
   assert.equal(scrollApi.setScrollGate(.5), .5);
   scrolling.runFrames();
+  assert(!scrolling.heroClasses.has('has-portrait-breathing'), 'A partially departing Hero stops breathing even while hover rendering remains enabled');
   near(scrolling.gl.calls.uniforms.get('u_motion')[0], .5, 'Half scroll gate halves horizontal displacement and light input');
   near(scrolling.gl.calls.uniforms.get('u_motion')[1], -.5, 'Half scroll gate halves vertical displacement and light input');
   await scrolling.hero.emit('pointermove', {pointerType: 'mouse', clientX: 0, clientY: 960});
@@ -544,6 +558,7 @@ function assertCover(cover, width, height, label, color = 'portrait-2456.webp') 
   assert.equal(scrolling.raf.size, 0, 'Zero gate cancels even a pending frame');
   assert.equal(scrolling.canvas.dataset.state, 'scroll-paused');
   assert(!scrolling.heroClasses.has('has-depth-effect'), 'Zero gate reveals the neutral original image');
+  assert(!scrolling.heroClasses.has('has-portrait-breathing'), 'The static scroll portrait never breathes');
   assert.deepEqual(scrolling.gl.calls.uniforms.get('u_motion'), [0, 0]);
   assert.equal(scrolling.gl.calls.deletedTextures, 0, 'Scroll pause keeps GPU textures for a cheap resume');
   await scrolling.hero.emit('pointermove', {pointerType: 'mouse', clientX: 1800, clientY: 900});
@@ -556,6 +571,7 @@ function assertCover(cover, width, height, label, color = 'portrait-2456.webp') 
   scrolling.document.hidden = false;
   await scrolling.document.emit('visibilitychange');
   assert.equal(scrolling.raf.size, 0, 'Paused input and visibility changes do not restart rendering');
+  assert(!scrolling.heroClasses.has('has-portrait-breathing'), 'Returning onscreen or to the tab cannot override the closed breathing gate');
   for (const invalid of [NaN, Infinity, '.5', null]) assert.equal(scrollApi.setScrollGate(invalid), 0);
   assert.equal(scrollApi.setScrollGate(-10), 0);
   scrolling.canvas.getBoundingClientRect = () => ({width: 500, height: 800});
@@ -565,6 +581,7 @@ function assertCover(cover, width, height, label, color = 'portrait-2456.webp') 
   scrolling.runFrames();
   assert.equal(scrolling.canvas.dataset.state, 'ready');
   assert(scrolling.heroClasses.has('has-depth-effect'));
+  assert(scrolling.heroClasses.has('has-portrait-breathing'), 'Returning to the full Hero resumes breathing');
   assert(scrolling.canvas.width >= 750 && scrolling.canvas.width < 878, 'Resume keeps at least the current desired width in one small backing bucket');
   assert(scrolling.canvas.height >= 1200 && scrolling.canvas.height < 1328, 'Resume keeps at least the current desired height in one small backing bucket');
   near(scrolling.motion()[0], 0, 'Resume discards the stale mouse pose');
@@ -581,6 +598,7 @@ function assertCover(cover, width, height, label, color = 'portrait-2456.webp') 
   assert.equal(scrolling.canvas.dataset.state, 'scroll-paused', 'Context restoration respects a closed gate');
   assert.equal(scrolling.raf.size, 0);
   assert(!scrolling.heroClasses.has('has-depth-effect'));
+  assert(!scrolling.heroClasses.has('has-portrait-breathing'), 'GPU restoration cannot restart breathing during scroll');
   scrollApi.setScrollGate(1);
   scrolling.runFrames();
   assert.equal(scrolling.canvas.dataset.state, 'ready');
@@ -590,11 +608,13 @@ function assertCover(cover, width, height, label, color = 'portrait-2456.webp') 
   await nextTurn();
   assert.equal(scrolling.canvas.dataset.state, 'disabled', 'Scroll cannot override the user disabling the effect');
   assert.equal(scrolling.raf.size, 0);
+  assert(!scrolling.heroClasses.has('has-portrait-breathing'), 'Opening the scroll gate cannot override disabled breathing');
   reduced.window.HeroDepthEffect.setScrollGate(0);
   reduced.window.HeroDepthEffect.setScrollGate(1);
   await nextTurn();
   assert.equal(reduced.canvas.dataset.state, 'reduced-motion', 'Scroll cannot override reduced motion');
   assert.equal(reduced.raf.size, 0);
+  assert(!reduced.heroClasses.has('has-portrait-breathing'), 'Opening the scroll gate cannot override reduced-motion breathing protection');
 
   const scrollLoading = makePage({file: true, deferImages: true});
   const scrollLoadingApi = scrollLoading.window.HeroDepthEffect;

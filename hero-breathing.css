@@ -1,0 +1,25 @@
+.hero__portrait-breath {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+  transform-origin: 50% 85%;
+  animation: hero-portrait-breath 4600ms ease-in-out infinite;
+  animation-play-state: paused;
+}
+
+.hero.has-portrait-breathing .hero__portrait-breath { animation-play-state: running; }
+html:is(.is-site-loading, .is-site-entering) .hero__portrait-breath { animation-play-state: paused; }
+
+@keyframes hero-portrait-breath {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-1px) scale(1.003, 1.002); }
+}
+
+@media (max-width: 599px) {
+  .hero__portrait-breath { transform-origin: 50% 82%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero__portrait-breath { animation: none; }
+}

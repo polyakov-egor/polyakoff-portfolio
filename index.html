@@ -23,6 +23,7 @@
     <link rel="stylesheet" href="./site-preloader.css?v=2" />
     <link rel="stylesheet" href="./hero-welcome-stack.css" />
     <link rel="stylesheet" href="./hero-scroll.css?v=2" />
+    <link rel="stylesheet" href="./hero-breathing.css" />
     <link rel="stylesheet" href="./music-equalizer.css" />
     <link rel="stylesheet" href="./works-gallery.css?v=2" />
     <link rel="stylesheet" href="./works-scroll.css?v=5" />
@@ -35,7 +36,7 @@
     <script src="./hero-layout.js" defer></script>
     <script src="./hero-status.js" defer></script>
     <script src="./music-equalizer.js" defer></script>
-    <script src="./hero-depth.js" defer></script>
+    <script src="./hero-depth.js?v=2" defer></script>
     <script src="./squircle.js" defer></script>
     <script src="./hero-welcome-stack.js" defer></script>
     <script src="./chapter-assets.js" defer></script>
@@ -103,11 +104,13 @@
                 </div>
               </div>
             </div>
-            <picture class="hero__portrait-source">
-              <source media="(max-width: 1099px)" srcset="./assets/images/hero/portrait-1280.webp" />
-              <img class="scene-layer scene-layer--portrait" data-layer="portrait" src="./assets/images/hero/portrait-2456.webp" data-color-small="./assets/images/hero/portrait-1280.webp" data-color-large="./assets/images/hero/portrait-2456.webp" data-depth-small="./assets/images/hero/depth-1280.webp" data-depth-large="./assets/images/hero/depth-2456.webp" width="2456" height="2904" alt="" draggable="false" fetchpriority="high" />
-            </picture>
-            <canvas class="scene-layer scene-layer--depth" data-layer="depth" data-state="loading" aria-hidden="true"></canvas>
+            <div class="hero__portrait-breath">
+              <picture class="hero__portrait-source">
+                <source media="(max-width: 1099px)" srcset="./assets/images/hero/portrait-1280.webp" />
+                <img class="scene-layer scene-layer--portrait" data-layer="portrait" src="./assets/images/hero/portrait-2456.webp" data-color-small="./assets/images/hero/portrait-1280.webp" data-color-large="./assets/images/hero/portrait-2456.webp" data-depth-small="./assets/images/hero/depth-1280.webp" data-depth-large="./assets/images/hero/depth-2456.webp" width="2456" height="2904" alt="" draggable="false" fetchpriority="high" />
+              </picture>
+              <canvas class="scene-layer scene-layer--depth" data-layer="depth" data-state="loading" aria-hidden="true"></canvas>
+            </div>
             <div class="hero__intro-frame">
               <div class="hero__intro mono">
                 <p>I’m Egor</p>
