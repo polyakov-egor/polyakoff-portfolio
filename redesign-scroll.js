@@ -1,4 +1,4 @@
-/* One clock owns the reversible Hero mask, About text and chapter handoffs. */
+/* One clock owns the scroll-linked chapters and the timed About statement change. */
 (() => {
   'use strict';
 
@@ -16,8 +16,24 @@
   const inkTargets = [logo, ...navigationItems, worksTitle].filter(Boolean);
   const cursor = document.querySelector('.custom-cursor');
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const referenceFrame = 1000 / 30;
+  const rowStagger = 2 * referenceFrame;
   const blindsCatchUpMs = 650;
   const bandCount = 5;
+  // Horizontal travel and apparent width, sampled separately from 053.mp4.
+  // The centers are clamped to their resting positions at each end.
+  const outgoingPoses = [
+    [0, 1], [.052, .998], [.147, .988], [.261, .955], [.398, .895],
+    [.536, .81], [.654, .705], [.758, .59], [.834, .483], [.9, .373],
+    [.948, .255], [.986, .137], [1, .025], [1, 0],
+  ];
+  const incomingPoses = [
+    [0, 0], [0, .008], [0, .03], [.014, .134], [.047, .273],
+    [.108, .411], [.184, .541], [.278, .667], [.373, .753], [.476, .84],
+    [.594, .909], [.722, .957], [.84, .987], [.939, 1], [1, 1],
+  ];
+  const rowDuration = (incomingPoses.length - 1) * referenceFrame;
+  const scrollKeys = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', ' ']);
   const clamp = value => Math.min(1, Math.max(0, value));
   const smooth = value => {
     const t = clamp(value);
@@ -32,11 +48,17 @@
   let lastTime = 0;
   let paintedBlinds = null;
   let activeStatement = 0;
-  let smokeAmount = 0;
-  let lastSmokeDistance = null;
+  let swapDuration = rowDuration;
+  let swap = null;
+  let swapLanding = null;
+  let gesture = 0;
+  let blockedGesture = -1;
+  let lastInputTime = -Infinity;
+  let wheelIntent = 0;
+  let touchActive = false;
 
   // Keep the original text and its responsive line breaks as the reading copy.
-  // Measure only on layout. Paint copies keep the same wrapping during a wipe.
+  // Measure only on layout, then rotate one paint-only layer per visual row.
   function prepareStatementRows(statement) {
     const reading = document.createElement('span');
     reading.className = 'redesign-about__reading';
@@ -60,23 +82,25 @@
     const layer = document.createElement('span');
     layer.className = 'redesign-about__rows';
     layer.setAttribute('aria-hidden', 'true');
-    const haze = document.createElement('span');
-    haze.className = 'redesign-about__haze';
-    haze.setAttribute('aria-hidden', 'true');
-    statement.append(reading, layer, haze);
-    return { words, layer, haze, lines: [] };
+    statement.append(reading, layer);
+    return { statement, words, layer, lines: [], width: 0 };
   }
 
   function measureStatementRows() {
     for (const group of statementRows) {
-      const { words, layer, haze, lines } = group;
+      const { statement, words, layer, lines } = group;
+      group.width = statement.offsetWidth;
       const rows = new Map();
       for (const word of words) {
         const top = word.offsetTop;
-        if (!rows.has(top)) rows.set(top, []);
-        rows.get(top).push(word.textContent);
+        const left = word.offsetLeft;
+        if (!rows.has(top)) rows.set(top, { words: [], left, right: left });
+        const row = rows.get(top);
+        row.words.push(word.textContent);
+        row.right = left + word.offsetWidth;
       }
-      const labels = [...rows.values()].map(row => row.join(' '));
+      const measured = [...rows.values()];
+      const labels = measured.map(row => row.words.join(' '));
       const sameLines = lines.length === labels.length &&
         lines.every(({ element }, index) => element.textContent === labels[index]);
       if (!sameLines) {
@@ -85,38 +109,52 @@
           const element = document.createElement('span');
           element.className = 'redesign-about__row';
           element.textContent = text;
-          lines.push({ element });
+          lines.push({ element, halfWidth: 1 });
         }
         layer.replaceChildren(...lines.map(({ element }) => element));
-        haze.replaceChildren(...lines.map(({ element }) => element.cloneNode(true)));
       }
+      lines.forEach((line, index) => {
+        line.halfWidth = Math.max(1, (measured[index].right - measured[index].left) / 2);
+        line.element.style.transformOrigin = '50% ' + (lines.length / 2 - index) * 100 + '%';
+      });
     }
+    const longestStatement = Math.max(...statementRows.map(group => group.lines.length));
+    swapDuration = rowDuration + rowStagger * Math.max(0, longestStatement - 1);
   }
 
-  function paintAboutStatements(distance) {
-    const swapProgress = progress(distance, geometry.first, geometry.second);
-    const swapping = swapProgress > 0 && swapProgress < 1;
-    activeStatement = Number(swapProgress >= .5);
-    about.toggleAttribute('data-about-swapping', swapping);
-    about.dataset.swapProgress = swapProgress.toFixed(4);
+  function paintAboutStatements(width) {
+    about.toggleAttribute('data-about-swapping', Boolean(swap));
     for (const [index, statement] of statements.entries()) {
       const hidden = String(activeStatement !== index);
       if (statement.getAttribute('aria-hidden') !== hidden) statement.setAttribute('aria-hidden', hidden);
     }
-    if (!swapping) return;
-    // The reference replaces stationary letters along one soft frontier.
-    // Its position belongs to scroll, so reverse input retraces the same image.
-    const feather = .035;
-    const edge = swapProgress * (1 + 4 * feather) - 2 * feather;
-    const percent = value => (clamp(value) * 100).toFixed(4) + '%';
-    for (const [index, { layer, haze }] of statementRows.entries()) {
-      layer.style.clipPath = index === 1
-        ? 'inset(0 ' + percent(1 - edge + feather) + ' 0 0)'
-        : 'inset(0 0 0 ' + percent(edge + feather) + ')';
-      const mask = 'linear-gradient(to right, transparent ' + percent(edge - feather) +
-        ', #000 ' + percent(edge) + ', transparent ' + percent(edge + feather) + ')';
-      haze.style.maskImage = mask;
-      haze.style.webkitMaskImage = mask;
+    if (!swap) return;
+
+    const direction = swap.target ? 1 : -1;
+    for (const [index, { width: statementWidth, lines }] of statementRows.entries()) {
+      const incoming = index === swap.target;
+      const side = incoming ? direction : -direction;
+      const poses = incoming ? incomingPoses : outgoingPoses;
+      const travel = Math.max(width * .33, statementWidth * .56);
+      for (const [row, { element, halfWidth }] of lines.entries()) {
+        const frame = Math.min(poses.length - 1, Math.max(0, (swap.elapsed - row * rowStagger) / referenceFrame));
+        const lower = Math.floor(frame);
+        const [startX, startWidth] = poses[lower];
+        const [endX, endWidth] = poses[Math.min(lower + 1, poses.length - 1)];
+        const blend = frame - lower;
+        const fraction = startX + (endX - startX) * blend;
+        const apparentWidth = startWidth + (endWidth - startWidth) * blend;
+        const x = side * travel * (incoming ? 1 - fraction : fraction);
+
+        // Project the row like a turned plane. Correct its projected center
+        // so perspective cannot create a small move in the opposite direction.
+        const tilt = side * .13 * Math.sqrt(1 - apparentWidth ** 2);
+        const scaleX = Math.max(.001, apparentWidth * (1 - tilt ** 2));
+        const centeredX = x + apparentWidth * halfWidth * tilt;
+        element.style.transform = 'translateX(' + centeredX + 'px) matrix3d(' +
+          scaleX + ',0,0,' + (tilt / halfWidth) + ',0,1,0,0,0,0,1,0,0,0,0,1)';
+        element.style.opacity = smooth(progress(apparentWidth, 0, .025)).toFixed(4);
+      }
     }
   }
 
@@ -139,10 +177,10 @@
     if (!enabled && about.parentNode !== journey) hero.after(about);
     if (enabled) measureStatementRows();
 
-    const heroExitEnd = height * 1.7136;
-    const aboutEntryStart = heroExitEnd * .54;
-    const first = height * 2.38;
-    const second = first + height * 1.1;
+    const first = height * 2.04;
+    const heroExitEnd = first * .84;
+    const aboutEntryStart = height * .43;
+    const second = first + height * .16;
     const worksStart = second + height * .76;
     // On phones the lead card dips past the left edge before returning.
     const phoneExitLead = .56 + .05 * progress(width, 320, 375);
@@ -159,7 +197,6 @@
     const heroTop = hero.getBoundingClientRect().top;
     geometry = {
       width, height, heroExitEnd, aboutEntryStart, first, second, worksStart, aboutExitStart, aboutExitEnd,
-      perspective: window.innerWidth * .76,
       worksHandoff, darkenEnd,
       themeSamples: inkTargets.map(element => {
         const rect = element.getBoundingClientRect();
@@ -176,21 +213,84 @@
 
     let landing = distance;
     if (old && enabled && rebase) {
-      if (Number.isFinite(services?.rebaseDistance)) landing = services.rebaseDistance;
+      if (swap) landing = swap.target ? first : second;
+      else if (Number.isFinite(services?.rebaseDistance)) landing = services.rebaseDistance;
       else if (distance <= old.worksStart) landing = distance / old.worksStart * worksStart;
       else landing = worksStart + distance - old.worksStart;
       if (Math.abs(landing - distance) > 1) jump(landing);
     }
     lastDistance = landing;
-    activeStatement = Number(landing >= second - 1);
-    lastSmokeDistance = landing;
-    smokeAmount = 0;
+    if (!swap) activeStatement = Number(landing >= second - 1);
     lastTime = 0;
     schedule();
   }
 
+  function startAboutSwap(target, now) {
+    swap = { target, started: now, elapsed: 0 };
+    swapLanding = null;
+    blockedGesture = gesture;
+    jump(target ? geometry.first : geometry.second);
+    schedule();
+  }
+
+  function resolveDistance(requested, now) {
+    const { first, second } = geometry;
+    if (swap) {
+      const { target, started } = swap;
+      const elapsed = clamp((now - started) / swapDuration);
+      swap.elapsed = elapsed * swapDuration;
+      activeStatement = elapsed < .5 ? 1 - target : target;
+      if (elapsed < 1) {
+        const held = target ? first : second;
+        if (Math.abs(requested - held) > 1) jump(held);
+        return held;
+      }
+      swap = null;
+      blockedGesture = gesture;
+      const landing = target ? second : first;
+      swapLanding = target ? 'second' : 'first';
+      jump(landing);
+      return landing;
+    }
+
+    // Pin the end of a long gesture at the readable About states. The next
+    // deliberate wheel gesture or swipe can enter the timed interval.
+    const deliberateInput = touchActive || now - lastInputTime < 350;
+    if (swapLanding && deliberateInput && gesture === blockedGesture) {
+      const held = geometry[swapLanding];
+      if (Math.abs(requested - held) > 1) jump(held);
+      return held;
+    }
+    swapLanding = null;
+    if (deliberateInput && lastDistance < first - 2 && requested >= first) {
+      blockedGesture = gesture;
+      activeStatement = 0;
+      jump(first);
+      return first;
+    }
+    if (deliberateInput && lastDistance > second + 2 && requested <= second) {
+      blockedGesture = gesture;
+      activeStatement = 1;
+      jump(second);
+      return second;
+    }
+
+    const inSwapRange = requested > first + 2 && requested < second - 2;
+    const movedThroughSwap = deliberateInput &&
+      ((lastDistance <= first + 2 && requested > first + 2) ||
+       (lastDistance >= second - 2 && requested < second - 2));
+    if (inSwapRange || movedThroughSwap) {
+      if (gesture !== blockedGesture || !deliberateInput) startAboutSwap(activeStatement === 0 ? 1 : 0, now);
+      const held = activeStatement === 0 ? first : second;
+      if (Math.abs(requested - held) > 1) jump(held);
+      return held;
+    }
+    activeStatement = Number(requested >= second - 2);
+    return requested;
+  }
+
   function paintBackdrop(distance, elapsed) {
-    const { height, second, worksHandoff, darkenEnd, themeSamples } = geometry;
+    const { aboutEntryStart, second, worksHandoff, darkenEnd, themeSamples } = geometry;
     const target = progress(distance, worksHandoff, darkenEnd);
     if (paintedBlinds === null || distance <= second) {
       // An initial/restored position or the settled About must use its own backdrop.
@@ -202,7 +302,7 @@
       paintedBlinds = Math.abs(difference) <= step ? target : paintedBlinds + Math.sign(difference) * step;
     }
     const darken = paintedBlinds;
-    const light = darken < 1 ? smooth(progress(distance, 0, height * .43)) : 0;
+    const light = darken < 1 ? smooth(progress(distance, 0, aboutEntryStart)) : 0;
     const edges = [];
     if (darken > 0 && darken < 1) {
       const maxDelay = .48;
@@ -239,7 +339,7 @@
   }
 
   function paint(distance) {
-    const { width, height, heroExitEnd, aboutEntryStart, first, aboutExitStart, aboutExitEnd, perspective } = geometry;
+    const { width, height, heroExitEnd, aboutEntryStart, first, aboutExitStart, aboutExitEnd } = geometry;
     const departure = smooth(progress(distance, 0, heroExitEnd));
     const bend = Math.sin(Math.PI * departure) ** .85;
     const phone = width < 600;
@@ -250,13 +350,10 @@
 
     plane.setAttribute('aria-hidden', String(heroHidden));
     plane.classList.toggle('is-moving', departure > 0 && !heroHidden);
-    const transform = departure ? 'translate3d(' +
+    plane.style.setProperty('--redesign-hero-transform', departure ? 'translate3d(' +
       (-width * 1.2 * departure) + 'px,' + (-height * .38 * departure) +
-      'px,0) rotateY(' + (62 * departure) + 'deg) rotateX(' + (-13 * bend) + 'deg) rotateZ(' + (-13 * departure) + 'deg) scale(' + scale + ')' : 'none';
-    const trim = phone ? height * .086 * departure : 0;
-    plane.style.setProperty('--redesign-hero-transform', transform);
-    plane.style.setProperty('--redesign-hero-trim', trim + 'px');
-    window.HeroFlightMask?.update({ width, height, transform, bend, trim, departure, perspective });
+      'px,0) rotateY(' + (62 * departure) + 'deg) rotateX(' + (-13 * bend) + 'deg) rotateZ(' + (-13 * departure) + 'deg) scale(' + scale + ')' : 'none');
+    plane.style.setProperty('--redesign-hero-trim', phone ? (height * .086 * departure) + 'px' : '0px');
     window.HeroPlaneBend?.set(scene, heroHidden ? 0 : bend);
     window.HeroDepthEffect?.setScrollGate(1 - smooth(progress(distance, 0, height * .27)));
     window.HeroWelcomeStack?.setVisible(!hideIntro);
@@ -265,18 +362,17 @@
     const remaining = 1 - arrival;
     const copyExit = smooth(progress(distance, aboutExitStart, aboutExitEnd));
     const aboutVisible = arrival > 0 && copyExit < 1;
-    const aboutX = width * .68 * remaining;
+    const aboutX = width * 1.06 * remaining;
     const aboutY = height * .29 * remaining;
-    const aboutScale = 1 - .6 * remaining - .75 * copyExit;
+    const aboutScale = 1 - .5 * remaining - .75 * copyExit;
     about.style.setProperty('--redesign-about-transform',
-      'translate3d(' + aboutX + 'px,' + aboutY + 'px,0) rotateY(' + (-65 * remaining) +
-      'deg) rotateX(' + (22 * remaining) + 'deg) rotateZ(' + (10 * remaining) +
+      'translate3d(' + aboutX + 'px,' + aboutY + 'px,0) rotateY(' + (-53 * remaining) +
+      'deg) rotateX(' + (17 * remaining) + 'deg) rotateZ(' + (8 * remaining) +
       'deg) scale(' + aboutScale + ')');
     about.style.setProperty('--redesign-about-alpha', String(1 - copyExit ** 1.35));
     about.toggleAttribute('data-about-exiting', copyExit > 0);
     about.setAttribute('aria-hidden', String(!aboutVisible));
-    about.toggleAttribute('data-about-entry-smoke', arrival > 0 && arrival < 1);
-    paintAboutStatements(distance);
+    paintAboutStatements(width);
     const logoProgress = smooth(progress(distance, height * .095, height * .49));
     logo.style.opacity = String(logoProgress);
     logo.style.transform = 'translate3d(0,' + ((1 - logoProgress) * 32) + 'px,0)';
@@ -284,7 +380,7 @@
     if (hero.dataset.aboutActive !== aboutActive) hero.dataset.aboutActive = aboutActive;
     cursor?.classList.toggle('is-past-hero', hideIntro);
     hero.dataset.scrollProgress = progress(distance, 0, heroExitEnd).toFixed(4);
-    hero.dataset.aboutStage = about.hasAttribute('data-about-swapping') ? 'swapping' : activeStatement ? 'second' : arrival === 1 ? 'first' : 'entering';
+    hero.dataset.aboutStage = swap ? 'swapping' : activeStatement ? 'second' : arrival === 1 ? 'first' : 'entering';
   }
 
   function render(now) {
@@ -296,10 +392,8 @@
     const { height, worksStart, servicesStart } = geometry;
     window.ChapterAssets?.update({ distance: requested, worksStart, servicesStart, height, reducedMotion: staticLayout });
     if (staticLayout) {
-      smokeAmount = 0;
-      lastSmokeDistance = null;
-      window.AboutSmoke?.set({ amount: 0, phase: 0, width: geometry.width });
-      window.HeroFlightMask?.reset();
+      swap = null;
+      swapLanding = null;
       paintedBlinds = null;
       lastTime = 0;
       hero.dataset.scrollProgress = '0';
@@ -311,8 +405,6 @@
       about.style.removeProperty('--redesign-about-alpha');
       about.removeAttribute('data-about-swapping');
       about.removeAttribute('data-about-exiting');
-      about.removeAttribute('data-about-entry-smoke');
-      delete about.dataset.swapProgress;
       logo.style.removeProperty('opacity');
       logo.style.removeProperty('transform');
       backdrop?.style.removeProperty('--redesign-light');
@@ -328,31 +420,24 @@
       return;
     }
 
+    const resolved = resolveDistance(requested, now);
     // Lenis already smooths wheel deltas. A short, local interpolation keeps
     // native touch and keyboard scrolling smooth without a competing wheel RAF.
     const elapsed = lastTime ? Math.max(0, now - lastTime) : 16;
     lastTime = now;
     const native = !window.SiteSmoothScroll?.usesSmoothedScroll();
-    const difference = requested - lastDistance;
-    const interpolated = native && Math.abs(difference) > .5
+    const easeNative = native && !swap && resolved !== geometry.first && resolved !== geometry.second;
+    const difference = resolved - lastDistance;
+    const distance = easeNative && Math.abs(difference) > .5
       ? lastDistance + difference * (1 - Math.exp(-Math.max(1, Math.min(45, elapsed)) / 48))
-      : requested;
-    const distance = Math.abs(interpolated - requested) <= .5 ? requested : interpolated;
+      : resolved;
     lastDistance = distance;
     paint(distance);
-    const smokeDistance = lastSmokeDistance === null ? distance : lastSmokeDistance;
-    const smokeTravel = Math.abs(distance - smokeDistance);
-    const smokeTarget = distance >= geometry.aboutEntryStart && distance <= geometry.second && smokeTravel > .05
-      ? Math.max(.25, clamp(smokeTravel / height * 36)) : 0;
-    smokeAmount = smokeTarget > smokeAmount ? smokeTarget : smokeAmount * Math.exp(-elapsed / 110);
-    lastSmokeDistance = distance;
-    if (smokeAmount < .005) smokeAmount = 0;
-    window.AboutSmoke?.set({ amount: smokeAmount, phase: progress(distance, geometry.aboutEntryStart, geometry.second), width: geometry.width });
     const blindsMoving = paintBackdrop(distance, elapsed);
     const entryProgress = progress(distance, geometry.second, worksStart);
     const services = window.ServicesScrollChapter?.update(distance - servicesStart, { now });
     window.WorksScrollChapter?.update(distance - worksStart, { entryProgress, titleReady: distance >= geometry.worksHandoff, now });
-    if (smokeAmount || blindsMoving || Math.abs(distance - requested) > .5 || services?.footerAnimating ||
+    if (swap || blindsMoving || Math.abs(distance - resolved) > .5 || services?.footerAnimating ||
       window.WorksGallery?.isAnimating?.() || window.SiteSmoothScroll?.isAnimating()) schedule();
     else lastTime = 0;
   }
@@ -361,10 +446,51 @@
     if (!frame) frame = requestAnimationFrame(render);
   }
 
+  function onWheel(event) {
+    if (!geometry || reduced.matches || event.defaultPrevented || window.SitePreloader?.isBlocking?.() ||
+      event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || Math.abs(event.deltaX) > Math.abs(event.deltaY) ||
+      !event.deltaY || event.target?.closest?.('[data-lenis-prevent], textarea, [contenteditable="true"]')) return;
+    const now = performance.now();
+    const intent = window.SiteWheelIntent.sample(event, now, geometry.height);
+    if (!intent) return;
+    const { direction } = intent;
+    if (intent.id !== wheelIntent) {
+      wheelIntent = intent.id;
+      gesture++;
+    }
+    lastInputTime = now;
+    const current = window.scrollY - storyTop;
+    const forward = direction > 0 && Math.abs(current - geometry.first) <= 2;
+    const backward = direction < 0 && Math.abs(current - geometry.second) <= 2;
+    const carriedMomentum = swapLanding && gesture === blockedGesture && Math.abs(current - geometry[swapLanding]) <= 2;
+    if (!swap && !forward && !backward && !carriedMomentum) return;
+    if (event.cancelable) event.preventDefault();
+    window.SiteSmoothScroll?.cancel();
+    if (!swap && (forward || backward) && gesture !== blockedGesture) startAboutSwap(forward ? 1 : 0, now);
+  }
+
   // The preloader and the existing Lenis adapter use this readiness marker.
   window.HeroScrollEffect = Object.freeze({ mode: 'redesign' });
   hero.addEventListener('hero:layout', () => measure());
   window.addEventListener('scroll', schedule, { passive: true });
+  window.addEventListener('wheel', onWheel, { capture: true, passive: false });
+  window.addEventListener('keydown', event => {
+    if (event.defaultPrevented || !scrollKeys.has(event.key) ||
+      event.target?.closest?.('button, input, textarea, select, [contenteditable="true"]')) return;
+    if (!event.repeat) gesture++;
+    lastInputTime = performance.now();
+  });
+  window.addEventListener('touchstart', () => {
+    gesture++;
+    touchActive = true;
+    lastInputTime = performance.now();
+  }, { passive: true });
+  for (const type of ['touchend', 'touchcancel']) {
+    window.addEventListener(type, () => {
+      touchActive = false;
+      lastInputTime = performance.now();
+    }, { passive: true });
+  }
   window.addEventListener('pageshow', () => {
     paintedBlinds = null;
     measure(false);
