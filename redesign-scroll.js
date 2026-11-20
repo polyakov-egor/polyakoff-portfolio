@@ -9,30 +9,17 @@
   const scene = plane.querySelector('.hero__scene');
   const about = journey.querySelector('.redesign-about');
   const statements = [...about.querySelectorAll('[data-about-statement]')];
-  const statementRows = statements.map(prepareStatementRows);
+  const statementWords = statements.map(prepareStatementWords);
   const logo = hero.querySelector('[data-return-hero]');
   const navigationItems = hero.querySelectorAll(':scope > .hero__footer :is(.glass-button, .music-control, .language-control)');
   const worksTitle = document.querySelector('.works__title');
   const inkTargets = [logo, ...navigationItems, worksTitle].filter(Boolean);
   const cursor = document.querySelector('.custom-cursor');
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const referenceFrame = 1000 / 30;
-  const rowStagger = 2 * referenceFrame;
+  const wordDuration = 420;
+  const wordStagger = 90;
   const blindsCatchUpMs = 650;
   const bandCount = 5;
-  // Horizontal travel and apparent width, sampled separately from 053.mp4.
-  // The centers are clamped to their resting positions at each end.
-  const outgoingPoses = [
-    [0, 1], [.052, .998], [.147, .988], [.261, .955], [.398, .895],
-    [.536, .81], [.654, .705], [.758, .59], [.834, .483], [.9, .373],
-    [.948, .255], [.986, .137], [1, .025], [1, 0],
-  ];
-  const incomingPoses = [
-    [0, 0], [0, .008], [0, .03], [.014, .134], [.047, .273],
-    [.108, .411], [.184, .541], [.278, .667], [.373, .753], [.476, .84],
-    [.594, .909], [.722, .957], [.84, .987], [.939, 1], [1, 1],
-  ];
-  const rowDuration = (incomingPoses.length - 1) * referenceFrame;
   const scrollKeys = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', ' ']);
   const clamp = value => Math.min(1, Math.max(0, value));
   const smooth = value => {
@@ -48,7 +35,7 @@
   let lastTime = 0;
   let paintedBlinds = null;
   let activeStatement = 0;
-  let swapDuration = rowDuration;
+  let swapDuration = wordDuration;
   let swap = null;
   let swapLanding = null;
   let gesture = 0;
@@ -57,9 +44,8 @@
   let wheelIntent = 0;
   let touchActive = false;
 
-  // Keep the original text and its responsive line breaks as the reading copy.
-  // Measure only on layout, then rotate one paint-only layer per visual row.
-  function prepareStatementRows(statement) {
+  // Preserve the source text, spaces and responsive breaks while revealing words.
+  function prepareStatementWords(statement) {
     const reading = document.createElement('span');
     reading.className = 'redesign-about__reading';
     reading.append(...statement.childNodes);
@@ -73,88 +59,39 @@
       for (const token of text.data.match(/\s+|\S+/g)) {
         if (!token.trim()) { fragment.append(token); continue; }
         const word = document.createElement('span');
+        word.className = 'redesign-about__word';
         word.textContent = token;
         fragment.append(word);
         words.push(word);
       }
       text.replaceWith(fragment);
     }
-    const layer = document.createElement('span');
-    layer.className = 'redesign-about__rows';
-    layer.setAttribute('aria-hidden', 'true');
-    statement.append(reading, layer);
-    return { statement, words, layer, lines: [], width: 0 };
+    statement.append(reading);
+    return words;
   }
 
-  function measureStatementRows() {
-    for (const group of statementRows) {
-      const { statement, words, layer, lines } = group;
-      group.width = statement.offsetWidth;
-      const rows = new Map();
-      for (const word of words) {
-        const top = word.offsetTop;
-        const left = word.offsetLeft;
-        if (!rows.has(top)) rows.set(top, { words: [], left, right: left });
-        const row = rows.get(top);
-        row.words.push(word.textContent);
-        row.right = left + word.offsetWidth;
-      }
-      const measured = [...rows.values()];
-      const labels = measured.map(row => row.words.join(' '));
-      const sameLines = lines.length === labels.length &&
-        lines.every(({ element }, index) => element.textContent === labels[index]);
-      if (!sameLines) {
-        lines.length = 0;
-        for (const text of labels) {
-          const element = document.createElement('span');
-          element.className = 'redesign-about__row';
-          element.textContent = text;
-          lines.push({ element, halfWidth: 1 });
-        }
-        layer.replaceChildren(...lines.map(({ element }) => element));
-      }
-      lines.forEach((line, index) => {
-        line.halfWidth = Math.max(1, (measured[index].right - measured[index].left) / 2);
-        line.element.style.transformOrigin = '50% ' + (lines.length / 2 - index) * 100 + '%';
-      });
+  function resetStatementWords() {
+    for (const words of statementWords) for (const word of words) {
+      word.style.removeProperty('transform');
+      word.style.removeProperty('visibility');
     }
-    const longestStatement = Math.max(...statementRows.map(group => group.lines.length));
-    swapDuration = rowDuration + rowStagger * Math.max(0, longestStatement - 1);
   }
 
-  function paintAboutStatements(width) {
+  function paintAboutStatements() {
     about.toggleAttribute('data-about-swapping', Boolean(swap));
+    const visibleStatement = swap ? swap.target : activeStatement;
     for (const [index, statement] of statements.entries()) {
-      const hidden = String(activeStatement !== index);
+      const hidden = String(visibleStatement !== index);
       if (statement.getAttribute('aria-hidden') !== hidden) statement.setAttribute('aria-hidden', hidden);
     }
-    if (!swap) return;
+    if (!swap) { resetStatementWords(); return; }
 
-    const direction = swap.target ? 1 : -1;
-    for (const [index, { width: statementWidth, lines }] of statementRows.entries()) {
-      const incoming = index === swap.target;
-      const side = incoming ? direction : -direction;
-      const poses = incoming ? incomingPoses : outgoingPoses;
-      const travel = Math.max(width * .33, statementWidth * .56);
-      for (const [row, { element, halfWidth }] of lines.entries()) {
-        const frame = Math.min(poses.length - 1, Math.max(0, (swap.elapsed - row * rowStagger) / referenceFrame));
-        const lower = Math.floor(frame);
-        const [startX, startWidth] = poses[lower];
-        const [endX, endWidth] = poses[Math.min(lower + 1, poses.length - 1)];
-        const blend = frame - lower;
-        const fraction = startX + (endX - startX) * blend;
-        const apparentWidth = startWidth + (endWidth - startWidth) * blend;
-        const x = side * travel * (incoming ? 1 - fraction : fraction);
-
-        // Project the row like a turned plane. Correct its projected center
-        // so perspective cannot create a small move in the opposite direction.
-        const tilt = side * .13 * Math.sqrt(1 - apparentWidth ** 2);
-        const scaleX = Math.max(.001, apparentWidth * (1 - tilt ** 2));
-        const centeredX = x + apparentWidth * halfWidth * tilt;
-        element.style.transform = 'translateX(' + centeredX + 'px) matrix3d(' +
-          scaleX + ',0,0,' + (tilt / halfWidth) + ',0,1,0,0,0,0,1,0,0,0,0,1)';
-        element.style.opacity = smooth(progress(apparentWidth, 0, .025)).toFixed(4);
-      }
+    // The previous phrase cuts immediately. Whole words arrive in source order.
+    for (const [index, word] of statementWords[swap.target].entries()) {
+      const elapsed = swap.elapsed - index * wordStagger;
+      const remaining = (1 - clamp(elapsed / wordDuration)) ** 3;
+      word.style.visibility = elapsed < 0 ? 'hidden' : 'visible';
+      word.style.transform = 'translateY(' + (.18 * remaining) + 'em) rotate(' + (10 * remaining) + 'deg)';
     }
   }
 
@@ -175,7 +112,6 @@
     document.documentElement.classList.toggle('has-scroll-story', enabled);
     if (enabled && about.parentNode !== hero) hero.insertBefore(about, logo);
     if (!enabled && about.parentNode !== journey) hero.after(about);
-    if (enabled) measureStatementRows();
 
     const first = height * 2.04;
     const heroExitEnd = first * .84;
@@ -226,6 +162,8 @@
   }
 
   function startAboutSwap(target, now) {
+    swapDuration = wordDuration + wordStagger * Math.max(0, statementWords[target].length - 1);
+    resetStatementWords();
     swap = { target, started: now, elapsed: 0 };
     swapLanding = null;
     blockedGesture = gesture;
@@ -362,7 +300,7 @@
     const remaining = 1 - arrival;
     const copyExit = smooth(progress(distance, aboutExitStart, aboutExitEnd));
     const aboutVisible = arrival > 0 && copyExit < 1;
-    const aboutX = width * 1.06 * remaining;
+    const aboutX = width * .84 * remaining;
     const aboutY = height * .29 * remaining;
     const aboutScale = 1 - .5 * remaining - .75 * copyExit;
     about.style.setProperty('--redesign-about-transform',
@@ -372,7 +310,7 @@
     about.style.setProperty('--redesign-about-alpha', String(1 - copyExit ** 1.35));
     about.toggleAttribute('data-about-exiting', copyExit > 0);
     about.setAttribute('aria-hidden', String(!aboutVisible));
-    paintAboutStatements(width);
+    paintAboutStatements();
     const logoProgress = smooth(progress(distance, height * .095, height * .49));
     logo.style.opacity = String(logoProgress);
     logo.style.transform = 'translate3d(0,' + ((1 - logoProgress) * 32) + 'px,0)';
@@ -404,6 +342,7 @@
       about.style.removeProperty('--redesign-about-transform');
       about.style.removeProperty('--redesign-about-alpha');
       about.removeAttribute('data-about-swapping');
+      resetStatementWords();
       about.removeAttribute('data-about-exiting');
       logo.style.removeProperty('opacity');
       logo.style.removeProperty('transform');
