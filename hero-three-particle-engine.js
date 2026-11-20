@@ -6,27 +6,28 @@ const simulationShader = `
   uniform vec2 uImageSize;
   uniform vec2 uCanvasSize;
   uniform vec2 uPointer;
+  uniform vec2 uPointerStart;
   uniform vec2 uPointerVelocity;
   uniform float uCursorRadius;
   uniform float uCursorStrength;
   uniform float uDt;
-  uniform float uFrame;
+  uniform float uLifePhase;
   uniform float uTime;
   uniform float uNoiseScale;
   uniform float uNoiseStrength;
   uniform float uDamping;
   uniform float uLifespan;
-  uniform float uIntensity;
 
-  // The two waves are derivatives of a potential, so the force circulates
-  // through the portrait instead of vibrating independently at each point.
+  // Overlapping currents bend around one another. The smaller current keeps
+  // each group of dots from moving like a rigid strip of the photo.
   vec2 flow(vec2 p, float time, float seed) {
-    float a = p.x + p.y * .37 + time;
-    float b = p.y * .83 - p.x * .41 - time * .71;
-    float c = p.x * 1.63 - p.y * 1.34 + time * .41 + seed * 1.6;
+    float a = p.x + p.y * .37 + time + sin(p.y * .48 + time * .34) * .49;
+    float b = p.y * .83 - p.x * .41 - time * .71 + sin(p.x * .7 - time * .25) * .31;
+    float c = p.x * 1.63 - p.y * 1.34 + time * .41 + seed * 1.15;
     vec2 curl = vec2(.37, -1.) * cos(a) * sin(b)
       + vec2(.83, .41) * sin(a) * cos(b);
-    return curl + vec2(-.49, -.60) * cos(c);
+    return curl + vec2(-.41, -.50) * cos(c)
+      + vec2(.20, -.14) * sin(p.x * 2.9 + p.y * 3.1 - time * 1.13);
   }
 
   void main() {
@@ -35,25 +36,43 @@ const simulationShader = `
     vec4 state = texture2D(tState, uv);
     vec2 position = (state.xy - .5) * uImageSize;
     vec2 home = (anchor.xy - .5) * uImageSize;
-    float dust = smoothstep(.55, .98, anchor.z);
-    float age = mod(uFrame + anchor.w * uLifespan, uLifespan);
+    float dust = smoothstep(.49, .99, anchor.z);
+    float life = fract(uLifePhase + anchor.w);
+    vec2 homeDirection = home - position;
+    float distanceFromHome = length(homeDirection);
+    float drift = fract(anchor.z * 53.87 + anchor.w * 27.43);
 
-    if (age < uDt || length(home - position) > max(200., uCanvasSize.x * .36)) {
+    if (life < uDt / uLifespan || distanceFromHome > max(400., uCanvasSize.x * .82)) {
       gl_FragColor = vec4(anchor.xy, 0., 0.);
       return;
     }
 
-    float curlScale = mix(1.75, 5.7, dust) * uNoiseStrength * uIntensity;
+    float turbulence = smoothstep(.09, .28, uNoiseStrength);
+    float retention = smoothstep(.865, .98, uDamping);
+    float scaleSpan = clamp(pow(.003 / uNoiseScale, .22), .60, 1.25);
+    float curlScale = mix(1.3, 4.2, dust) * uNoiseStrength * scaleSpan
+      * mix(1., 1.77, turbulence) * mix(.78, 1.48, retention);
     vec2 force = flow(position * uNoiseScale, uTime, anchor.z) * curlScale;
-    force += (home - position) * mix(.0084, .00255, dust);
+    float tether = mix(.0102, .0038, dust) * mix(1., .74, turbulence) * mix(1., .54, retention);
+    float longTrail = smoothstep(40., 130., distanceFromHome) * smoothstep(.63, .98, drift);
+    tether *= mix(1., .40, longTrail);
+    // Keep large trails in view without abruptly cutting a stroke short.
+    float outerReturn = .010 * smoothstep(uCanvasSize.x * .22, uCanvasSize.x * .53, distanceFromHome);
+    force += homeDirection * (tether + outerReturn);
 
-    vec2 fromPointer = position - uPointer;
-    float cursorInfluence = 1. - smoothstep(0., uCursorRadius, length(fromPointer));
-    // Velocity is supplied in CSS pixels/second and eased by the controller.
-    // Momentum leaves a short trail because the particles keep their own speed.
-    vec2 sideways = vec2(-uPointerVelocity.y, uPointerVelocity.x);
-    force += (uPointerVelocity + sideways * (anchor.z - .5))
-      * (.0105 * uCursorStrength * cursorInfluence * uIntensity);
+    float pointerSpeed = length(uPointerVelocity);
+    if (pointerSpeed > 1. && uCursorStrength > 0.) {
+      vec2 stroke = uPointer - uPointerStart;
+      float along = clamp(dot(position - uPointerStart, stroke) / max(dot(stroke, stroke), 1.), 0., 1.);
+      vec2 fromStroke = position - mix(uPointerStart, uPointer, along);
+      float influence = 1. - smoothstep(uCursorRadius * .15, uCursorRadius, length(fromStroke));
+      vec2 sideways = vec2(-uPointerVelocity.y, uPointerVelocity.x) / pointerSpeed;
+      float side = clamp(dot(fromStroke, sideways) / uCursorRadius, -1., 1.);
+      vec2 wake = uPointerVelocity + sideways * pointerSpeed * (side * .24 + (anchor.w - .5) * .48);
+      // Some specks slip past the stroke while others travel with it.
+      float coupling = mix(.26, 1.12, drift * drift);
+      force += wake * (.020 * uCursorStrength * influence * coupling);
+    }
 
     vec2 velocity = (state.zw + force * uDt) * pow(uDamping, uDt);
     gl_FragColor = vec4(state.xy + velocity * (uDt / uImageSize), velocity);
@@ -69,7 +88,7 @@ const pointVertex = `
   uniform vec2 uCanvasSize;
   uniform float uPointSize;
   uniform float uMaxPointSize;
-  uniform float uFrame;
+  uniform float uLifePhase;
   uniform float uLifespan;
   varying vec4 vParticle;
 
@@ -82,8 +101,10 @@ const pointVertex = `
     float seed = fract(anchor.z * 134.126);
     float diameter = mix(.29, 1.08, pow(seed, .83));
     float travel = length((state.xy - anchor.xy) * uImageSize);
-    float stretchFade = 1. - .34 * smoothstep(38., 180., travel);
-    float age = mod(uFrame + anchor.w * uLifespan, uLifespan);
+    float stretchFade = 1. - .55 * smoothstep(32., 230., travel);
+    vec2 edgeSpace = (.5 - abs(point)) * uCanvasSize;
+    float edgeFade = mix(1., smoothstep(1., 45., min(edgeSpace.x, edgeSpace.y)), smoothstep(20., 75., travel));
+    float age = fract(uLifePhase + anchor.w) * uLifespan;
     float fadeFrames = min(36., uLifespan * .22);
     float lifeFade = smoothstep(0., fadeFrames * .3, age) * (1. - smoothstep(uLifespan - fadeFrames, uLifespan, age));
     vec4 texel = texture2D(uPortrait, anchor.xy);
@@ -92,11 +113,12 @@ const pointVertex = `
     bool beyondImage = any(lessThan(state.xy, vec2(0.))) || any(greaterThan(state.xy, vec2(1.)));
     float localAlpha = beyondImage ? 0. : texture2D(uPortrait, state.xy).a;
     // Lift visible highlights without thickening escaped near-black specks over the surname.
-    float opacity = mix(.31 + .19 * light, .96, fract(anchor.w * 97.16));
+    float opacity = mix(.23 + .16 * light, .91, fract(anchor.w * 97.16));
     float detachFade = mix(mix(.17, 1., light), 1., localAlpha);
     float pointSize = uPointSize * diameter;
     float coverage = min(1., pointSize * pointSize);
-    vParticle = vec4(texel.rgb * (.89 + .42 * light), texel.a * opacity * lifeFade * stretchFade * detachFade * coverage);
+    float alpha = texel.a * opacity * lifeFade * stretchFade * edgeFade * detachFade * coverage;
+    vParticle = vec4(texel.rgb * (.89 + .42 * light), alpha);
     gl_PointSize = clamp(pointSize, 1., uMaxPointSize);
   }
 `;
@@ -166,8 +188,8 @@ function seedTextures(anchors, initial, source, aspectWidth, aspectHeight) {
     const edge = Math.min(1, Math.hypot(edgeX, edgeY));
     const spread = Math.min(.999, random() + edge * .14);
     const angle = random() * Math.PI * 2;
-    const distance = Math.pow(random(), 2.2) * (spread > .8 ? aspectWidth * .115 : aspectWidth * .038);
-    const outwards = random() * Math.min(18, aspectWidth * .017);
+    const distance = Math.pow(random(), 2.4) * (spread > .8 ? aspectWidth * .073 : aspectWidth * .027);
+    const outwards = random() * Math.min(12, aspectWidth * .011);
     const offsetX = Math.cos(angle) * distance + edgeX * outwards;
     const offsetY = Math.sin(angle) * distance + edgeY * outwards;
     anchors[i] = x;
@@ -207,6 +229,7 @@ export function createParticleRenderer({ canvas, image, width, height, settings 
   const imageSize = new THREE.Vector2();
   const canvasSize = new THREE.Vector2();
   const pointerPosition = new THREE.Vector2();
+  const pointerStart = new THREE.Vector2();
   const pointerVelocity = new THREE.Vector2();
   const scene = new THREE.Scene();
   const camera = new THREE.Camera();
@@ -214,7 +237,7 @@ export function createParticleRenderer({ canvas, image, width, height, settings 
   let compute, anchors, portrait, pointMaterial, simulation, uniforms;
   let disposed = false;
   let pixelRatio = 1;
-  let frame = 0;
+  let lifePhase = 0;
   let time = 0;
 
   function dispose() {
@@ -247,7 +270,7 @@ export function createParticleRenderer({ canvas, image, width, height, settings 
     uniforms.uState.value = compute.getCurrentRenderTarget(simulation).texture;
     uniforms.uPointSize.value = pointSize * pixelRatio;
     uniforms.uOpacity.value = opacity;
-    uniforms.uFrame.value = frame;
+    uniforms.uLifePhase.value = lifePhase;
     uniforms.uLifespan.value = simulation.material.uniforms.uLifespan.value;
     renderer.render(scene, camera);
   }
@@ -255,10 +278,15 @@ export function createParticleRenderer({ canvas, image, width, height, settings 
   function render(dtSeconds, pointer) {
     const dt = bounded(dtSeconds * 60, 1, 0, 2.5);
     const speed = bounded(settings.speed, 1.5, 0, 5);
-    frame += dt;
-    time += dt / 60 * speed * .59;
+    const lifespan = bounded(settings.lifespan, 960, 10, 3600);
+    lifePhase = (lifePhase + dt / lifespan) % 1;
+    time += dt / 60 * speed * .69;
     if (pointer?.active) {
       pointerPosition.set(pointer.x - canvasSize.x / 2, pointer.y - canvasSize.y / 2);
+      pointerStart.set(
+        bounded(pointer.fromX, pointer.x, pointer.x - 190, pointer.x + 190) - canvasSize.x / 2,
+        bounded(pointer.fromY, pointer.y, pointer.y - 190, pointer.y + 190) - canvasSize.y / 2,
+      );
       pointerVelocity.set(bounded(pointer.vx, 0, -3200, 3200), bounded(pointer.vy, 0, -3200, 3200));
     } else {
       pointerVelocity.set(0, 0);
@@ -266,14 +294,13 @@ export function createParticleRenderer({ canvas, image, width, height, settings 
     const values = simulation.material.uniforms;
     values.uDt.value = dt;
     values.uTime.value = time;
-    values.uFrame.value = frame;
-    values.uLifespan.value = bounded(settings.lifespan, 960, 10, 3600);
+    values.uLifePhase.value = lifePhase;
+    values.uLifespan.value = lifespan;
     values.uNoiseScale.value = bounded(settings.noiseScale, .005, .00005, .03);
     values.uNoiseStrength.value = bounded(settings.noiseStrength, .10, 0, .5);
     values.uDamping.value = bounded(settings.damping, .873, .6, .999);
     values.uCursorRadius.value = bounded(settings.cursorRadius, 60, 1, 300);
     values.uCursorStrength.value = bounded(settings.cursorStrength, .36, 0, 2.5);
-    values.uIntensity.value = bounded(settings.intensity, 1, 0, 1);
     compute.compute();
     draw();
   }
@@ -297,9 +324,10 @@ export function createParticleRenderer({ canvas, image, width, height, settings 
     simulationUniforms.uImageSize = { value: imageSize };
     simulationUniforms.uCanvasSize = { value: canvasSize };
     simulationUniforms.uPointer = { value: pointerPosition };
+    simulationUniforms.uPointerStart = { value: pointerStart };
     simulationUniforms.uPointerVelocity = { value: pointerVelocity };
-    for (const name of ['uDt', 'uFrame', 'uTime', 'uLifespan', 'uNoiseScale', 'uNoiseStrength',
-      'uDamping', 'uCursorRadius', 'uCursorStrength', 'uIntensity']) simulationUniforms[name] = { value: 0 };
+    for (const name of ['uDt', 'uLifePhase', 'uTime', 'uLifespan', 'uNoiseScale', 'uNoiseStrength',
+      'uDamping', 'uCursorRadius', 'uCursorStrength']) simulationUniforms[name] = { value: 0 };
     const initError = compute.init();
     if (initError) throw new Error(initError);
 
@@ -323,7 +351,7 @@ export function createParticleRenderer({ canvas, image, width, height, settings 
       uPointSize: { value: 0 },
       uMaxPointSize: { value: gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE)[1] },
       uOpacity: { value: 0 },
-      uFrame: { value: 0 },
+      uLifePhase: { value: 0 },
       uLifespan: { value: 960 },
     };
     pointMaterial = new THREE.ShaderMaterial({

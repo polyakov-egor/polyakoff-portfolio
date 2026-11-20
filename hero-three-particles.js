@@ -27,7 +27,7 @@
   let atTop = (window.HeroDepthEffect?.getScrollGate?.() ?? 1) >= .9999;
   let entered = !window.SitePreloader?.isBlocking?.();
   let bounds = hero.heroLayout?.portrait;
-  const pointer = { x: 0, y: 0, vx: 0, vy: 0, time: 0, active: false };
+  const pointer = { x: 0, y: 0, fromX: 0, fromY: 0, vx: 0, vy: 0, time: 0, active: false };
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const getSettings = () => ({ ...settings });
   const inHero = () => entered && atTop && visible;
@@ -111,9 +111,6 @@
     if (!current || !canAnimate()) return;
     const dt = lastFrame ? clamp((now - lastFrame) / 1000, 0, .05) : 1 / 60;
     lastFrame = now;
-    const momentumFade = Math.exp(-dt * 8);
-    pointer.vx *= momentumFade;
-    pointer.vy *= momentumFade;
     try {
       current.renderer.render(dt, pointer);
       frames++;
@@ -121,6 +118,11 @@
       fallback(error, current.key);
       return;
     }
+    pointer.fromX = pointer.x;
+    pointer.fromY = pointer.y;
+    const momentumFade = Math.exp(-dt * 18);
+    pointer.vx *= momentumFade;
+    pointer.vy *= momentumFade;
     frame = requestAnimationFrame(animate);
   }
 
@@ -130,7 +132,7 @@
     showStatus('loading');
     let canvas, renderer;
     try {
-      engineModule ??= import('./hero-three-particle-engine.js?v=2');
+      engineModule ??= import('./hero-three-particle-engine.js?v=3');
       const [{ createParticleRenderer }, image] = await Promise.all([engineModule, loadPortrait(source)]);
       if (run !== generation) return;
       if (!canPresent()) {
@@ -247,11 +249,15 @@
     const x = event.clientX - rect.left - bounds.x;
     const y = event.clientY - rect.top - bounds.y;
     const elapsed = event.timeStamp - pointer.time;
-    if (pointer.active && elapsed < 180) {
+    if (pointer.active && elapsed < 230) {
       const dt = Math.max(8, elapsed) / 1000;
-      pointer.vx = .26 * pointer.vx + .74 * clamp((x - pointer.x) / dt, -3200, 3200);
-      pointer.vy = .26 * pointer.vy + .74 * clamp((y - pointer.y) / dt, -3200, 3200);
-    } else pointer.vx = pointer.vy = 0;
+      pointer.vx = .18 * pointer.vx + .82 * clamp((x - pointer.x) / dt, -3200, 3200);
+      pointer.vy = .18 * pointer.vy + .82 * clamp((y - pointer.y) / dt, -3200, 3200);
+    } else {
+      pointer.fromX = x;
+      pointer.fromY = y;
+      pointer.vx = pointer.vy = 0;
+    }
     Object.assign(pointer, { active: true, x, y, time: event.timeStamp });
   }
 
