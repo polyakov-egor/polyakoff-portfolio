@@ -37,12 +37,14 @@
   const texturePairs = new Map();
   // Scroll is a transient presentation state, independent of saved preferences.
   let scrollGate = 1;
+  let renderPaused = false;
   let breathing = false;
   const clamp = value => Math.max(-1, Math.min(1, value));
 
   function syncBreathing() {
     // Native scroll smoothing can settle within a fraction of the top pixel.
     const active = scrollGate >= .9999 && state.visible && !document.hidden && !reducedMotion.matches && settings.enabled;
+    window.HeroParticles?.setActive(scrollGate >= .9999 && state.visible && !document.hidden && !reducedMotion.matches && !window.SitePreloader?.isBlocking?.());
     if (active === breathing) return;
     breathing = active;
     if (active) hero.classList.add('has-portrait-breathing');
@@ -267,7 +269,7 @@
   }
 
   function resize() {
-    if (!state.ready || reducedMotion.matches || !settings.enabled || scrollGate <= 0) return;
+    if (renderPaused || !state.ready || reducedMotion.matches || !settings.enabled || scrollGate <= 0) return;
     const rect = canvas.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
     const maxSize = viewportLimit;
@@ -325,13 +327,13 @@
   }
 
   function schedule() {
-    if (!state.ready || !settings.enabled || scrollGate <= 0 || !state.visible || document.hidden || reducedMotion.matches || state.frame) return;
+    if (renderPaused || !state.ready || !settings.enabled || scrollGate <= 0 || !state.visible || document.hidden || reducedMotion.matches || state.frame) return;
     state.frame = requestAnimationFrame(render);
   }
 
   function render(now) {
     state.frame = 0;
-    if (!state.ready || !settings.enabled || scrollGate <= 0 || !state.visible || document.hidden || reducedMotion.matches) return;
+    if (renderPaused || !state.ready || !settings.enabled || scrollGate <= 0 || !state.visible || document.hidden || reducedMotion.matches) return;
     const delta = state.lastTime ? Math.min(64, now - state.lastTime) : 16.67;
     state.lastTime = now;
     const easing = 1 - Math.exp(-delta / settings.smoothingMs);
@@ -347,7 +349,7 @@
   }
 
   function paint(checkError = false) {
-    if (!state.ready || !settings.enabled || scrollGate <= 0 || !state.visible || document.hidden || reducedMotion.matches) return false;
+    if (renderPaused || !state.ready || !settings.enabled || scrollGate <= 0 || !state.visible || document.hidden || reducedMotion.matches) return false;
     const motionX = state.current[0] * scrollGate;
     const motionY = state.current[1] * scrollGate;
     try {
@@ -418,8 +420,25 @@
     return scrollGate;
   }
 
+  // A presented particle bitmap temporarily owns the portrait. Keep depth
+  // preferences and breathing intact, and resume this renderer on fallback.
+  function setRenderPaused(value) {
+    const next = Boolean(value);
+    if (next === renderPaused) return renderPaused;
+    renderPaused = next;
+    cancelAnimationFrame(state.frame);
+    state.frame = 0;
+    state.lastTime = 0;
+    if (!next) {
+      start();
+      if (state.ready) { resize(); schedule(); }
+    }
+    updateMotionButton();
+    return renderPaused;
+  }
+
   hero.addEventListener('pointermove', event => {
-    if (!settings.enabled || scrollGate <= 0 || !finePointer.matches || event.pointerType === 'touch' || event.target?.closest?.('[data-effect-controls]')) return;
+    if (renderPaused || !settings.enabled || scrollGate <= 0 || !finePointer.matches || event.pointerType === 'touch' || event.target?.closest?.('[data-effect-controls]')) return;
     const rect = hero.getBoundingClientRect();
     state.target[0] = clamp((event.clientX - rect.left) / rect.width * 2 - 1);
     state.target[1] = clamp((event.clientY - rect.top) / rect.height * 2 - 1);
@@ -432,7 +451,7 @@
   window.addEventListener('blur', reset);
 
   function onOrientation(event) {
-    if (!settings.enabled || scrollGate <= 0 || !Number.isFinite(event.beta) || !Number.isFinite(event.gamma) || !state.visible || document.hidden || reducedMotion.matches) return;
+    if (renderPaused || !settings.enabled || scrollGate <= 0 || !Number.isFinite(event.beta) || !Number.isFinite(event.gamma) || !state.visible || document.hidden || reducedMotion.matches) return;
     if (!state.baseline) state.baseline = { beta: event.beta, gamma: event.gamma };
     const difference = (angle, center) => ((angle - center + 540) % 360) - 180;
     const x = difference(event.gamma, state.baseline.gamma) / 10;
@@ -457,14 +476,14 @@
   }
 
   function updateMotionButton() {
-    const available = state.ready && settings.enabled && scrollGate > 0 && !reducedMotion.matches && coarsePointer.matches && window.isSecureContext && typeof DeviceOrientationEvent !== 'undefined';
+    const available = !renderPaused && state.ready && settings.enabled && scrollGate > 0 && !reducedMotion.matches && coarsePointer.matches && window.isSecureContext && typeof DeviceOrientationEvent !== 'undefined';
     const needsPermission = available && typeof DeviceOrientationEvent.requestPermission === 'function';
     motionButton.hidden = !needsPermission || state.sensor;
     if (available && !needsPermission) listenToSensor();
   }
 
   motionButton.addEventListener('click', async () => {
-    if (!settings.enabled || scrollGate <= 0 || !state.ready || reducedMotion.matches) return;
+    if (renderPaused || !settings.enabled || scrollGate <= 0 || !state.ready || reducedMotion.matches) return;
     try {
       // This call stays directly in the click handler: iOS requires activation.
       const permission = typeof DeviceOrientationEvent.requestPermission === 'function'
@@ -492,6 +511,7 @@
   }).observe(hero);
 
   async function start() {
+    if (renderPaused) return;
     const run = ++generation;
     if (reducedMotion.matches) return setFallback('reduced-motion');
     if (!settings.enabled) return setFallback('disabled');
@@ -521,6 +541,10 @@
   finePointer.addEventListener('change', reset);
   coarsePointer.addEventListener('change', updateMotionButton);
   smallPortrait.addEventListener('change', () => { start(); });
+  window.addEventListener('site:entered', syncBreathing);
+  window.addEventListener('hero-particles:state', event => {
+    setRenderPaused(Boolean(event.detail?.presented && !window.SitePreloader?.isBlocking?.()));
+  });
 
   function applyUniformSettings() {
     gl.uniform2f(uniforms.strength, renderSettings.horizontal * settings.strength, renderSettings.vertical * settings.strength);
@@ -548,6 +572,8 @@
     resetSettings: () => setSettings(publishedDefaults),
     getScrollGate: () => scrollGate,
     setScrollGate,
+    getRenderPaused: () => renderPaused,
+    setRenderPaused,
   });
   syncBreathing();
   start();

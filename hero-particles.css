@@ -1,0 +1,17 @@
+.scene-layer--particles {
+  z-index: 4;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hero.has-particle-effect .scene-layer--particles {
+  opacity: 1;
+}
+
+.hero.has-particle-effect :is(.scene-layer--portrait, .scene-layer--depth) {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-layer--particles { display: none; }
+}
