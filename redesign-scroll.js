@@ -16,8 +16,9 @@
   const inkTargets = [logo, ...navigationItems, worksTitle].filter(Boolean);
   const cursor = document.querySelector('.custom-cursor');
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const wordDuration = 420;
-  const wordStagger = 90;
+  const wordDuration = 280;
+  const wordStagger = 60;
+  const phraseFadeDuration = 160;
   const blindsCatchUpMs = 650;
   const bandCount = 5;
   const scrollKeys = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', ' ']);
@@ -83,10 +84,17 @@
     for (const [index, statement] of statements.entries()) {
       const hidden = String(visibleStatement !== index);
       if (statement.getAttribute('aria-hidden') !== hidden) statement.setAttribute('aria-hidden', hidden);
+      const outgoing = Boolean(swap && index !== swap.target);
+      statement.toggleAttribute('data-about-outgoing', outgoing);
+      if (outgoing) {
+        statement.style.opacity = String((1 - progress(swap.elapsed, 0, phraseFadeDuration)) ** 2);
+      } else {
+        statement.style.removeProperty('opacity');
+      }
     }
     if (!swap) { resetStatementWords(); return; }
 
-    // The previous phrase cuts immediately. Whole words arrive in source order.
+    // Whole words arrive while the previous phrase finishes its short fade.
     for (const [index, word] of statementWords[swap.target].entries()) {
       const elapsed = swap.elapsed - index * wordStagger;
       const remaining = (1 - clamp(elapsed / wordDuration)) ** 3;
@@ -345,6 +353,10 @@
       about.style.removeProperty('--redesign-about-alpha');
       about.removeAttribute('data-about-swapping');
       resetStatementWords();
+      for (const statement of statements) {
+        statement.removeAttribute('data-about-outgoing');
+        statement.style.removeProperty('opacity');
+      }
       about.removeAttribute('data-about-exiting');
       logo.style.removeProperty('opacity');
       logo.style.removeProperty('transform');

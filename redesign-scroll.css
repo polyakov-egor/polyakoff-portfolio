@@ -120,6 +120,7 @@
 .has-scroll-story .redesign-about__statements { gap: 0; }
 .has-scroll-story .redesign-about__statement { position: relative; grid-area: 1 / 1; align-self: center; }
 .has-scroll-story .redesign-about__statement[aria-hidden="true"] { visibility: hidden; }
+.has-scroll-story .redesign-about__statement[data-about-outgoing] { visibility: visible; }
 .redesign-about__word { display: inline-block; transform-origin: 0 0; }
 .has-scroll-story [data-about-swapping] .redesign-about__statement[aria-hidden="false"] .redesign-about__word { will-change: transform; }
 
