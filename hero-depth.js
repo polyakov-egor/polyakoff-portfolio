@@ -41,7 +41,8 @@
   const clamp = value => Math.max(-1, Math.min(1, value));
 
   function syncBreathing() {
-    const active = scrollGate === 1 && state.visible && !document.hidden && !reducedMotion.matches && settings.enabled;
+    // Native scroll smoothing can settle within a fraction of the top pixel.
+    const active = scrollGate >= .9999 && state.visible && !document.hidden && !reducedMotion.matches && settings.enabled;
     if (active === breathing) return;
     breathing = active;
     if (active) hero.classList.add('has-portrait-breathing');

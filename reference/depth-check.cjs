@@ -541,6 +541,12 @@ function assertCover(cover, width, height, label, color = 'portrait-2456.webp') 
   const scrollApi = scrolling.window.HeroDepthEffect;
   assert.equal(scrollApi.getScrollGate(), 1);
   assert(scrolling.heroClasses.has('has-portrait-breathing'), 'The full-size scrolling fixture starts with breathing enabled');
+  scrollApi.setScrollGate(.99);
+  assert(!scrolling.heroClasses.has('has-portrait-breathing'), 'A real departure pauses breathing');
+  scrollApi.setScrollGate(.999995);
+  assert(scrolling.heroClasses.has('has-portrait-breathing'), 'A subpixel remainder on returning to the top still resumes breathing');
+  scrollApi.setScrollGate(1);
+  scrolling.runFrames();
   const scrollResources = [scrolling.gl.calls.shaders.length, scrolling.gl.calls.uploads.length];
   const storageBeforeScroll = [...scrollStorage];
   let scrollSettingsEvents = 0;
